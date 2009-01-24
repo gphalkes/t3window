@@ -10,6 +10,10 @@
 //FIXME: do we want to make sure we don't end up outside the window when painting? That
 // would require nasty stuff like string widths, which require conversion :-(
 //FIXME: implement "hardware" scrolling for optimization
+/*FIXME main reasons to save the data printed to a window are:
+- easier to restrict printing to designated area
+- optimization when updates are needed
+*/
 
 struct Window {
 	int x, y;
