@@ -2,9 +2,8 @@
 #define WINDOW_H
 
 typedef struct Window Window;
-typedef void (*)(Window *, int y, int *x, int *width) WindowRepaintHandler;
 
-Window *win_new(int height, int width, int y, int x, int depth, WindowRepaintHandler handler);
+Window *win_new(int height, int width, int y, int x, int depth);
 void win_del(Window *win);
 
 void win_resize(Window *win, int height, int width);
