@@ -1,5 +1,16 @@
 #include "window.h"
 
+/* FIXME: do we really want the windows to have a backing store? This will mean
+   that we end up with approximately 3 copies of the screen contents. At least
+   two if we clear the copy of the main window each time instead of using a full
+   copy.
+   The other option is to have only a backing copy for the terminal, and
+   repaint handlers for the windows. If we want to make it really fancy we can
+   do both. But given that for the most part we have non-overlapping windows
+   and repaints are triggered by changes in the edit window, there is not really
+   any need to have a backing window. Note though, that when we paint something
+   in a (partially) obscured window we have to redraw the overlapping window
+   again. */
 //FIXME: do repainting per line
 //FIXME: hide cursor when repainting
 //FIXME: add routine to position the visible cursor
