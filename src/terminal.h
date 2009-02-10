@@ -1,6 +1,8 @@
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
+typedef enum { false, true } Bool;
+
 Bool init_terminal(void);
 void restore_terminal(void);
 int get_keychar(int msec);

@@ -1,3 +1,9 @@
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+#include <wchar.h>
+#include <ctype.h>
+
 #include "window.h"
 
 /* FIXME: do we really want the windows to have a backing store? This will mean
@@ -51,7 +57,7 @@ typedef struct {
 
 struct Window {
 	int x, y;
-	int paint_x, paint_y
+	int paint_x, paint_y;
 	int width, height;
 	int depth;
 	int attr;
@@ -69,7 +75,8 @@ Window *head, *tail;
 static void _win_del(Window *win);
 
 Window *win_new(int height, int width, int y, int x, int depth) {
-	Window *retval, *ptr, *last;
+	Window *retval, *ptr;
+	int i;
 
 	//FIXME: check parameter validity
 
@@ -126,6 +133,7 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 }
 
 static void _win_del(Window *win) {
+	int i;
 	if (win->lines != NULL) {
 		for (i = 0; i < win->height; i++)
 			free(win->lines[i].data);
@@ -148,6 +156,7 @@ void win_del(Window *win) {
 }
 
 Bool win_resize(Window *win, int height, int width) {
+	int i;
 	//FIXME validate parameters
 	if (height > win->height) {
 		void *result;
@@ -160,7 +169,7 @@ Bool win_resize(Window *win, int height, int width) {
 					free(win->lines[i].data);
 				return false;
 			}
-			win->lines[i].alloc = INITIAL_ALLOC;
+			win->lines[i].allocated = INITIAL_ALLOC;
 		}
 	} else if (height < win->height) {
 		for (i = height; i < win->height; i++)
@@ -185,8 +194,9 @@ Bool win_resize(Window *win, int height, int width) {
 		}
 	}
 
-	win->height = height
+	win->height = height;
 	win->width = width;
+	return true;
 }
 
 void win_move(Window *win, int y, int x) {
@@ -198,7 +208,7 @@ int win_get_width(Window *win) {
 	return win->width;
 }
 
-void win_get_height(Window *win) {
+int win_get_height(Window *win) {
 	return win->height;
 }
 
@@ -230,7 +240,16 @@ static void copy_mb(CharData *dest, const char *src, size_t n, CharData meta) {
 		*dest++ = (unsigned char) *src++;
 }
 
-static Bool _win_mbaddch(const char *str, size_t n, CharData meta) {
+static Bool ensureSpace(LineData *line, size_t n) {
+	if ((unsigned) line->allocated > line->length + n)
+		return true;
+	//FIXME realloc
+	return true;
+}
+
+static Bool _win_mbaddch(Window *win, const char *str, size_t n, CharData meta) {
+	int i, j;
+
 	if (win->paint_y >= win->height)
 		return true;
 	if (win->paint_x > win->width)
@@ -242,27 +261,45 @@ static Bool _win_mbaddch(const char *str, size_t n, CharData meta) {
 		Bool result = true;
 		char space = ' ';
 		while (win->paint_x < win->width && result)
-			result &= _win_mbaddch(&space, 1,  (meta & ATTR_MASK) | WIDTH_TO_META(1));
+			result &= _win_mbaddch(win, &space, 1,  (meta & ATTR_MASK) | WIDTH_TO_META(1));
 		return result;
 	}
 
 	if (GET_WIDTH(meta) == 0) {
+		int width;
 		/* Combining characters. */
 
 		/* Simply drop characters that don't belong to any other character. */
 		if (win->lines[win->paint_y].length == 0 ||
 				win->paint_x <= win->lines[win->paint_y].start ||
-				win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width)
+				win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width + 1)
 			return true;
 
 		if (!ensureSpace(win->lines + win->paint_y, n))
 			return false;
 
-		/* FIXME:
-		- find insertion point
-		- insert
-		*/
+		width = win->lines[win->paint_y].start;
 
+		/* Locate the first character that at least partially overlaps the position
+		   where this string is supposed to go. */
+		for (i = 0; i < win->lines[win->paint_y].length; i++) {
+			width += GET_WIDTH(win->lines[win->paint_y].data[i]);
+			if (GET_WIDTH(win->lines[win->paint_y].data[i]) >= win->paint_x)
+				break;
+		}
+
+		/* Check whether we are being asked to add a zero-width character in the middle
+		   of a double-width character. If so, ignore. */
+		if (width > win->paint_x)
+			return true;
+
+		/* Skip to the next non-zero-width character. */
+		if (i < win->lines[win->paint_y].length)
+			for (i++; i < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
+
+		memmove(win->lines[win->paint_y].data + i + n, win->lines[win->paint_y].data + i, sizeof(CharData) * (win->lines[win->paint_y].length - i));
+		copy_mb(win->lines[win->paint_y].data + i, str, n, meta);
+		win->lines[win->paint_y].length += n;
 	} else if (win->lines[win->paint_y].length == 0) {
 		/* Empty line. */
 		if (!ensureSpace(win->lines + win->paint_y, n))
@@ -273,7 +310,8 @@ static Bool _win_mbaddch(const char *str, size_t n, CharData meta) {
 		win->lines[win->paint_y].width = GET_WIDTH(meta);
 	} else if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < win->paint_x) {
 		/* Add characters after existing characters. */
-		diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
+		int diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
+
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
 			return false;
 		for (i = diff; i > 0; i--)
@@ -283,7 +321,8 @@ static Bool _win_mbaddch(const char *str, size_t n, CharData meta) {
 		win->lines[win->paint_y].width += GET_WIDTH(meta) + diff;
 	} else if (win->paint_x + GET_WIDTH(meta) <= win->lines[win->paint_y].start) {
 		/* Add characters before existing characters. */
-		diff = win->lines[win->paint_y].start - (win->paint_x + GET_WIDTH(meta));
+		int diff = win->lines[win->paint_y].start - (win->paint_x + GET_WIDTH(meta));
+
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
 			return false;
 		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(CharData) * win->lines[win->paint_y].length);
@@ -295,11 +334,12 @@ static Bool _win_mbaddch(const char *str, size_t n, CharData meta) {
 	} else {
 		/* Character (partly) overwrite existing chars. */
 		int width = win->lines[win->paint_y].start;
-		size_t start_replace = 0;
+		size_t start_replace = 0, start_space_meta, start_spaces, end_replace, end_space_meta, end_spaces;
+		int sdiff;
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
-		for (i = 0; i < win->lines[win->paint_x].length; i++) {
+		for (i = 0; i < win->lines[win->paint_y].length; i++) {
 			if (width + GET_WIDTH(win->lines[win->paint_y].data[i]) > win->paint_x)
 				break;
 			width += GET_WIDTH(win->lines[win->paint_y].data[i]);
@@ -345,7 +385,7 @@ static Bool _win_mbaddch(const char *str, size_t n, CharData meta) {
 		if (sdiff > 0 && !ensureSpace(win->lines + win->paint_y, sdiff))
 			return false;
 
-		memmove(win->lines[win->paint_y].data + j, win->lines[win->paint_y] + j + sdiff, sizeof(CharData) * (win->lines[win->paint_y].length - j));
+		memmove(win->lines[win->paint_y].data + j, win->lines[win->paint_y].data + j + sdiff, sizeof(CharData) * (win->lines[win->paint_y].length - j));
 		for (; start_spaces > 0; start_spaces--)
 			win->lines[win->paint_y].data[i++] = start_space_meta | ' ';
 		copy_mb(win->lines[win->paint_y].data + i, str, n, meta);
@@ -354,10 +394,12 @@ static Bool _win_mbaddch(const char *str, size_t n, CharData meta) {
 			win->lines[win->paint_y].data[i++] = end_space_meta | ' ';
 	}
 	win->paint_x += GET_WIDTH(meta);
+	return true;
 }
 
 int win_mbaddnstra(Window *win, const char *str, size_t n, int attr) {
-	size_t result, width;
+	size_t result;
+	int width;
 	mbstate_t mbstate;
 	wchar_t c[2];
 	char buf[MB_LEN_MAX + 1];
@@ -404,6 +446,11 @@ int win_mbaddnstra(Window *win, const char *str, size_t n, int attr) {
 int win_mbaddnstr(Window *win, const char *str, size_t n) { return win_mbaddnstra(win, str, n, win->attr); }
 int win_mbaddstra(Window *win, const char *str, int attr) { return win_mbaddnstra(win, str, strlen(str), attr); }
 int win_mbaddstr(Window *win, const char *str) { return win_mbaddnstra(win, str, strlen(str), win->attr); }
+
+static Bool _win_addnstra(Window *win, const char *str, size_t n, int attr) {
+	//FIXME: do something!
+	return true;
+}
 
 int win_addnstra(Window *win, const char *str, size_t n, int attr) {
 	size_t i, print_from = 0;

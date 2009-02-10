@@ -1,10 +1,11 @@
 #include <termios.h>
 #include <unistd.h>
+#include <errno.h>
 //FIXME: we need to do some checking which header files we need
 #include <sys/select.h>
 #include "terminal.h"
 
-static struct termios saved_params;
+static struct termios saved;
 static Bool initialised, seqs_initialised;
 static fd_set inset;
 static int last_set_attrs;
@@ -26,10 +27,10 @@ Bool init_terminal(void) {
 			return false;
 
 		new_params = saved;
-		new_params.c_iflags &= ~(IXON | IXOFF);
-		new_params.c_iflags |= INLCR;
-		new_params.c_lflags &= ~(ISIG | ICANON | ECHO);
-		new_params.c_ccflags[VMIN] = 1;
+		new_params.c_iflag &= ~(IXON | IXOFF);
+		new_params.c_iflag |= INLCR;
+		new_params.c_lflag &= ~(ISIG | ICANON | ECHO);
+		new_params.c_cc[VMIN] = 1;
 
 		if (tcsetattr(STDOUT_FILENO, TCSADRAIN, &new_params) < 0)
 			return -1;
@@ -46,6 +47,7 @@ Bool init_terminal(void) {
 			- smkx
 		*/
 	}
+	return true;
 }
 
 
