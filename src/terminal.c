@@ -4,11 +4,11 @@
 //FIXME: we need to do some checking which header files we need
 #include <sys/select.h>
 #include "terminal.h"
+#include "window.h"
 
 static struct termios saved;
 static Bool initialised, seqs_initialised;
 static fd_set inset;
-static int last_set_attrs;
 
 /*FIXME: line drawing for UTF-8 may require that we use the UTF-8 line drawing
 characters as apparently the linux console does not do alternate character set
@@ -19,7 +19,6 @@ of interest. */
 Bool init_terminal(void) {
 	if (!initialised) {
 		struct termios new_params;
-		//FIXME is STDOUT_FILENO the correct one, or do we need to use STDIN_FILENO
 		if (!isatty(STDOUT_FILENO))
 			return false;
 
@@ -46,6 +45,10 @@ Bool init_terminal(void) {
 			- smcup
 			- smkx
 		*/
+		/*FIXME: get terminal size, ioctl, env, terminfo */
+		/*FIXME: get 2 initialsed window structs, with the size of the terminal
+			Implement refresh. */
+
 	}
 	return true;
 }
@@ -106,12 +109,6 @@ void set_cursor(int y, int x) {
 
 }
 
-void set_attr(int attr) {
-	if (attr == last_set_attrs)
-		return;
-}
-
-void add_str(const char *str);
 void hide_cursor(void);
 void show_cursor(void);
 void get_terminal_size(int *height, int *width);

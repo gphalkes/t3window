@@ -17,12 +17,14 @@ int get_keychar(int msec);
 #define ATTR_BACKGROUND(_x) (((_x) & 0x7) << 9)
 
 void set_cursor(int y, int x);
-void set_attr(int attr);
-void add_str(const char *str);
 void hide_cursor(void);
 void show_cursor(void);
 void get_terminal_size(int *height, int *width);
 
+enum {
+	KEY_ERROR = -1,
+	KEY_TIMEOUT = -2
+};
 /* FIXME:
 - line drawing
 - add one char

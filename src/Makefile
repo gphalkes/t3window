@@ -17,11 +17,11 @@ endif
 CFLAGS+=-I. -I.objects
 
 
-CFILES.window.so:= window.c terminal.c
-LDFLAGS.window.so:= -shared
+CFILES.libwindow.so:= window.c terminal.c
+LDFLAGS.libwindow.so:= -shared
 CFLAGS.window:= -D_XOPEN_SOURCE
 
-TARGETS:= window.so
+TARGETS:= libwindow.so
 #===========================================================================
 .PHONY: all clean
 

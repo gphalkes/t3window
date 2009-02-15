@@ -23,6 +23,7 @@
 //FIXME: do we want to make sure we don't end up outside the window when painting? That
 // would require nasty stuff like string widths, which require conversion :-(
 //FIXME: implement "hardware" scrolling for optimization
+//FIXME: add scrolling, because it can save a lot of repainting
 /*FIXME main reasons to save the data printed to a window are:
 - easier to restrict printing to designated area
 - optimization when updates are needed
@@ -241,9 +242,29 @@ static void copy_mb(CharData *dest, const char *src, size_t n, CharData meta) {
 }
 
 static Bool ensureSpace(LineData *line, size_t n) {
+	int newsize;
+	CharData *resized;
+
+	/* FIXME: ensure that n + line->length will fit in int */
+	if (n > INT_MAX)
+		return false;
+
 	if ((unsigned) line->allocated > line->length + n)
 		return true;
-	//FIXME realloc
+
+	newsize = line->allocated;
+
+	do {
+		newsize *= 2;
+		/* Sanity check for overflow of allocated variable. Prevents infinite loops. */
+		if (!(newsize > line->length))
+			return -1;
+	} while ((unsigned) newsize - line->length < n);
+
+	if ((resized = realloc(line->data, sizeof(CharData) * newsize)) == NULL)
+		return false;
+	line->data = resized;
+	line->allocated = newsize;
 	return true;
 }
 
@@ -448,14 +469,22 @@ int win_mbaddstra(Window *win, const char *str, int attr) { return win_mbaddnstr
 int win_mbaddstr(Window *win, const char *str) { return win_mbaddnstra(win, str, strlen(str), win->attr); }
 
 static Bool _win_addnstra(Window *win, const char *str, size_t n, int attr) {
-	//FIXME: do something!
-	return true;
+	size_t i;
+	Bool result = true;
+
+	/* FIXME: it would seem that this can be done more efficiently, especially
+	   if no multibyte characters are used at all. */
+	for (i = 0; i < n; i++)
+		result &= _win_mbaddch(win, str + i, 1, WIDTH_TO_META(1) | attr);
+
+	return result;
 }
 
 int win_addnstra(Window *win, const char *str, size_t n, int attr) {
 	size_t i, print_from = 0;
 	int retval = 0;
 
+	attr &= ATTR_MASK;
 	for (i = 0; i < n; i++) {
 		if (!isprint(str[i])) {
 			retval = ERR_NONPRINT;
