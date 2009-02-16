@@ -79,7 +79,8 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 	Window *retval, *ptr;
 	int i;
 
-	//FIXME: check parameter validity
+	if (height <= 0 || width <= 0)
+		return NULL;
 
 	if ((retval = calloc(1, sizeof(Window))) == NULL)
 		return NULL;
@@ -285,6 +286,9 @@ static Bool _win_mbaddch(Window *win, const char *str, size_t n, CharData meta) 
 			result &= _win_mbaddch(win, &space, 1,  (meta & ATTR_MASK) | WIDTH_TO_META(1));
 		return result;
 	}
+
+	/* FIXME: optimize for case where characters are simply added at end of line! */
+
 
 	if (GET_WIDTH(meta) == 0) {
 		int width;

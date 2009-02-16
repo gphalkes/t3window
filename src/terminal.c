@@ -10,6 +10,42 @@ static struct termios saved;
 static Bool initialised, seqs_initialised;
 static fd_set inset;
 
+static const char *ti_strings[] = {
+/* Line drawing characters */
+	"acs_chars",
+	"smacs",
+	"rmacs",
+/* Clear screen (and home cursor) */
+	"clear",
+/* Cursor positioning, with alternatives */
+	"smcup",
+	"rmcup",
+	"cup",
+	"vpa", /* goto line */
+	"hpa", /* goto column */
+
+	"home",
+	"cud1",
+	"cud",
+	"cuf1",
+	"cuf",
+/* Cursor appearence */
+	"cnorm",
+	"civis",
+/* Attribute setting */
+	"blink",
+	"bold",
+	"dim",
+	"smso", /* standout */
+	"rmso",
+	"smul", /* standout */
+	"rmul",
+	"rev",
+	"sgr0", /* turn off all attributes */
+};
+
+/*FIXME: todo color */
+
 /*FIXME: line drawing for UTF-8 may require that we use the UTF-8 line drawing
 characters as apparently the linux console does not do alternate character set
 drawing. On the other hand if it does do proper UTF-8 line drawing there is not
@@ -38,7 +74,12 @@ Bool init_terminal(void) {
 		FD_SET(STDIN_FILENO, &inset);
 
 		if (!seqs_initialised) {
-		/*FIXME: find control sequences for different supported actions*/
+			int error;
+			if (setupterm(NULL, 1, &error) == ERR)
+				return false;
+			/*FIXME: we should probably have some way to return what was the problem. */
+			/*FIXME: find control sequences for different supported actions*/
+
 		}
 		/*FIXME: send terminal control sequences:
 			check restore_shell_mode in ncurses
