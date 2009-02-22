@@ -5,7 +5,7 @@
 #include <ctype.h>
 
 #include "window.h"
-
+#include "internal_structs.h"
 /* FIXME: do we really want the windows to have a backing store? This will mean
    that we end up with approximately 3 copies of the screen contents. At least
    two if we clear the copy of the main window each time instead of using a full
@@ -29,8 +29,6 @@
 - optimization when updates are needed
 */
 
-#define INITIAL_ALLOC 80
-
 #define WIDTH_TO_META(_w) (((_w) & 3) << CHAR_BIT)
 #define ATTR_MASK (~((1 << (CHAR_BIT + 2)) - 1))
 #define GET_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
@@ -43,31 +41,6 @@ enum {
 	ERR_INCOMPLETE,
 	ERR_NONPRINT,
 	ERR_TRUNCATED
-};
-
-//FIXME: make sure that the base type is the correct size to store all the attributes
-typedef int CharData;
-
-typedef struct {
-	CharData *data;
-	int start;
-	int width;
-	int length;
-	int allocated;
-} LineData;
-
-struct Window {
-	int x, y;
-	int paint_x, paint_y;
-	int width, height;
-	int depth;
-	int attr;
-	Bool shown;
-	LineData *lines;
-
-	/* Pointers for linking into depth sorted list. */
-	Window *next;
-	Window *prev;
 };
 
 /* Head and tail of depth sorted Window list */
@@ -181,6 +154,7 @@ Bool win_resize(Window *win, int height, int width) {
 
 	if (width < win->width) {
 		/* Chop lines to maximum width */
+		//FIXME: should we also try to resize the lines?
 		for (i = 0; i < height; i++) {
 			if (win->lines[i].start > width) {
 				win->lines[i].length = 0;
@@ -215,7 +189,7 @@ int win_get_height(Window *win) {
 }
 
 void win_set_cursor(Window *win, int y, int x) {
-	set_cursor(win->y + y, win->x + x);
+	term_set_cursor(win->y + y, win->x + x);
 }
 
 void win_set_paint(Window *win, int y, int x) {
@@ -235,13 +209,14 @@ void win_hide(Window *win) {
 	win->shown = false;
 }
 
+/*
 static void copy_mb(CharData *dest, const char *src, size_t n, CharData meta) {
 	*dest++ = ((unsigned char) *src++) | meta;
 	n--;
 	while (n > 0)
 		*dest++ = (unsigned char) *src++;
 }
-
+*/
 static Bool ensureSpace(LineData *line, size_t n) {
 	int newsize;
 	CharData *resized;
@@ -269,28 +244,31 @@ static Bool ensureSpace(LineData *line, size_t n) {
 	return true;
 }
 
-static Bool _win_mbaddch(Window *win, const char *str, size_t n, CharData meta) {
+/* FIXME: rewrite such that it takes a string of CharData instead a string of char.
+   This way we can use it for repainting the terminal Window as well. Maybe even pass
+   the Line and other parameters separately? */
+static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 	int i, j;
 
 	if (win->paint_y >= win->height)
 		return true;
 	if (win->paint_x > win->width)
 		return true;
-	if (win->paint_x == win->width && GET_WIDTH(meta) != 0)
+	if (win->paint_x == win->width && width != 0)
 		return true;
-	if (win->paint_x + GET_WIDTH(meta) > win->width) {
+	if (win->paint_x + width > win->width) {
 		/* Add spaces to cover the rest of the line. */
 		Bool result = true;
-		char space = ' ';
+		CharData space = ' ';
 		while (win->paint_x < win->width && result)
-			result &= _win_mbaddch(win, &space, 1,  (meta & ATTR_MASK) | WIDTH_TO_META(1));
+			result &= _win_mbaddch(win, &space, 1,  1);
 		return result;
 	}
 
 	/* FIXME: optimize for case where characters are simply added at end of line! */
 
 
-	if (GET_WIDTH(meta) == 0) {
+	if (width == 0) {
 		int width;
 		/* Combining characters. */
 
@@ -323,16 +301,16 @@ static Bool _win_mbaddch(Window *win, const char *str, size_t n, CharData meta) 
 			for (i++; i < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
 
 		memmove(win->lines[win->paint_y].data + i + n, win->lines[win->paint_y].data + i, sizeof(CharData) * (win->lines[win->paint_y].length - i));
-		copy_mb(win->lines[win->paint_y].data + i, str, n, meta);
+		memcpy(win->lines[win->paint_y].data + i, str, n * sizeof(CharData));
 		win->lines[win->paint_y].length += n;
 	} else if (win->lines[win->paint_y].length == 0) {
 		/* Empty line. */
 		if (!ensureSpace(win->lines + win->paint_y, n))
 			return false;
 		win->lines[win->paint_y].start = win->paint_x;
-		copy_mb(win->lines[win->paint_y].data, str, n, meta);
+		memcpy(win->lines[win->paint_y].data, str, n * sizeof(CharData));
 		win->lines[win->paint_y].length += n;
-		win->lines[win->paint_y].width = GET_WIDTH(meta);
+		win->lines[win->paint_y].width = width;
 	} else if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < win->paint_x) {
 		/* Add characters after existing characters. */
 		int diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
@@ -341,21 +319,21 @@ static Bool _win_mbaddch(Window *win, const char *str, size_t n, CharData meta) 
 			return false;
 		for (i = diff; i > 0; i--)
 			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] =  WIDTH_TO_META(1) | ' ';
-		copy_mb(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n, meta);
+		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n * sizeof(CharData));
 		win->lines[win->paint_y].length += n;
-		win->lines[win->paint_y].width += GET_WIDTH(meta) + diff;
-	} else if (win->paint_x + GET_WIDTH(meta) <= win->lines[win->paint_y].start) {
+		win->lines[win->paint_y].width += width + diff;
+	} else if (win->paint_x + width <= win->lines[win->paint_y].start) {
 		/* Add characters before existing characters. */
-		int diff = win->lines[win->paint_y].start - (win->paint_x + GET_WIDTH(meta));
+		int diff = win->lines[win->paint_y].start - (win->paint_x + width);
 
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
 			return false;
 		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(CharData) * win->lines[win->paint_y].length);
-		copy_mb(win->lines[win->paint_y].data, str, n, meta);
+		memcpy(win->lines[win->paint_y].data, str, n * sizeof(CharData));
 		for (i = diff; i > 0; i++)
 			win->lines[win->paint_y].data[n++] = WIDTH_TO_META(1) | ' ';
 		win->lines[win->paint_y].length += n;
-		win->lines[win->paint_y].width += GET_WIDTH(meta) + diff;
+		win->lines[win->paint_y].width += width + diff;
 	} else {
 		/* Character (partly) overwrite existing chars. */
 		int width = win->lines[win->paint_y].start;
@@ -387,10 +365,10 @@ static Bool _win_mbaddch(Window *win, const char *str, size_t n, CharData meta) 
 		/* If the character where we start overwriting already fully overlaps with the
 		   new string, then we need to only replace this and any spaces that result
 		   from replacing the trailing portion need to use the start space attribute */
-		if (width >= win->paint_x + GET_WIDTH(meta)) {
+		if (width >= win->paint_x + width) {
 			end_space_meta = start_space_meta;
 		} else {
-			for (i = end_replace; i < win->lines[win->paint_y].length && width < win->paint_x + GET_WIDTH(meta); i++)
+			for (i = end_replace; i < win->lines[win->paint_y].length && width < win->paint_x + width; i++)
 				width += GET_WIDTH(win->lines[win->paint_y].data[i]);
 
 			end_space_meta = (win->lines[win->paint_y].data[j - 1] & ATTR_MASK) | WIDTH_TO_META(1);
@@ -401,7 +379,7 @@ static Bool _win_mbaddch(Window *win, const char *str, size_t n, CharData meta) 
 			for (i++; i < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
 		end_replace = i;
 
-		end_spaces = width - win->paint_x - GET_WIDTH(meta);
+		end_spaces = width - win->paint_x - width;
 
 		for (; j < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[j]) == 0; j++) {}
 
@@ -413,21 +391,22 @@ static Bool _win_mbaddch(Window *win, const char *str, size_t n, CharData meta) 
 		memmove(win->lines[win->paint_y].data + j, win->lines[win->paint_y].data + j + sdiff, sizeof(CharData) * (win->lines[win->paint_y].length - j));
 		for (; start_spaces > 0; start_spaces--)
 			win->lines[win->paint_y].data[i++] = start_space_meta | ' ';
-		copy_mb(win->lines[win->paint_y].data + i, str, n, meta);
+		memcpy(win->lines[win->paint_y].data + i, str, n * sizeof(CharData));
 		i += n;
 		for (; end_spaces > 0; end_spaces--)
 			win->lines[win->paint_y].data[i++] = end_space_meta | ' ';
 	}
-	win->paint_x += GET_WIDTH(meta);
+	win->paint_x += width;
 	return true;
 }
 
 int win_mbaddnstra(Window *win, const char *str, size_t n, int attr) {
-	size_t result;
+	size_t result, i;
 	int width;
 	mbstate_t mbstate;
 	wchar_t c[2];
 	char buf[MB_LEN_MAX + 1];
+	CharData cd_buf[MB_LEN_MAX + 1];
 	int retval = 0;
 
 	memset(&mbstate, 0, sizeof(mbstate_t));
@@ -462,8 +441,11 @@ int win_mbaddnstra(Window *win, const char *str, size_t n, int attr) {
 		result = wcstombs(buf, c, MB_LEN_MAX + 1);
 		/*FIXME: should we check for conversion errors? We probably do for
 		  16 bit wchar_t's because those may need to be handled differently */
+		cd_buf[0] = attr | WIDTH_TO_META(width) | (unsigned char) buf[0];
+		for (i = 1; i < result; i++)
+			cd_buf[i] = (unsigned char) buf[i];
 
-		_win_mbaddch(win, buf, result, WIDTH_TO_META(width) | attr);
+		_win_mbaddch(win, cd_buf, result, WIDTH_TO_META(width) | attr);
 	}
 	return retval;
 }
@@ -478,8 +460,10 @@ static Bool _win_addnstra(Window *win, const char *str, size_t n, int attr) {
 
 	/* FIXME: it would seem that this can be done more efficiently, especially
 	   if no multibyte characters are used at all. */
-	for (i = 0; i < n; i++)
-		result &= _win_mbaddch(win, str + i, 1, WIDTH_TO_META(1) | attr);
+	for (i = 0; i < n; i++) {
+		CharData c = WIDTH_TO_META(1) | attr | (unsigned char) str[i];
+		result &= _win_mbaddch(win, &c, 1, 1);
+	}
 
 	return result;
 }
@@ -505,3 +489,27 @@ int win_addnstra(Window *win, const char *str, size_t n, int attr) {
 int win_addnstr(Window *win, const char *str, size_t n) { return win_addnstra(win, str, n, win->attr); }
 int win_addstra(Window *win, const char *str, int attr) { return win_addnstra(win, str, strlen(str), attr); }
 int win_addstr(Window *win, const char *str) { return win_addnstra(win, str, strlen(str), win->attr); }
+
+Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
+	LineData save, *draw;
+	Window *ptr;
+
+	save = terminal->lines[line];
+	terminal->lines[line] = *store;
+	terminal->paint_y = line;
+
+	for (ptr = tail; ptr != NULL; ptr = ptr->prev) {
+		if (!ptr->shown)
+			continue;
+
+		if (ptr->y > line || ptr->y + ptr->height <= line)
+			continue;
+
+		draw = ptr->lines + line - ptr->y;
+		terminal->paint_x = draw->start + ptr->x;
+		_win_mbaddch(terminal, draw->data, draw->length, draw->width);
+	}
+
+	terminal->lines[line] = save;
+	return true;
+}

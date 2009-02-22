@@ -14,10 +14,10 @@ ifeq ($(VERSION),debug)
 else
 	CFLAGS:=-Wall -W $(ANSIFLAGS) -O2
 endif
-CFLAGS+=-I. -I.objects
+CFLAGS+=-I. -I.objects -fPIC
 
 
-CFILES.libwindow.so:= window.c terminal.c
+CFILES.libwindow.so:= window.c terminal.c curses_interface.c
 LDFLAGS.libwindow.so:= -shared
 CFLAGS.window:= -D_XOPEN_SOURCE
 

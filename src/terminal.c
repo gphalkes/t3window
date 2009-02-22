@@ -1,15 +1,41 @@
 #include <termios.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
+#include <stdlib.h>
 //FIXME: we need to do some checking which header files we need
 #include <sys/select.h>
+#include <sys/ioctl.h>
+
 #include "terminal.h"
 #include "window.h"
+#include "internal_structs.h"
+/* The curses header file defines to many symbols that get in the way of our
+   own, so we have a separate C file which exports only those functions that
+   we actually use. */
+#include "curses_interface.h"
+
+/*FIXME: line drawing for UTF-8 may require that we use the UTF-8 line drawing
+characters as apparently the linux console does not do alternate character set
+drawing. On the other hand if it does do proper UTF-8 line drawing there is not
+really a problem anyway. Simply the question of which default to use may be
+of interest. */
+/* FIXME: do proper cleanup on failure, especially on term_init */
 
 static struct termios saved;
 static Bool initialised, seqs_initialised;
 static fd_set inset;
 
+static char *smcup, *rmcup, *cup;
+
+static Window *terminal_window;
+static LineData new_data;
+
+static int lines, columns;
+static int cursor_y, cursor_x;
+
+
+#if 0
 static const char *ti_strings[] = {
 /* Line drawing characters */
 	"acs_chars",
@@ -33,6 +59,8 @@ static const char *ti_strings[] = {
 	"cnorm",
 	"civis",
 /* Attribute setting */
+	"sgr", /* set all modes at the same time */
+		/* Alternatively */
 	"blink",
 	"bold",
 	"dim",
@@ -43,16 +71,27 @@ static const char *ti_strings[] = {
 	"rev",
 	"sgr0", /* turn off all attributes */
 };
-
 /*FIXME: todo color */
 
-/*FIXME: line drawing for UTF-8 may require that we use the UTF-8 line drawing
-characters as apparently the linux console does not do alternate character set
-drawing. On the other hand if it does do proper UTF-8 line drawing there is not
-really a problem anyway. Simply the question of which default to use may be
-of interest. */
+static const char *ti_nums[] = {
+	"xmc", /* number of spaces left on the screen when entering standout mode */
+};
 
-Bool init_terminal(void) {
+static const char *ti_bools[] = {
+};
+#endif
+
+
+static char *get_ti_string(const char *name) {
+	char *result = call_tigetstr(name);
+	if (result == (char *) 0 || result == (char *) -1)
+		return NULL;
+
+	return strdup(result);
+}
+
+Bool term_init(void) {
+	struct winsize wsz;
 	if (!initialised) {
 		struct termios new_params;
 		if (!isatty(STDOUT_FILENO))
@@ -75,32 +114,61 @@ Bool init_terminal(void) {
 
 		if (!seqs_initialised) {
 			int error;
-			if (setupterm(NULL, 1, &error) == ERR)
+			if ((error = call_setupterm()) != 0)
 				return false;
 			/*FIXME: we should probably have some way to return what was the problem. */
-			/*FIXME: find control sequences for different supported actions*/
 
+			if ((smcup = get_ti_string("smcup")) == NULL)
+				return false;
+			if ((rmcup = get_ti_string("rmcup")) == NULL)
+				return false;
+			if ((cup = get_ti_string("cup")) == NULL)
+				return false;
+
+			seqs_initialised = true;
 		}
-		/*FIXME: send terminal control sequences:
-			check restore_shell_mode in ncurses
-			- smcup
-			- smkx
-		*/
-		/*FIXME: get terminal size, ioctl, env, terminfo */
-		/*FIXME: get 2 initialsed window structs, with the size of the terminal
-			Implement refresh. */
 
+		/* Get terminal size. First try ioctl, then environment, then terminfo. */
+		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) == 0) {
+			lines = wsz.ws_row;
+			columns = wsz.ws_col;
+		} else {
+			char *lines_env = getenv("LINES");
+			char *columns_env = getenv("COLUMNS");
+			if (lines_env == NULL || columns_env == NULL || (lines = atoi(lines_env)) == 0 || (columns = atoi(columns_env)) == 0) {
+				if ((lines = call_tigetnum("lines")) < 0 || (columns = call_tigetnum("columns")) < 0)
+					return false;
+			}
+		}
+
+		/* Create or resize terminal window */
+		if (terminal_window == NULL) {
+			/* FIXME: maybe someday we can make the window outside of the window stack. */
+			if ((terminal_window = win_new(lines, columns, 0, 0, 0)) == NULL)
+				return false;
+			if ((new_data.data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL)
+				return false;
+			new_data.allocated = INITIAL_ALLOC;
+		} else {
+			if (!win_resize(terminal_window, lines, columns))
+				return false;
+		}
+
+		/* Start cursor positioning mode. */
+		/* FIXME: should print through tputs */
+		call_putp(smcup);
 	}
 	return true;
 }
 
 
-void restore_terminal(void) {
+void term_restore(void) {
 	/*FIXME: restore different attributes:
 		- color to original pair
 		- saved modes for xterm
 	*/
 	if (initialised) {
+		call_putp(rmcup);
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
 		initialised = false;
 	}
@@ -119,7 +187,7 @@ static int safe_read_char(void) {
 	}
 }
 
-int get_keychar(int msec) {
+int term_get_keychar(int msec) {
 	int retval;
 	fd_set _inset;
 	struct timeval timeout;
@@ -146,10 +214,48 @@ int get_keychar(int msec) {
 	}
 }
 
-void set_cursor(int y, int x) {
-
+void term_set_cursor(int y, int x) {
+	cursor_y = y;
+	cursor_x = x;
+	/* FIXCOMPAT: use cup only when supported */
+	call_putp(call_tparm(cup, 2, y, x));
 }
 
-void hide_cursor(void);
-void show_cursor(void);
-void get_terminal_size(int *height, int *width);
+void term_hide_cursor(void);
+void term_show_cursor(void);
+void term_get_size(int *height, int *width);
+
+/** Handle resizing of the terminal.
+
+    Retrieves the size of the terminal and resizes the backing structures.
+	After calling @a term_resize, @a term_get_size can be called to retrieve
+    the new terminal size. Should be called after a SIGWINCH.
+*/
+Bool term_resize(void) {
+	struct winsize wsz;
+
+	if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) < 0)
+		return true;
+
+	lines = wsz.ws_row;
+	columns = wsz.ws_col;
+	return win_resize(terminal_window, lines, columns);
+}
+
+void term_refresh(void) {
+	int i;
+
+	for (i = 0; i < lines; i++) {
+		_win_refresh_term_line(terminal_window, &new_data, i);
+		/* FIXME: do diff, redraw differences, save the data in the terminal_window struct */
+
+		/* FIXME: for now we simply paint the line (ie no optimizations) */
+		call_putp(call_tparm(cup, 2, i, new_data.start));
+
+
+		/* Reset new_data for the next line. */
+		new_data.width = 0;
+		new_data.length = 0;
+		new_data.start = 0;
+	}
+}

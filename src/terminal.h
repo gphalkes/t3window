@@ -3,9 +3,9 @@
 
 typedef enum { false, true } Bool;
 
-Bool init_terminal(void);
-void restore_terminal(void);
-int get_keychar(int msec);
+Bool term_init(void);
+void term_restore(void);
+int term_get_keychar(int msec);
 
 #define ATTR_UNDERLINE (1<<0)
 #define ATTR_BOLD (1<<1)
@@ -16,11 +16,12 @@ int get_keychar(int msec);
 #define ATTR_FOREGROUND(_x) (((_x) & 0x7) << 6)
 #define ATTR_BACKGROUND(_x) (((_x) & 0x7) << 9)
 
-void set_cursor(int y, int x);
-void hide_cursor(void);
-void show_cursor(void);
-void get_terminal_size(int *height, int *width);
-
+void term_set_cursor(int y, int x);
+void term_hide_cursor(void);
+void term_show_cursor(void);
+void term_get_size(int *height, int *width);
+Bool term_resize(void);
+void term_refresh(void);
 enum {
 	KEY_ERROR = -1,
 	KEY_TIMEOUT = -2
