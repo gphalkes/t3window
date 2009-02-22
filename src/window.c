@@ -94,9 +94,11 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 		retval->prev = tail;
 		retval->next = NULL;
 		tail->next = retval;
+		tail = retval;
 	} else if (ptr->prev == NULL) {
 		retval->prev = NULL;
 		retval->next = ptr;
+		head->prev = retval;
 		head = retval;
 	} else {
 		retval->prev = ptr->prev;
@@ -311,7 +313,7 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(CharData));
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width = width;
-	} else if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < win->paint_x) {
+	} else if (win->lines[win->paint_y].start + win->lines[win->paint_y].width <= win->paint_x) {
 		/* Add characters after existing characters. */
 		int diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
 
@@ -336,42 +338,42 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 		win->lines[win->paint_y].width += width + diff;
 	} else {
 		/* Character (partly) overwrite existing chars. */
-		int width = win->lines[win->paint_y].start;
+		int pos_width = win->lines[win->paint_y].start;
 		size_t start_replace = 0, start_space_meta, start_spaces, end_replace, end_space_meta, end_spaces;
 		int sdiff;
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
 		for (i = 0; i < win->lines[win->paint_y].length; i++) {
-			if (width + GET_WIDTH(win->lines[win->paint_y].data[i]) > win->paint_x)
+			if (pos_width + GET_WIDTH(win->lines[win->paint_y].data[i]) > win->paint_x)
 				break;
-			width += GET_WIDTH(win->lines[win->paint_y].data[i]);
-			start_replace = i;
+			pos_width += GET_WIDTH(win->lines[win->paint_y].data[i]);
 		}
+		start_replace = i;
 
 		/* If the character only partially overlaps, we replace the first part with
 		   spaces with the attributes of the old character. */
 		start_space_meta = (win->lines[win->paint_y].data[start_replace] & ATTR_MASK) | WIDTH_TO_META(1);
-		start_spaces = win->paint_x - width;
+		start_spaces = win->paint_x - pos_width;
 
 		/* Now we need to find which other character(s) overlap. However, the current
 		   string may overlap with a double width character but only for a single
 		   position. In that case we will replace the trailing portion of the character
 		   with spaces with the old character's attributes. */
-		width += GET_WIDTH(win->lines[win->paint_y].data[start_replace]);
+		pos_width += GET_WIDTH(win->lines[win->paint_y].data[start_replace]);
 
 		end_replace = start_replace + 1;
 
 		/* If the character where we start overwriting already fully overlaps with the
 		   new string, then we need to only replace this and any spaces that result
 		   from replacing the trailing portion need to use the start space attribute */
-		if (width >= win->paint_x + width) {
+		if (pos_width >= win->paint_x + width) {
 			end_space_meta = start_space_meta;
 		} else {
-			for (i = end_replace; i < win->lines[win->paint_y].length && width < win->paint_x + width; i++)
-				width += GET_WIDTH(win->lines[win->paint_y].data[i]);
+			for (i = end_replace; i < win->lines[win->paint_y].length && pos_width < win->paint_x + width; i++)
+				pos_width += GET_WIDTH(win->lines[win->paint_y].data[i]);
 
-			end_space_meta = (win->lines[win->paint_y].data[j - 1] & ATTR_MASK) | WIDTH_TO_META(1);
+			end_space_meta = (win->lines[win->paint_y].data[i - 1] & ATTR_MASK) | WIDTH_TO_META(1);
 		}
 
 		/* Skip any zero-width characters. */
@@ -379,22 +381,28 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 			for (i++; i < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
 		end_replace = i;
 
-		end_spaces = width - win->paint_x - width;
+		end_spaces = pos_width > win->paint_x + width ? pos_width - win->paint_x - width : 0;
 
-		for (; j < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[j]) == 0; j++) {}
+		for (j = i; j < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[j]) == 0; j++) {}
 
 		/* Move the existing characters out of the way. */
-		sdiff = n + end_spaces + start_spaces - (j - i);
+		sdiff = n + end_spaces + start_spaces - (end_replace - start_replace);
 		if (sdiff > 0 && !ensureSpace(win->lines + win->paint_y, sdiff))
 			return false;
 
-		memmove(win->lines[win->paint_y].data + j, win->lines[win->paint_y].data + j + sdiff, sizeof(CharData) * (win->lines[win->paint_y].length - j));
-		for (; start_spaces > 0; start_spaces--)
+		memmove(win->lines[win->paint_y].data + end_replace + sdiff, win->lines[win->paint_y].data + end_replace,
+			sizeof(CharData) * (win->lines[win->paint_y].length - end_replace));
+
+		for (i = start_replace; start_spaces > 0; start_spaces--)
 			win->lines[win->paint_y].data[i++] = start_space_meta | ' ';
 		memcpy(win->lines[win->paint_y].data + i, str, n * sizeof(CharData));
 		i += n;
 		for (; end_spaces > 0; end_spaces--)
 			win->lines[win->paint_y].data[i++] = end_space_meta | ' ';
+
+		win->lines[win->paint_y].length += sdiff;
+		if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < width + win->paint_x)
+			win->lines[win->paint_y].width = width + win->paint_x - win->lines[win->paint_y].start;
 	}
 	win->paint_x += width;
 	return true;
@@ -510,6 +518,7 @@ Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 		_win_mbaddch(terminal, draw->data, draw->length, draw->width);
 	}
 
+	*store = terminal->lines[line];
 	terminal->lines[line] = save;
 	return true;
 }

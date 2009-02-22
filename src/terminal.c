@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 //FIXME: we need to do some checking which header files we need
 #include <sys/select.h>
 #include <sys/ioctl.h>
@@ -243,7 +244,7 @@ Bool term_resize(void) {
 }
 
 void term_refresh(void) {
-	int i;
+	int i, j;
 
 	for (i = 0; i < lines; i++) {
 		_win_refresh_term_line(terminal_window, &new_data, i);
@@ -251,11 +252,13 @@ void term_refresh(void) {
 
 		/* FIXME: for now we simply paint the line (ie no optimizations) */
 		call_putp(call_tparm(cup, 2, i, new_data.start));
-
+		for (j = 0; j < new_data.length; j++)
+			putchar(new_data.data[j]);
 
 		/* Reset new_data for the next line. */
 		new_data.width = 0;
 		new_data.length = 0;
 		new_data.start = 0;
 	}
+	fflush(stdout);
 }

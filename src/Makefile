@@ -20,8 +20,13 @@ CFLAGS+=-I. -I.objects -fPIC
 CFILES.libwindow.so:= window.c terminal.c curses_interface.c
 LDFLAGS.libwindow.so:= -shared
 CFLAGS.window:= -D_XOPEN_SOURCE
+LDLIBS.libwindow.so:= -lcurses
 
-TARGETS:= libwindow.so
+CFILES.test:= test.c
+LDFLAGS.test:= -L.
+LDLIBS.test:=-lwindow
+
+TARGETS:= libwindow.so test
 #===========================================================================
 .PHONY: all clean
 
