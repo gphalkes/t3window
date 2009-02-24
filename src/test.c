@@ -50,25 +50,26 @@ int main(int argc, char *argv[]) {
 	term_refresh();
 	getchar();
 
-	win_show(high);
+/* 	win_show(high);
 	term_refresh();
 	getchar();
-
+ */
 	win_set_paint(high, 0, 0);
 	win_addstr(high, "ABCDEFGHIJK");
-	term_refresh();
+/* 	term_refresh();
 	getchar();
-
+ */
 	win_set_paint(high, 1, 0);
 	win_addstr(high, "9876543210+");
-	term_refresh();
+/* 	term_refresh();
 	getchar();
 
 	win_hide(high);
 	term_refresh();
 	getchar();
-
-	win_move(high, 5, 0);
+ */
+	win_move(high, 5, 16);
+	win_resize(high, 10, 9);
 	win_show(high);
 	term_refresh();
 	getchar();

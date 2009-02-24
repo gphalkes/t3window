@@ -47,6 +47,7 @@ enum {
 Window *head, *tail;
 
 static void _win_del(Window *win);
+static Bool ensureSpace(LineData *line, size_t n);
 
 Window *win_new(int height, int width, int y, int x, int depth) {
 	Window *retval, *ptr;
@@ -156,18 +157,30 @@ Bool win_resize(Window *win, int height, int width) {
 
 	if (width < win->width) {
 		/* Chop lines to maximum width */
-		//FIXME: should we also try to resize the lines?
+		//FIXME: should we also try to resize the lines (as in realloc)?
 		for (i = 0; i < height; i++) {
 			if (win->lines[i].start > width) {
 				win->lines[i].length = 0;
 				win->lines[i].start = 0;
 			} else if (win->lines[i].start + win->lines[i].width > width) {
 				int sumwidth = win->lines[i].start, j;
-				for (j = 0; j < win->lines[i].length && sumwidth < width; j++)
+				for (j = 0; j < win->lines[i].length && sumwidth < width; j++) {
+					if (sumwidth + GET_WIDTH(win->lines[i].data[j]) > width)
+						break;
 					sumwidth += GET_WIDTH(win->lines[i].data[j]);
+				}
+				if (sumwidth < width) {
+					int spaces = width - sumwidth;
+					if (spaces < win->lines[i].length - j ||
+							ensureSpace(win->lines + i, spaces - win->lines[i].length + j)) {
+						for (; spaces > 0; spaces--)
+							win->lines[i].data[j++] = WIDTH_TO_META(1) | ' ';
+						sumwidth = width;
+					}
+				}
 
-				if (j < win->lines[i].length)
-					win->lines[i].length = j > 0 ? j - 1 : 0;
+				win->lines[i].length = j;
+				win->lines[i].width = sumwidth;
 			}
 		}
 	}
@@ -246,12 +259,11 @@ static Bool ensureSpace(LineData *line, size_t n) {
 	return true;
 }
 
-/* FIXME: rewrite such that it takes a string of CharData instead a string of char.
-   This way we can use it for repainting the terminal Window as well. Maybe even pass
-   the Line and other parameters separately? */
-static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
+static Bool _win_add_chardata(Window *win, CharData *str, size_t n, int width) {
 	int i, j;
 
+	/* FIXME: some of these assumptions are still based on single character width. Notably the
+	   case which bails out if the character straddles the border. */
 	if (win->paint_y >= win->height)
 		return true;
 	if (win->paint_x > win->width)
@@ -263,7 +275,7 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 		Bool result = true;
 		CharData space = ' ';
 		while (win->paint_x < win->width && result)
-			result &= _win_mbaddch(win, &space, 1,  1);
+			result &= _win_add_chardata(win, &space, 1,  1);
 		return result;
 	}
 
@@ -332,10 +344,11 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 			return false;
 		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(CharData) * win->lines[win->paint_y].length);
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(CharData));
-		for (i = diff; i > 0; i++)
+		for (i = diff; i > 0; i--)
 			win->lines[win->paint_y].data[n++] = WIDTH_TO_META(1) | ' ';
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
+		win->lines[win->paint_y].start = win->paint_x;
 	} else {
 		/* Character (partly) overwrite existing chars. */
 		int pos_width = win->lines[win->paint_y].start;
@@ -354,7 +367,7 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 		/* If the character only partially overlaps, we replace the first part with
 		   spaces with the attributes of the old character. */
 		start_space_meta = (win->lines[win->paint_y].data[start_replace] & ATTR_MASK) | WIDTH_TO_META(1);
-		start_spaces = win->paint_x - pos_width;
+		start_spaces = win->paint_x >= win->lines[win->paint_y].start ? win->paint_x - pos_width : 0;
 
 		/* Now we need to find which other character(s) overlap. However, the current
 		   string may overlap with a double width character but only for a single
@@ -362,7 +375,7 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 		   with spaces with the old character's attributes. */
 		pos_width += GET_WIDTH(win->lines[win->paint_y].data[start_replace]);
 
-		end_replace = start_replace + 1;
+		i++;
 
 		/* If the character where we start overwriting already fully overlaps with the
 		   new string, then we need to only replace this and any spaces that result
@@ -370,15 +383,14 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 		if (pos_width >= win->paint_x + width) {
 			end_space_meta = start_space_meta;
 		} else {
-			for (i = end_replace; i < win->lines[win->paint_y].length && pos_width < win->paint_x + width; i++)
+			for (; i < win->lines[win->paint_y].length && pos_width < win->paint_x + width; i++)
 				pos_width += GET_WIDTH(win->lines[win->paint_y].data[i]);
 
 			end_space_meta = (win->lines[win->paint_y].data[i - 1] & ATTR_MASK) | WIDTH_TO_META(1);
 		}
 
 		/* Skip any zero-width characters. */
-		if (i < win->lines[win->paint_y].length)
-			for (i++; i < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
+		for (; i < win->lines[win->paint_y].length && GET_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
 		end_replace = i;
 
 		end_spaces = pos_width > win->paint_x + width ? pos_width - win->paint_x - width : 0;
@@ -403,6 +415,8 @@ static Bool _win_mbaddch(Window *win, CharData *str, size_t n, int width) {
 		win->lines[win->paint_y].length += sdiff;
 		if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < width + win->paint_x)
 			win->lines[win->paint_y].width = width + win->paint_x - win->lines[win->paint_y].start;
+		if (win->lines[win->paint_y].start > win->paint_x)
+			win->lines[win->paint_y].start = win->paint_x;
 	}
 	win->paint_x += width;
 	return true;
@@ -453,7 +467,7 @@ int win_mbaddnstra(Window *win, const char *str, size_t n, int attr) {
 		for (i = 1; i < result; i++)
 			cd_buf[i] = (unsigned char) buf[i];
 
-		_win_mbaddch(win, cd_buf, result, WIDTH_TO_META(width) | attr);
+		_win_add_chardata(win, cd_buf, result, WIDTH_TO_META(width) | attr);
 	}
 	return retval;
 }
@@ -470,7 +484,7 @@ static Bool _win_addnstra(Window *win, const char *str, size_t n, int attr) {
 	   if no multibyte characters are used at all. */
 	for (i = 0; i < n; i++) {
 		CharData c = WIDTH_TO_META(1) | attr | (unsigned char) str[i];
-		result &= _win_mbaddch(win, &c, 1, 1);
+		result &= _win_add_chardata(win, &c, 1, 1);
 	}
 
 	return result;
@@ -515,7 +529,7 @@ Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 
 		draw = ptr->lines + line - ptr->y;
 		terminal->paint_x = draw->start + ptr->x;
-		_win_mbaddch(terminal, draw->data, draw->length, draw->width);
+		_win_add_chardata(terminal, draw->data, draw->length, draw->width);
 	}
 
 	*store = terminal->lines[line];
