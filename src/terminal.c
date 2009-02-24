@@ -28,7 +28,7 @@ static Bool initialised, seqs_initialised;
 static fd_set inset;
 
 static char *smcup, *rmcup, *cup;
-static char *sgr, *setaf, *setab;
+static char *sgr, *setaf, *setab, *op;
 
 static Window *terminal_window;
 static LineData new_data;
@@ -136,6 +136,9 @@ Bool term_init(void) {
 			if ((setab = get_ti_string("setab")) == NULL) {
 				/* FIXME: get alternatives. */
 			}
+			if ((op = get_ti_string("op")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
 
 			seqs_initialised = true;
 		}
@@ -167,7 +170,6 @@ Bool term_init(void) {
 		}
 
 		/* Start cursor positioning mode. */
-		/* FIXME: should print through tputs */
 		call_putp(smcup);
 	}
 	return true;
@@ -278,6 +280,18 @@ static void set_attrs(CharData new_attrs) {
 		}
 	}
 
+	/* FIXME: for alternatives this may not work! specifically this won't
+	   work if only color pairs are supported, rather than random combinations. */
+
+	/* Set default color through op string */
+	if (((attrs & FG_COLOR_ATTRS) != (new_attrs & FG_COLOR_ATTRS) && (new_attrs & FG_COLOR_ATTRS) == 0) ||
+			((attrs & BG_COLOR_ATTRS) != (new_attrs & BG_COLOR_ATTRS) && (new_attrs & BG_COLOR_ATTRS) == 0)) {
+		if (op != NULL) {
+			call_putp(op);
+			attrs = new_attrs & ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS);
+		}
+	}
+
 	if ((attrs & FG_COLOR_ATTRS) != (new_attrs & FG_COLOR_ATTRS)) {
 		/* FIXME: implement setaf alternatives */
 		if (setaf != NULL)
@@ -301,7 +315,6 @@ void term_refresh(void) {
 		/* FIXME: do diff, redraw differences, save the data in the terminal_window struct */
 
 		/* FIXME: for now we simply paint the line (ie no optimizations) */
-		/* FIXME: add attributes */
 		call_putp(call_tparm(cup, 2, i, new_data.start));
 		for (j = 0; j < new_data.length; j++) {
 			new_attrs = new_data.data[j] & ATTR_MASK;

@@ -18,10 +18,20 @@
    width for the double width char should be set to 0, and for the <cuf1> to 1. The
    problem we face here is that first of all the double width char will always be written
    even when the right half is also overwritten. Furthermore, we can start with a zero width
-   character. Lastly, we may print the double width char beyond the end of the line. However,
-   the alternative
-   <overwriting char><cubX><double width><cubX+1><overwriting char><cufX-1> is also
-   unappealing.
+   character. Lastly, we may print the double width char beyond the end of the line (if the
+   line is subsequently shortened). However, the alternative
+   <overwriting char><cubX><double width><cubX+1><overwriting char><cufX-1>
+   is also unappealing as it has two entries for the overwriting char, only one of which
+   will actually be replaced.
+
+   None of these are terribly appealing, especially considering multiple overwrites. One
+   final option is to mark the inserted spaces specially and put the half characters somewhere
+   else, such that we can then parse them specially when printing. Also not very appealing, but
+   perhaps the best option such that half/partial characters are actually printed as such.
+
+   The final option to make printing more appealing is to ask the user to render these
+   characters or allow the user to specify what to render there. This way we can do automatic
+   conversion to underlined > and < characters.
 */
 
 
@@ -252,8 +262,6 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	Bool result = true;
 	CharData space = ' ';
 
-	/* FIXME: some of these assumptions are still based on single character width. Notably the
-	   case which bails out if the character straddles the border. */
 	if (win->paint_y >= win->height)
 		return true;
 	if (win->paint_x > win->width)
