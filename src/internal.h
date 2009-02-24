@@ -1,10 +1,15 @@
-#ifndef INTERNAL_STRUCTS_H
-#define INTERNAL_STRUCTS_H
+#ifndef INTERNAL_H
+#define INTERNAL_H
+
+#include <limits.h>
+#define WIDTH_TO_META(_w) (((_w) & 3) << CHAR_BIT)
+#define ATTR_MASK (~((1 << (CHAR_BIT + 2)) - 1))
+#define GET_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
+#define META_MASK (~((1 << CHAR_BIT) - 1))
+#define CHAR_MASK ((1 << CHAR_BIT) - 1)
+#define WIDTH_MASK (3 << CHAR_BIT)
 
 #define INITIAL_ALLOC 80
-
-//FIXME: make sure that the base type is the correct size to store all the attributes
-typedef int CharData;
 
 typedef struct {
 	CharData *data;
@@ -19,7 +24,6 @@ struct Window {
 	int paint_x, paint_y;
 	int width, height;
 	int depth;
-	int attr;
 	Bool shown;
 	LineData *lines;
 

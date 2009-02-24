@@ -1,40 +1,29 @@
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include <wchar.h>
 #include <ctype.h>
 
 #include "window.h"
-#include "internal_structs.h"
-/* FIXME: do we really want the windows to have a backing store? This will mean
-   that we end up with approximately 3 copies of the screen contents. At least
-   two if we clear the copy of the main window each time instead of using a full
-   copy.
-   The other option is to have only a backing copy for the terminal, and
-   repaint handlers for the windows. If we want to make it really fancy we can
-   do both. But given that for the most part we have non-overlapping windows
-   and repaints are triggered by changes in the edit window, there is not really
-   any need to have a backing window. Note though, that when we paint something
-   in a (partially) obscured window we have to redraw the overlapping window
-   again. */
-//FIXME: do repainting per line
+#include "internal.h"
 //FIXME: hide cursor when repainting
-//FIXME: add routine to position the visible cursor
-//FIXME: do we want to make sure we don't end up outside the window when painting? That
-// would require nasty stuff like string widths, which require conversion :-(
 //FIXME: implement "hardware" scrolling for optimization
 //FIXME: add scrolling, because it can save a lot of repainting
-/*FIXME main reasons to save the data printed to a window are:
-- easier to restrict printing to designated area
-- optimization when updates are needed
+/* FIXME: we now handle half characters by overwriting with spaces. However, we could
+   also do it differently: we could insert the sequence that will correctly first draw
+   the full character, then goes to the correct place for the next char. For example to
+   overwrite the right half of the char we simply make it
+   <double width char><cub1>
+   For overwriting the left half we have to do some trickery.
+   <double width char><cub1><cub1><overwriting char><cuf1>
+   width for the double width char should be set to 0, and for the <cuf1> to 1. The
+   problem we face here is that first of all the double width char will always be written
+   even when the right half is also overwritten. Furthermore, we can start with a zero width
+   character. Lastly, we may print the double width char beyond the end of the line. However,
+   the alternative
+   <overwriting char><cubX><double width><cubX+1><overwriting char><cufX-1> is also
+   unappealing.
 */
 
-#define WIDTH_TO_META(_w) (((_w) & 3) << CHAR_BIT)
-#define ATTR_MASK (~((1 << (CHAR_BIT + 2)) - 1))
-#define GET_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
-#define META_MASK (~((1 << CHAR_BIT) - 1))
-#define CHAR_MASK ((1 << CHAR_BIT) - 1)
-#define WIDTH_MASK (3 << CHAR_BIT)
 
 enum {
 	ERR_ILSEQ,
@@ -212,10 +201,6 @@ void win_set_paint(Window *win, int y, int x) {
 	win->paint_y = y;
 }
 
-void win_set_attr(Window *win, int attr) {
-	win->attr = attr;
-}
-
 void win_show(Window *win) {
 	win->shown = true;
 }
@@ -259,8 +244,13 @@ static Bool ensureSpace(LineData *line, size_t n) {
 	return true;
 }
 
-static Bool _win_add_chardata(Window *win, CharData *str, size_t n, int width) {
+static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
+	int width = 0;
+	int extra_spaces = 0;
 	int i, j;
+	size_t k;
+	Bool result = true;
+	CharData space = ' ';
 
 	/* FIXME: some of these assumptions are still based on single character width. Notably the
 	   case which bails out if the character straddles the border. */
@@ -268,22 +258,19 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n, int width) {
 		return true;
 	if (win->paint_x > win->width)
 		return true;
-	if (win->paint_x == win->width && width != 0)
-		return true;
-	if (win->paint_x + width > win->width) {
-		/* Add spaces to cover the rest of the line. */
-		Bool result = true;
-		CharData space = ' ';
-		while (win->paint_x < win->width && result)
-			result &= _win_add_chardata(win, &space, 1,  1);
-		return result;
+
+	for (k = 0; k < n; k++) {
+		if (win->paint_x + width + GET_WIDTH(str[k]) > win->width)
+			break;
+		width += GET_WIDTH(str[k]);
 	}
 
-	/* FIXME: optimize for case where characters are simply added at end of line! */
-
+	if (k < n)
+		extra_spaces = win->width - win->paint_x - width;
+	n = k;
 
 	if (width == 0) {
-		int width;
+		int pos_width;
 		/* Combining characters. */
 
 		/* Simply drop characters that don't belong to any other character. */
@@ -295,19 +282,19 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n, int width) {
 		if (!ensureSpace(win->lines + win->paint_y, n))
 			return false;
 
-		width = win->lines[win->paint_y].start;
+		pos_width = win->lines[win->paint_y].start;
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
 		for (i = 0; i < win->lines[win->paint_y].length; i++) {
-			width += GET_WIDTH(win->lines[win->paint_y].data[i]);
+			pos_width += GET_WIDTH(win->lines[win->paint_y].data[i]);
 			if (GET_WIDTH(win->lines[win->paint_y].data[i]) >= win->paint_x)
 				break;
 		}
 
 		/* Check whether we are being asked to add a zero-width character in the middle
 		   of a double-width character. If so, ignore. */
-		if (width > win->paint_x)
+		if (pos_width > win->paint_x)
 			return true;
 
 		/* Skip to the next non-zero-width character. */
@@ -419,10 +406,14 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n, int width) {
 			win->lines[win->paint_y].start = win->paint_x;
 	}
 	win->paint_x += width;
-	return true;
+
+	for (i = 0; i < extra_spaces; i++)
+		result &= _win_add_chardata(win, &space, 1);
+
+	return result;
 }
 
-int win_mbaddnstra(Window *win, const char *str, size_t n, int attr) {
+int win_mbaddnstra(Window *win, const char *str, size_t n, CharData attr) {
 	size_t result, i;
 	int width;
 	mbstate_t mbstate;
@@ -467,16 +458,16 @@ int win_mbaddnstra(Window *win, const char *str, size_t n, int attr) {
 		for (i = 1; i < result; i++)
 			cd_buf[i] = (unsigned char) buf[i];
 
-		_win_add_chardata(win, cd_buf, result, WIDTH_TO_META(width) | attr);
+		_win_add_chardata(win, cd_buf, result);
 	}
 	return retval;
 }
 
-int win_mbaddnstr(Window *win, const char *str, size_t n) { return win_mbaddnstra(win, str, n, win->attr); }
-int win_mbaddstra(Window *win, const char *str, int attr) { return win_mbaddnstra(win, str, strlen(str), attr); }
-int win_mbaddstr(Window *win, const char *str) { return win_mbaddnstra(win, str, strlen(str), win->attr); }
+int win_mbaddnstr(Window *win, const char *str, size_t n) { return win_mbaddnstra(win, str, n, 0); }
+int win_mbaddstra(Window *win, const char *str, CharData attr) { return win_mbaddnstra(win, str, strlen(str), attr); }
+int win_mbaddstr(Window *win, const char *str) { return win_mbaddnstra(win, str, strlen(str), 0); }
 
-static Bool _win_addnstra(Window *win, const char *str, size_t n, int attr) {
+static Bool _win_addnstra(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i;
 	Bool result = true;
 
@@ -484,13 +475,13 @@ static Bool _win_addnstra(Window *win, const char *str, size_t n, int attr) {
 	   if no multibyte characters are used at all. */
 	for (i = 0; i < n; i++) {
 		CharData c = WIDTH_TO_META(1) | attr | (unsigned char) str[i];
-		result &= _win_add_chardata(win, &c, 1, 1);
+		result &= _win_add_chardata(win, &c, 1);
 	}
 
 	return result;
 }
 
-int win_addnstra(Window *win, const char *str, size_t n, int attr) {
+int win_addnstra(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i, print_from = 0;
 	int retval = 0;
 
@@ -508,9 +499,9 @@ int win_addnstra(Window *win, const char *str, size_t n, int attr) {
 	return retval;
 }
 
-int win_addnstr(Window *win, const char *str, size_t n) { return win_addnstra(win, str, n, win->attr); }
-int win_addstra(Window *win, const char *str, int attr) { return win_addnstra(win, str, strlen(str), attr); }
-int win_addstr(Window *win, const char *str) { return win_addnstra(win, str, strlen(str), win->attr); }
+int win_addnstr(Window *win, const char *str, size_t n) { return win_addnstra(win, str, n, 0); }
+int win_addstra(Window *win, const char *str, CharData attr) { return win_addnstra(win, str, strlen(str), attr); }
+int win_addstr(Window *win, const char *str) { return win_addnstra(win, str, strlen(str), 0); }
 
 Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
 	LineData save, *draw;
@@ -529,7 +520,7 @@ Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 
 		draw = ptr->lines + line - ptr->y;
 		terminal->paint_x = draw->start + ptr->x;
-		_win_add_chardata(terminal, draw->data, draw->length, draw->width);
+		_win_add_chardata(terminal, draw->data, draw->length);
 	}
 
 	*store = terminal->lines[line];

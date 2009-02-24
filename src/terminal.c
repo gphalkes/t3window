@@ -10,7 +10,7 @@
 
 #include "terminal.h"
 #include "window.h"
-#include "internal_structs.h"
+#include "internal.h"
 /* The curses header file defines to many symbols that get in the way of our
    own, so we have a separate C file which exports only those functions that
    we actually use. */
@@ -28,6 +28,7 @@ static Bool initialised, seqs_initialised;
 static fd_set inset;
 
 static char *smcup, *rmcup, *cup;
+static char *sgr, *setaf, *setab;
 
 static Window *terminal_window;
 static LineData new_data;
@@ -125,6 +126,16 @@ Bool term_init(void) {
 				return false;
 			if ((cup = get_ti_string("cup")) == NULL)
 				return false;
+
+			if ((sgr = get_ti_string("sgr")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
+			if ((setaf = get_ti_string("setaf")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
+			if ((setab = get_ti_string("setab")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
 
 			seqs_initialised = true;
 		}
@@ -243,17 +254,61 @@ Bool term_resize(void) {
 	return win_resize(terminal_window, lines, columns);
 }
 
+#define BASIC_ATTRS (ATTR_UNDERLINE | ATTR_BOLD | ATTR_STANDOUT | ATTR_REVERSE | ATTR_BLINK | ATTR_DIM)
+#define FG_COLOR_ATTRS (0xf << (CHAR_BIT + _ATTR_COLOR_SHIFT))
+#define BG_COLOR_ATTRS (0xf << (CHAR_BIT + _ATTR_COLOR_SHIFT + 4))
+
+static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
+
+static CharData attrs = 0;
+static void set_attrs(CharData new_attrs) {
+	if ((attrs & BASIC_ATTRS) != (new_attrs & BASIC_ATTRS)) {
+		/* FIXME: implement sgr alternatives */
+		if (sgr != NULL) {
+			call_putp(call_tparm(sgr, 9,
+				new_attrs & ATTR_STANDOUT,
+				new_attrs & ATTR_UNDERLINE,
+				new_attrs & ATTR_REVERSE,
+				new_attrs & ATTR_BLINK,
+				new_attrs & ATTR_DIM,
+				new_attrs & ATTR_BOLD,
+				0,
+				0,
+				/* FIXME: should be alt charset for non-UTF-8 terminals */ 0));
+		}
+	}
+
+	if ((attrs & FG_COLOR_ATTRS) != (new_attrs & FG_COLOR_ATTRS)) {
+		/* FIXME: implement setaf alternatives */
+		if (setaf != NULL)
+			call_putp(call_tparm(setaf, 1, attr_to_color[(new_attrs >> (CHAR_BIT + _ATTR_COLOR_SHIFT)) & 0xf]));
+	}
+
+	if ((attrs & BG_COLOR_ATTRS) != (new_attrs & BG_COLOR_ATTRS)) {
+		/* FIXME: implement setab alternatives */
+		if (setab != NULL)
+			call_putp(call_tparm(setab, 1, attr_to_color[(new_attrs >> (CHAR_BIT + _ATTR_COLOR_SHIFT + 4)) & 0xf]));
+	}
+	attrs = new_attrs;
+}
+
 void term_refresh(void) {
 	int i, j;
+	CharData new_attrs;
 
 	for (i = 0; i < lines; i++) {
 		_win_refresh_term_line(terminal_window, &new_data, i);
 		/* FIXME: do diff, redraw differences, save the data in the terminal_window struct */
 
 		/* FIXME: for now we simply paint the line (ie no optimizations) */
+		/* FIXME: add attributes */
 		call_putp(call_tparm(cup, 2, i, new_data.start));
-		for (j = 0; j < new_data.length; j++)
-			putchar(new_data.data[j]);
+		for (j = 0; j < new_data.length; j++) {
+			new_attrs = new_data.data[j] & ATTR_MASK;
+			if (new_attrs != attrs)
+				set_attrs(new_attrs);
+			putchar(new_data.data[j] & CHAR_MASK);
+		}
 
 		/* Reset new_data for the next line. */
 		new_data.width = 0;

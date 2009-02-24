@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <locale.h>
 #include "terminal.h"
 #include "window.h"
 
@@ -29,6 +30,7 @@ int main(int argc, char *argv[]) {
 
 	(void) argc;
 	(void) argv;
+	setlocale(LC_ALL, "");
 
 	printf("Waiting for enter to allow debug\n");
 	getchar();
@@ -46,7 +48,7 @@ int main(int argc, char *argv[]) {
 	win_set_paint(low, 0, 0);
 	win_addstr(low, "0123456789-");
 	win_set_paint(low, 6, 0);
-	win_addstr(low, "abcdefghijk");
+	win_mbaddstr(low, "abＱc̃defghijk");
 	term_refresh();
 	getchar();
 
@@ -60,7 +62,7 @@ int main(int argc, char *argv[]) {
 	getchar();
  */
 	win_set_paint(high, 1, 0);
-	win_addstr(high, "9876543210+");
+	win_addstra(high, "9876543210+", ATTR_REVERSE | ATTR_FG_RED);
 /* 	term_refresh();
 	getchar();
 
@@ -68,11 +70,16 @@ int main(int argc, char *argv[]) {
 	term_refresh();
 	getchar();
  */
-	win_move(high, 5, 16);
-	win_resize(high, 10, 9);
+	win_move(high, 5, 0);
+	win_resize(high, 10, 8);
 	win_show(high);
 	term_refresh();
 	getchar();
+
+	win_hide(high);
+	term_refresh();
+	getchar();
+
 	return 0;
 }
 
