@@ -5,35 +5,8 @@
 
 #include "window.h"
 #include "internal.h"
-//FIXME: hide cursor when repainting
 //FIXME: implement "hardware" scrolling for optimization
 //FIXME: add scrolling, because it can save a lot of repainting
-/* FIXME: we now handle half characters by overwriting with spaces. However, we could
-   also do it differently: we could insert the sequence that will correctly first draw
-   the full character, then goes to the correct place for the next char. For example to
-   overwrite the right half of the char we simply make it
-   <double width char><cub1>
-   For overwriting the left half we have to do some trickery.
-   <double width char><cub1><cub1><overwriting char><cuf1>
-   width for the double width char should be set to 0, and for the <cuf1> to 1. The
-   problem we face here is that first of all the double width char will always be written
-   even when the right half is also overwritten. Furthermore, we can start with a zero width
-   character. Lastly, we may print the double width char beyond the end of the line (if the
-   line is subsequently shortened). However, the alternative
-   <overwriting char><cubX><double width><cubX+1><overwriting char><cufX-1>
-   is also unappealing as it has two entries for the overwriting char, only one of which
-   will actually be replaced.
-
-   None of these are terribly appealing, especially considering multiple overwrites. One
-   final option is to mark the inserted spaces specially and put the half characters somewhere
-   else, such that we can then parse them specially when printing. Also not very appealing, but
-   perhaps the best option such that half/partial characters are actually printed as such.
-
-   The final option to make printing more appealing is to ask the user to render these
-   characters or allow the user to specify what to render there. This way we can do automatic
-   conversion to underlined > and < characters.
-*/
-
 
 enum {
 	ERR_ILSEQ,
@@ -163,11 +136,9 @@ Bool win_resize(Window *win, int height, int width) {
 				win->lines[i].start = 0;
 			} else if (win->lines[i].start + win->lines[i].width > width) {
 				int sumwidth = win->lines[i].start, j;
-				for (j = 0; j < win->lines[i].length && sumwidth < width; j++) {
-					if (sumwidth + GET_WIDTH(win->lines[i].data[j]) > width)
-						break;
+				for (j = 0; j < win->lines[i].length && sumwidth + GET_WIDTH(win->lines[i].data[j]) <= width; j++)
 					sumwidth += GET_WIDTH(win->lines[i].data[j]);
-				}
+
 				if (sumwidth < width) {
 					int spaces = width - sumwidth;
 					if (spaces < win->lines[i].length - j ||
@@ -179,7 +150,7 @@ Bool win_resize(Window *win, int height, int width) {
 				}
 
 				win->lines[i].length = j;
-				win->lines[i].width = sumwidth;
+				win->lines[i].width = width;
 			}
 		}
 	}
@@ -352,11 +323,8 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
-		for (i = 0; i < win->lines[win->paint_y].length; i++) {
-			if (pos_width + GET_WIDTH(win->lines[win->paint_y].data[i]) > win->paint_x)
-				break;
+		for (i = 0; i < win->lines[win->paint_y].length && pos_width + GET_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
 			pos_width += GET_WIDTH(win->lines[win->paint_y].data[i]);
-		}
 		start_replace = i;
 
 		/* If the character only partially overlaps, we replace the first part with
@@ -410,8 +378,10 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		win->lines[win->paint_y].length += sdiff;
 		if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < width + win->paint_x)
 			win->lines[win->paint_y].width = width + win->paint_x - win->lines[win->paint_y].start;
-		if (win->lines[win->paint_y].start > win->paint_x)
+		if (win->lines[win->paint_y].start > win->paint_x) {
+			win->lines[win->paint_y].width += win->lines[win->paint_y].start - win->paint_x;
 			win->lines[win->paint_y].start = win->paint_x;
+		}
 	}
 	win->paint_x += width;
 

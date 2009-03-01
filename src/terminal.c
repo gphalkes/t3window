@@ -256,14 +256,13 @@ Bool term_resize(void) {
 	return win_resize(terminal_window, lines, columns);
 }
 
-#define BASIC_ATTRS (ATTR_UNDERLINE | ATTR_BOLD | ATTR_STANDOUT | ATTR_REVERSE | ATTR_BLINK | ATTR_DIM)
-#define FG_COLOR_ATTRS (0xf << (CHAR_BIT + _ATTR_COLOR_SHIFT))
-#define BG_COLOR_ATTRS (0xf << (CHAR_BIT + _ATTR_COLOR_SHIFT + 4))
-
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
 
 static CharData attrs = 0;
+/* FIXME: make this available to user for drawing user attributes */
 static void set_attrs(CharData new_attrs) {
+	/* Just in case the caller forgot */
+	new_attrs &= ATTR_MASK;
 	if ((attrs & BASIC_ATTRS) != (new_attrs & BASIC_ATTRS)) {
 		/* FIXME: implement sgr alternatives */
 		if (sgr != NULL) {
@@ -295,13 +294,13 @@ static void set_attrs(CharData new_attrs) {
 	if ((attrs & FG_COLOR_ATTRS) != (new_attrs & FG_COLOR_ATTRS)) {
 		/* FIXME: implement setaf alternatives */
 		if (setaf != NULL)
-			call_putp(call_tparm(setaf, 1, attr_to_color[(new_attrs >> (CHAR_BIT + _ATTR_COLOR_SHIFT)) & 0xf]));
+			call_putp(call_tparm(setaf, 1, attr_to_color[(new_attrs >> _ATTR_COLOR_SHIFT) & 0xf]));
 	}
 
 	if ((attrs & BG_COLOR_ATTRS) != (new_attrs & BG_COLOR_ATTRS)) {
 		/* FIXME: implement setab alternatives */
 		if (setab != NULL)
-			call_putp(call_tparm(setab, 1, attr_to_color[(new_attrs >> (CHAR_BIT + _ATTR_COLOR_SHIFT + 4)) & 0xf]));
+			call_putp(call_tparm(setab, 1, attr_to_color[(new_attrs >> (_ATTR_COLOR_SHIFT + 4)) & 0xf]));
 	}
 	attrs = new_attrs;
 }
@@ -317,9 +316,11 @@ void term_refresh(void) {
 		/* FIXME: for now we simply paint the line (ie no optimizations) */
 		call_putp(call_tparm(cup, 2, i, new_data.start));
 		for (j = 0; j < new_data.length; j++) {
-			new_attrs = new_data.data[j] & ATTR_MASK;
-			if (new_attrs != attrs)
-				set_attrs(new_attrs);
+			if (GET_WIDTH(new_data.data[j]) > 0) {
+				new_attrs = new_data.data[j] & ATTR_MASK;
+				if (new_attrs != attrs)
+					set_attrs(new_attrs);
+			}
 			putchar(new_data.data[j] & CHAR_MASK);
 		}
 

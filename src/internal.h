@@ -3,11 +3,16 @@
 
 #include <limits.h>
 #define WIDTH_TO_META(_w) (((_w) & 3) << CHAR_BIT)
-#define ATTR_MASK (~((1 << (CHAR_BIT + 2)) - 1))
 #define GET_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
+
+#define WIDTH_MASK (3 << CHAR_BIT)
+#define ATTR_MASK (~((1 << _ATTR_SHIFT) - 1))
 #define META_MASK (~((1 << CHAR_BIT) - 1))
 #define CHAR_MASK ((1 << CHAR_BIT) - 1)
-#define WIDTH_MASK (3 << CHAR_BIT)
+
+#define BASIC_ATTRS (ATTR_UNDERLINE | ATTR_BOLD | ATTR_STANDOUT | ATTR_REVERSE | ATTR_BLINK | ATTR_DIM)
+#define FG_COLOR_ATTRS (0xf << _ATTR_COLOR_SHIFT)
+#define BG_COLOR_ATTRS (0xf << (_ATTR_COLOR_SHIFT + 4))
 
 #define INITIAL_ALLOC 80
 
