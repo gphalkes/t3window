@@ -150,7 +150,7 @@ Bool win_resize(Window *win, int height, int width) {
 				}
 
 				win->lines[i].length = j;
-				win->lines[i].width = width;
+				win->lines[i].width = width - win->lines[i].start;
 			}
 		}
 	}
@@ -481,6 +481,7 @@ int win_addnstr(Window *win, const char *str, size_t n) { return win_addnstra(wi
 int win_addstra(Window *win, const char *str, CharData attr) { return win_addnstra(win, str, strlen(str), attr); }
 int win_addstr(Window *win, const char *str) { return win_addnstra(win, str, strlen(str), 0); }
 
+/* FIXME: assume clear background, such that we erase characters that are "invisible" */
 Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
 	LineData save, *draw;
 	Window *ptr;
@@ -504,4 +505,29 @@ Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 	*store = terminal->lines[line];
 	terminal->lines[line] = save;
 	return true;
+}
+
+void win_clrtoeol(Window *win) {
+	if (win->paint_x <= win->lines[win->paint_y].start) {
+		win->lines[win->paint_y].length = 0;
+		win->lines[win->paint_y].width = 0;
+		win->lines[win->paint_y].start = 0;
+	} else if (win->paint_x < win->lines[win->paint_y].start + win->lines[win->paint_y].width) {
+		int sumwidth = win->lines[win->paint_y].start, i;
+		for (i = 0; i < win->lines[win->paint_y].length && sumwidth + GET_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
+			sumwidth += GET_WIDTH(win->lines[win->paint_y].data[i]);
+
+		if (sumwidth < win->paint_x) {
+			int spaces = win->paint_x - sumwidth;
+			if (spaces < win->lines[win->paint_y].length - i ||
+					ensureSpace(win->lines + win->paint_y, spaces - win->lines[win->paint_y].length + i)) {
+				for (; spaces > 0; spaces--)
+					win->lines[win->paint_y].data[i++] = WIDTH_TO_META(1) | ' ';
+				sumwidth = win->paint_x;
+			}
+		}
+
+		win->lines[win->paint_y].length = i;
+		win->lines[win->paint_y].width = win->paint_x - win->lines[win->paint_y].start;
+	}
 }

@@ -28,13 +28,50 @@ static Bool initialised, seqs_initialised;
 static fd_set inset;
 
 static char *smcup, *rmcup, *cup;
-static char *sgr, *setaf, *setab, *op;
+static char *sgr, *setaf, *setab, *op, *smacs, *rmacs;
 
 static Window *terminal_window;
 static LineData new_data;
 
 static int lines, columns;
 static int cursor_y, cursor_x;
+
+static char alternate_chars[256];
+
+static void set_alternate_chars_defaults(void) {
+	alternate_chars['}'] = 'f';
+	alternate_chars['.'] = 'v';
+	alternate_chars[','] = '<';
+	alternate_chars['+'] = '>';
+	alternate_chars['-'] = '^';
+	alternate_chars['h'] = '#';
+	alternate_chars['~'] = 'o';
+	alternate_chars['a'] = ':';
+	alternate_chars['f'] = '\\';
+	alternate_chars['\''] = '+';
+	alternate_chars['z'] = '>';
+	alternate_chars['{'] = '*';
+	alternate_chars['q'] = '-';
+	alternate_chars['i'] = '#';
+	alternate_chars['n'] = '+';
+	alternate_chars['y'] = '<';
+	alternate_chars['m'] = '+';
+	alternate_chars['j'] = '+';
+	alternate_chars['|'] = '!';
+	alternate_chars['g'] = '#';
+	alternate_chars['o'] = '~';
+	alternate_chars['p'] = '-';
+	alternate_chars['r'] = '-';
+	alternate_chars['s'] = '_';
+	alternate_chars['0'] = '#';
+	alternate_chars['w'] = '+';
+	alternate_chars['u'] = '+';
+	alternate_chars['t'] = '+';
+	alternate_chars['v'] = '+';
+	alternate_chars['l'] = '+';
+	alternate_chars['k'] = '+';
+	alternate_chars['x'] = '|';
+}
 
 
 #if 0
@@ -116,6 +153,8 @@ Bool term_init(void) {
 
 		if (!seqs_initialised) {
 			int error;
+			char *acsc;
+
 			if ((error = call_setupterm()) != 0)
 				return false;
 			/*FIXME: we should probably have some way to return what was the problem. */
@@ -138,6 +177,19 @@ Bool term_init(void) {
 			}
 			if ((op = get_ti_string("op")) == NULL) {
 				/* FIXME: get alternatives. */
+			}
+			if ((acsc = get_ti_string("acsc")) == NULL) {
+				set_alternate_chars_defaults();
+			} else {
+				/* FIXME: only required when sgr not found! */
+				if ((smacs = get_ti_string("smacs")) == NULL || (rmacs = get_ti_string("rmacs")) == NULL) {
+					set_alternate_chars_defaults();
+				} else {
+					size_t i;
+					for (i = 0; i < strlen(acsc); i += 2)
+						alternate_chars[(unsigned int) acsc[i]] = acsc[i + 1];
+				}
+				free(acsc);
 			}
 
 			seqs_initialised = true;
@@ -257,7 +309,6 @@ Bool term_resize(void) {
 }
 
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
-
 static CharData attrs = 0;
 /* FIXME: make this available to user for drawing user attributes */
 static void set_attrs(CharData new_attrs) {
@@ -275,7 +326,8 @@ static void set_attrs(CharData new_attrs) {
 				new_attrs & ATTR_BOLD,
 				0,
 				0,
-				/* FIXME: should be alt charset for non-UTF-8 terminals */ 0));
+				/* FIXME: UTF-8 terminals may need different handling */
+				new_attrs & ATTR_ACS));
 		}
 	}
 
@@ -302,9 +354,11 @@ static void set_attrs(CharData new_attrs) {
 		if (setab != NULL)
 			call_putp(call_tparm(setab, 1, attr_to_color[(new_attrs >> (_ATTR_COLOR_SHIFT + 4)) & 0xf]));
 	}
+
 	attrs = new_attrs;
 }
 
+/* FIXME: assume clear background, such that we erase characters that are "invisible" */
 void term_refresh(void) {
 	int i, j;
 	CharData new_attrs;

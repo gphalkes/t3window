@@ -63,6 +63,8 @@ int main(int argc, char *argv[]) {
  */
 	win_set_paint(high, 1, 0);
 	win_addstra(high, "9876543210+", ATTR_REVERSE | ATTR_FG_RED);
+	win_set_paint(high, 2, 0);
+	win_addstra(high, "wutvlkmjqx", ATTR_ACS);
 /* 	term_refresh();
 	getchar();
 
@@ -70,7 +72,7 @@ int main(int argc, char *argv[]) {
 	term_refresh();
 	getchar();
  */
-	win_move(high, 5, 0);
+	win_move(high, 5, 8);
 	win_resize(high, 10, 8);
 	win_show(high);
 	term_refresh();
