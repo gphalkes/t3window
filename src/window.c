@@ -481,7 +481,6 @@ int win_addnstr(Window *win, const char *str, size_t n) { return win_addnstra(wi
 int win_addstra(Window *win, const char *str, CharData attr) { return win_addnstra(win, str, strlen(str), attr); }
 int win_addstr(Window *win, const char *str) { return win_addnstra(win, str, strlen(str), 0); }
 
-/* FIXME: assume clear background, such that we erase characters that are "invisible" */
 Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
 	LineData save, *draw;
 	Window *ptr;
@@ -500,6 +499,14 @@ Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 		draw = ptr->lines + line - ptr->y;
 		terminal->paint_x = draw->start + ptr->x;
 		_win_add_chardata(terminal, draw->data, draw->length);
+	}
+
+	/* If a line does not start at position 0, just make it do so. This makes the whole repainting
+	   bit a lot easier. */
+	if (terminal->lines[line].start != 0) {
+		CharData space = ' ' | WIDTH_TO_META(1);
+		terminal->paint_x = 0;
+		_win_add_chardata(terminal, &space, 1);
 	}
 
 	*store = terminal->lines[line];

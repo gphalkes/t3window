@@ -52,6 +52,8 @@ int main(int argc, char *argv[]) {
 	term_refresh();
 	getchar();
 
+	term_show_cursor();
+	win_set_cursor(low, 0, 0);
 /* 	win_show(high);
 	term_refresh();
 	getchar();
@@ -72,7 +74,7 @@ int main(int argc, char *argv[]) {
 	term_refresh();
 	getchar();
  */
-	win_move(high, 5, 8);
+	win_move(high, 5, 0);
 	win_resize(high, 10, 8);
 	win_show(high);
 	term_refresh();

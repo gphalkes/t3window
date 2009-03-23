@@ -7,6 +7,8 @@
 //FIXME: we need to do some checking which header files we need
 #include <sys/select.h>
 #include <sys/ioctl.h>
+#include <assert.h>
+#include <limits.h>
 
 #include "terminal.h"
 #include "window.h"
@@ -27,14 +29,17 @@ static struct termios saved;
 static Bool initialised, seqs_initialised;
 static fd_set inset;
 
-static char *smcup, *rmcup, *cup;
+static char *smcup, *rmcup, *cup, *sc, *rc;
+static char *civis, *cnorm;
 static char *sgr, *setaf, *setab, *op, *smacs, *rmacs;
+static char *el;
 
 static Window *terminal_window;
 static LineData new_data;
 
 static int lines, columns;
 static int cursor_y, cursor_x;
+static Bool show_cursor;
 
 static char alternate_chars[256];
 
@@ -178,6 +183,21 @@ Bool term_init(void) {
 			if ((op = get_ti_string("op")) == NULL) {
 				/* FIXME: get alternatives. */
 			}
+			if ((el = get_ti_string("el")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
+			if ((sc = get_ti_string("sc")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
+			if ((rc = get_ti_string("rc")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
+			if ((civis = get_ti_string("civis")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
+			if ((cnorm = get_ti_string("cnorm")) == NULL) {
+				/* FIXME: get alternatives. */
+			}
 			if ((acsc = get_ti_string("acsc")) == NULL) {
 				set_alternate_chars_defaults();
 			} else {
@@ -223,6 +243,7 @@ Bool term_init(void) {
 
 		/* Start cursor positioning mode. */
 		call_putp(smcup);
+		call_putp(civis);
 	}
 	return true;
 }
@@ -287,8 +308,18 @@ void term_set_cursor(int y, int x) {
 	call_putp(call_tparm(cup, 2, y, x));
 }
 
-void term_hide_cursor(void);
-void term_show_cursor(void);
+void term_hide_cursor(void) {
+	show_cursor = false;
+	call_putp(civis);
+}
+
+void term_show_cursor(void) {
+	show_cursor = true;
+	/* FIXCOMPAT: use cup only when supported */
+	call_putp(call_tparm(cup, 2, cursor_y, cursor_x));
+	call_putp(cnorm);
+}
+
 void term_get_size(int *height, int *width);
 
 /** Handle resizing of the terminal.
@@ -358,30 +389,74 @@ static void set_attrs(CharData new_attrs) {
 	attrs = new_attrs;
 }
 
-/* FIXME: assume clear background, such that we erase characters that are "invisible" */
+#define SWAP_LINES(a, b) do { LineData save; save = (a); (a) = (b); (b) = save; } while (0)
 void term_refresh(void) {
 	int i, j;
 	CharData new_attrs;
 
-	for (i = 0; i < lines; i++) {
-		_win_refresh_term_line(terminal_window, &new_data, i);
-		/* FIXME: do diff, redraw differences, save the data in the terminal_window struct */
+	if (show_cursor) {
+		call_putp(sc);
+		call_putp(civis);
+	}
 
-		/* FIXME: for now we simply paint the line (ie no optimizations) */
-		call_putp(call_tparm(cup, 2, i, new_data.start));
-		for (j = 0; j < new_data.length; j++) {
+	for (i = 0; i < lines; i++) {
+		int new_idx, old_idx = terminal_window->lines[i].length, width = 0;
+		_win_refresh_term_line(terminal_window, &new_data, i);
+
+		new_idx = new_data.length;
+
+		if (new_data.width == terminal_window->lines[i].width) {
+			for (new_idx--, old_idx--; new_idx >= 0 &&
+					old_idx >= 0 && new_data.data[new_idx] == terminal_window->lines[i].data[old_idx];
+					new_idx--, old_idx--)
+			{}
+			if (new_idx == -1) {
+				assert(old_idx == -1);
+				goto done;
+			}
+			assert(old_idx >= 0);
+			for (new_idx++; GET_WIDTH(new_data.data[new_idx]) == 0 && new_idx < new_data.length; new_idx++) {}
+			for (old_idx++; GET_WIDTH(terminal_window->lines[i].data[old_idx]) == 0 &&
+					old_idx < terminal_window->lines[i].length; old_idx++) {}
+		}
+
+		/* Find the first character that is different */
+		for (j = 0; j < new_idx && j < old_idx && new_data.data[j] == terminal_window->lines[i].data[j]; j++)
+			width += GET_WIDTH(new_data.data[j]);
+
+		/* Go back to the last non-zero-width character, because that is the one we want to print first. */
+		if (GET_WIDTH(new_data.data[j]) == 0 || GET_WIDTH(terminal_window->lines[i].data[j]) == 0) {
+			for (; j > 0 && (GET_WIDTH(new_data.data[j]) == 0 || GET_WIDTH(terminal_window->lines[i].data[j]) == 0); j--) {}
+			width -= GET_WIDTH(new_data.data[j]);
+		}
+
+		/* Position the cursor */
+		call_putp(call_tparm(cup, 2, i, width));
+		for (; j < new_idx; j++) {
 			if (GET_WIDTH(new_data.data[j]) > 0) {
 				new_attrs = new_data.data[j] & ATTR_MASK;
 				if (new_attrs != attrs)
 					set_attrs(new_attrs);
+				width += GET_WIDTH(new_data.data[j]);
 			}
 			putchar(new_data.data[j] & CHAR_MASK);
 		}
 
+		if (new_data.width < terminal_window->lines[i].width && width < terminal_window->width)
+			call_putp(el);
+
+		SWAP_LINES(new_data, terminal_window->lines[i]);
+done:
 		/* Reset new_data for the next line. */
 		new_data.width = 0;
 		new_data.length = 0;
 		new_data.start = 0;
 	}
+
+	if (show_cursor) {
+		call_putp(rc);
+		call_putp(cnorm);
+	}
+
 	fflush(stdout);
 }
