@@ -324,7 +324,10 @@ void term_show_cursor(void) {
 	call_putp(cnorm);
 }
 
-void term_get_size(int *height, int *width);
+void term_get_size(int *height, int *width) {
+	*height = terminal_window->height;
+	*width = terminal_window->width;
+}
 
 /** Handle resizing of the terminal.
 
@@ -440,6 +443,10 @@ void term_refresh(void) {
 		call_putp(call_tparm(cup, 2, i, width));
 		for (; j < new_idx; j++) {
 			if (GET_WIDTH(new_data.data[j]) > 0) {
+				//FIXME: clear also clears background which may not be what is required. Perhaps better to truncate line first!
+				if (width + GET_WIDTH(new_data.data[j]) > terminal_window->width)
+					break;
+
 				new_attrs = new_data.data[j] & ATTR_MASK;
 
 				width += GET_WIDTH(new_data.data[j]);
@@ -457,8 +464,9 @@ void term_refresh(void) {
 			}
 			putchar(new_data.data[j] & CHAR_MASK);
 		}
-
-		if (new_data.width < terminal_window->lines[i].width && width < terminal_window->width)
+		//FIXME: if bce cap is set, the background needs to be set properly before clear
+		//FIXME: clear also clears background which may not be what is required. Perhaps better to truncate line first!
+		if ((new_data.width < terminal_window->lines[i].width || j < new_idx) && width < terminal_window->width)
 			call_putp(el);
 
 		SWAP_LINES(new_data, terminal_window->lines[i]);

@@ -29,4 +29,5 @@ int win_addstra(Window *win, const char *str, CharData attr);
 int win_addstr(Window *win, const char *str);
 
 void win_clrtoeol(Window *win);
+
 #endif

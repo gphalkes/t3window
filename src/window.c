@@ -514,6 +514,8 @@ bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 	return true;
 }
 
+//FIXME: should we take background into account, or should we let the app be bothered about
+//erasing with proper background color
 void win_clrtoeol(Window *win) {
 	if (win->paint_x <= win->lines[win->paint_y].start) {
 		win->lines[win->paint_y].length = 0;
@@ -538,3 +540,5 @@ void win_clrtoeol(Window *win) {
 		win->lines[win->paint_y].width = win->paint_x - win->lines[win->paint_y].start;
 	}
 }
+
+//FIXME: make win_fill_line or something of the sort
