@@ -126,7 +126,7 @@ Bool win_resize(Window *win, int height, int width) {
 			free(win->lines[i].data);
 		memset(win->lines + height, 0, sizeof(LineData) * (win->height - height));
 	}
-
+//FIXME: we should use the clrtoeol function to do this for us, as it uses pretty much the same code!
 	if (width < win->width) {
 		/* Chop lines to maximum width */
 		//FIXME: should we also try to resize the lines (as in realloc)?
