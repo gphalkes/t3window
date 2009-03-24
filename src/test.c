@@ -25,6 +25,13 @@ void fatal(const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
+void callback(CharData *c, int length) {
+	int i;
+	term_set_attrs(ATTR_BLINK | ATTR_REVERSE);
+	for (i = 0; i < length; i++)
+		putchar(c[i] & CHAR_MASK);
+}
+
 int main(int argc, char *argv[]) {
 	Window *low, *high;
 
@@ -67,6 +74,10 @@ int main(int argc, char *argv[]) {
 	win_addstra(high, "9876543210+", ATTR_REVERSE | ATTR_FG_RED);
 	win_set_paint(high, 2, 0);
 	win_addstra(high, "wutvlkmjqx", ATTR_ACS);
+
+	term_set_user_callback(callback);
+	win_set_paint(high, 3, 0);
+        win_addstra(high, "f", ATTR_USER1);
 /* 	term_refresh();
 	getchar();
 

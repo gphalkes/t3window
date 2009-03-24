@@ -41,6 +41,10 @@ static int lines, columns;
 static int cursor_y, cursor_x;
 static Bool show_cursor;
 
+static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
+static CharData attrs = 0;
+static TermUserCallback user_callback = NULL;
+
 static char alternate_chars[256];
 
 static void set_alternate_chars_defaults(void) {
@@ -339,10 +343,8 @@ Bool term_resize(void) {
 	return win_resize(terminal_window, lines, columns);
 }
 
-static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
-static CharData attrs = 0;
 /* FIXME: make this available to user for drawing user attributes */
-static void set_attrs(CharData new_attrs) {
+void term_set_attrs(CharData new_attrs) {
 	/* Just in case the caller forgot */
 	new_attrs &= ATTR_MASK;
 	if ((attrs & BASIC_ATTRS) != (new_attrs & BASIC_ATTRS)) {
@@ -387,6 +389,10 @@ static void set_attrs(CharData new_attrs) {
 	}
 
 	attrs = new_attrs;
+}
+
+void term_set_user_callback(TermUserCallback callback) {
+	user_callback = callback;
 }
 
 #define SWAP_LINES(a, b) do { LineData save; save = (a); (a) = (b); (b) = save; } while (0)
@@ -435,9 +441,19 @@ void term_refresh(void) {
 		for (; j < new_idx; j++) {
 			if (GET_WIDTH(new_data.data[j]) > 0) {
 				new_attrs = new_data.data[j] & ATTR_MASK;
-				if (new_attrs != attrs)
-					set_attrs(new_attrs);
+
 				width += GET_WIDTH(new_data.data[j]);
+				if (user_callback != NULL && new_attrs & ATTR_USER_MASK) {
+					/* Let the user draw this character because they want funky attributes */
+					int start = j;
+					for (j++; j < new_idx && GET_WIDTH(new_data.data[j]) == 0; j++) {}
+					user_callback(new_data.data + start, j - start);
+					if (j < new_idx)
+						j--;
+					continue;
+				} else if (new_attrs != attrs) {
+					term_set_attrs(new_attrs);
+				}
 			}
 			putchar(new_data.data[j] & CHAR_MASK);
 		}

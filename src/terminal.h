@@ -4,6 +4,9 @@
 #include <limits.h>
 
 typedef enum { false, true } Bool;
+//FIXME: make sure that the base type is the correct size to store all the attributes
+typedef int CharData;
+typedef void (*TermUserCallback)(CharData *c, int length);
 
 Bool term_init(void);
 void term_restore(void);
@@ -18,10 +21,14 @@ int term_get_keychar(int msec);
 #define ATTR_BLINK (1 << (_ATTR_SHIFT + 4))
 #define ATTR_DIM (1 << (_ATTR_SHIFT + 5))
 #define ATTR_ACS (1<< (_ATTR_SHIFT + 6))
-#define ATTR_USER1(_x) (1 << (_ATTR_SHIFT + 7))
+#define ATTR_USER1 (1 << (_ATTR_SHIFT + 7))
 #define _ATTR_COLOR_SHIFT (_ATTR_SHIFT + 8)
 #define ATTR_FOREGROUND(_x) (((_x) & 0xf) << _ATTR_COLOR_SHIFT)
 #define ATTR_BACKGROUND(_x) (((_x) & 0xf) << (_ATTR_COLOR_SHIFT + 4))
+
+#define ATTR_MASK (~((1 << _ATTR_SHIFT) - 1))
+#define ATTR_USER_MASK (ATTR_USER1)
+#define CHAR_MASK ((1 << CHAR_BIT) - 1)
 
 #define ATTR_FG_DEFAULT 0
 #define ATTR_FG_BLACK (1 << _ATTR_COLOR_SHIFT)
@@ -60,6 +67,9 @@ void term_show_cursor(void);
 void term_get_size(int *height, int *width);
 Bool term_resize(void);
 void term_refresh(void);
+void term_set_attrs(CharData new_attrs);
+void term_set_user_callback(TermUserCallback callback);
+
 enum {
 	KEY_ERROR = -1,
 	KEY_TIMEOUT = -2

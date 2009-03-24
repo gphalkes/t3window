@@ -3,9 +3,6 @@
 
 #include "terminal.h"
 
-//FIXME: make sure that the base type is the correct size to store all the attributes
-typedef int CharData;
-
 typedef struct Window Window;
 
 Window *win_new(int height, int width, int y, int x, int depth);
