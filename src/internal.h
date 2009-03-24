@@ -27,7 +27,7 @@ struct Window {
 	int paint_x, paint_y;
 	int width, height;
 	int depth;
-	Bool shown;
+	bool shown;
 	LineData *lines;
 
 	/* Pointers for linking into depth sorted list. */
@@ -35,6 +35,6 @@ struct Window {
 	Window *prev;
 };
 
-Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line);
+bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line);
 
 #endif

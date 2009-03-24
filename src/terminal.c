@@ -26,7 +26,7 @@ of interest. */
 /* FIXME: do proper cleanup on failure, especially on term_init */
 
 static struct termios saved;
-static Bool initialised, seqs_initialised;
+static bool initialised, seqs_initialised;
 static fd_set inset;
 
 static char *smcup, *rmcup, *cup, *sc, *rc;
@@ -39,7 +39,7 @@ static LineData new_data;
 
 static int lines, columns;
 static int cursor_y, cursor_x;
-static Bool show_cursor;
+static bool show_cursor;
 
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
 static CharData attrs = 0;
@@ -138,7 +138,7 @@ static char *get_ti_string(const char *name) {
 	return strdup(result);
 }
 
-Bool term_init(void) {
+bool term_init(void) {
 	struct winsize wsz;
 	if (!initialised) {
 		struct termios new_params;
@@ -332,7 +332,7 @@ void term_get_size(int *height, int *width);
 	After calling @a term_resize, @a term_get_size can be called to retrieve
     the new terminal size. Should be called after a SIGWINCH.
 */
-Bool term_resize(void) {
+bool term_resize(void) {
 	struct winsize wsz;
 
 	if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) < 0)

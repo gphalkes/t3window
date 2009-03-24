@@ -3,12 +3,12 @@
 
 #include <limits.h>
 
-typedef enum { false, true } Bool;
+typedef enum { false, true } bool;
 //FIXME: make sure that the base type is the correct size to store all the attributes
 typedef int CharData;
 typedef void (*TermUserCallback)(CharData *c, int length);
 
-Bool term_init(void);
+bool term_init(void);
 void term_restore(void);
 int term_get_keychar(int msec);
 
@@ -65,7 +65,7 @@ void term_set_cursor(int y, int x);
 void term_hide_cursor(void);
 void term_show_cursor(void);
 void term_get_size(int *height, int *width);
-Bool term_resize(void);
+bool term_resize(void);
 void term_refresh(void);
 void term_set_attrs(CharData new_attrs);
 void term_set_user_callback(TermUserCallback callback);

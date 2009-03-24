@@ -19,7 +19,7 @@ enum {
 Window *head, *tail;
 
 static void _win_del(Window *win);
-static Bool ensureSpace(LineData *line, size_t n);
+static bool ensureSpace(LineData *line, size_t n);
 
 Window *win_new(int height, int width, int y, int x, int depth) {
 	Window *retval, *ptr;
@@ -105,7 +105,7 @@ void win_del(Window *win) {
 	_win_del(win);
 }
 
-Bool win_resize(Window *win, int height, int width) {
+bool win_resize(Window *win, int height, int width) {
 	int i;
 	//FIXME validate parameters
 	if (height > win->height) {
@@ -198,7 +198,7 @@ static void copy_mb(CharData *dest, const char *src, size_t n, CharData meta) {
 		*dest++ = (unsigned char) *src++;
 }
 */
-static Bool ensureSpace(LineData *line, size_t n) {
+static bool ensureSpace(LineData *line, size_t n) {
 	int newsize;
 	CharData *resized;
 
@@ -225,12 +225,12 @@ static Bool ensureSpace(LineData *line, size_t n) {
 	return true;
 }
 
-static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
+static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	int width = 0;
 	int extra_spaces = 0;
 	int i, j;
 	size_t k;
-	Bool result = true;
+	bool result = true;
 	CharData space = ' ';
 
 	if (win->paint_y >= win->height)
@@ -445,9 +445,9 @@ int win_mbaddnstr(Window *win, const char *str, size_t n) { return win_mbaddnstr
 int win_mbaddstra(Window *win, const char *str, CharData attr) { return win_mbaddnstra(win, str, strlen(str), attr); }
 int win_mbaddstr(Window *win, const char *str) { return win_mbaddnstra(win, str, strlen(str), 0); }
 
-static Bool _win_addnstra(Window *win, const char *str, size_t n, CharData attr) {
+static bool _win_addnstra(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i;
-	Bool result = true;
+	bool result = true;
 
 	/* FIXME: it would seem that this can be done more efficiently, especially
 	   if no multibyte characters are used at all. */
@@ -481,7 +481,7 @@ int win_addnstr(Window *win, const char *str, size_t n) { return win_addnstra(wi
 int win_addstra(Window *win, const char *str, CharData attr) { return win_addnstra(win, str, strlen(str), attr); }
 int win_addstr(Window *win, const char *str) { return win_addnstra(win, str, strlen(str), 0); }
 
-Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
+bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
 	LineData save, *draw;
 	Window *ptr;
 
