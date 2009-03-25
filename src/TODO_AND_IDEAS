@@ -1,3 +1,5 @@
+- UTF-8 locale detection and changin win_addstr calls automatically
+
 - more attribute painting stuff
 - zero-width characters at start of line?
 - program alternatives

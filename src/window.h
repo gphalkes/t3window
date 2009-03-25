@@ -17,16 +17,20 @@ void win_set_paint(Window *win, int y, int x);
 void win_show(Window *win);
 void win_hide(Window *win);
 
-
+/* FIXME: autodetect UTF-8
 int win_mbaddnstra(Window *win, const char *str, size_t n, CharData attr);
 int win_mbaddnstr(Window *win, const char *str, size_t n);
 int win_mbaddstra(Window *win, const char *str, CharData attr);
 int win_mbaddstr(Window *win, const char *str);
+*/
 
 int win_addnstra(Window *win, const char *str, size_t n, CharData attr);
 int win_addnstr(Window *win, const char *str, size_t n);
 int win_addstra(Window *win, const char *str, CharData attr);
 int win_addstr(Window *win, const char *str);
+
+int win_addcha(Window *win, char c, CharData attr);
+int win_addch(Window *win, char c);
 
 void win_clrtoeol(Window *win);
 
