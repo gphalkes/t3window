@@ -39,7 +39,7 @@ static LineData new_data;
 
 static int lines, columns;
 static int cursor_y, cursor_x;
-static bool show_cursor;
+static bool show_cursor = true;
 
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
 static CharData attrs = 0;
@@ -260,6 +260,8 @@ void term_restore(void) {
 	*/
 	if (initialised) {
 		call_putp(rmcup);
+		/* Restore cursor to visible state. */
+		call_putp(cnorm);
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
 		initialised = false;
 	}
@@ -278,11 +280,15 @@ static int safe_read_char(void) {
 	}
 }
 
+static int last_key = -1, stored_key = -1;
+
 int term_get_keychar(int msec) {
 	int retval;
 	fd_set _inset;
 	struct timeval timeout;
 
+	if (stored_key >= 0)
+		return last_key = stored_key;
 
 	while (1) {
 		_inset = inset;
@@ -300,9 +306,17 @@ int term_get_keychar(int msec) {
 		} else if (retval == 0) {
 			return KEY_TIMEOUT;
 		} else {
-			return safe_read_char();
+			return last_key = safe_read_char();
 		}
 	}
+}
+
+int term_unget_keychar(int c) {
+	if (c == last_key) {
+		stored_key = c;
+		return c;
+	}
+	return KEY_ERROR;
 }
 
 void term_set_cursor(int y, int x) {
@@ -483,4 +497,8 @@ done:
 	}
 
 	fflush(stdout);
+}
+
+void term_putp(const char *str) {
+	call_putp(str);
 }

@@ -78,3 +78,5 @@ clean:
 	rm -rf $(TARGETS) .deps .objects >/dev/null 2>&1
 
 -include $(DEPENDENCIES)
+#===========================================================================
+test: libwindow.so

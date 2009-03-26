@@ -540,5 +540,9 @@ void win_clrtoeol(Window *win) {
 		win->lines[win->paint_y].width = win->paint_x - win->lines[win->paint_y].start;
 	}
 }
+//FIXME: make win_clrtobol
 
 //FIXME: make win_fill_line or something of the sort
+
+int win_addcha(Window *win, char c, CharData attr) { return win_addnstra(win, &c, 1, attr); }
+int win_addch(Window *win, char c) { return win_addnstra(win, &c, 1, 0); }

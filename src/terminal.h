@@ -69,6 +69,9 @@ bool term_resize(void);
 void term_refresh(void);
 void term_set_attrs(CharData new_attrs);
 void term_set_user_callback(TermUserCallback callback);
+int term_get_keychar(int msec);
+int term_unget_keychar(int c);
+void term_putp(const char *str);
 
 enum {
 	KEY_ERROR = -1,
