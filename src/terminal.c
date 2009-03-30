@@ -261,7 +261,8 @@ void term_restore(void) {
 	if (initialised) {
 		call_putp(rmcup);
 		/* Restore cursor to visible state. */
-		call_putp(cnorm);
+		if (!show_cursor)
+			call_putp(cnorm);
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
 		initialised = false;
 	}
@@ -323,12 +324,16 @@ void term_set_cursor(int y, int x) {
 	cursor_y = y;
 	cursor_x = x;
 	/* FIXCOMPAT: use cup only when supported */
-	call_putp(call_tparm(cup, 2, y, x));
+	if (show_cursor) {
+		call_putp(call_tparm(cup, 2, y, x));
+		fflush(stdout);
+	}
 }
 
 void term_hide_cursor(void) {
 	show_cursor = false;
 	call_putp(civis);
+	fflush(stdout);
 }
 
 void term_show_cursor(void) {
@@ -336,6 +341,7 @@ void term_show_cursor(void) {
 	/* FIXCOMPAT: use cup only when supported */
 	call_putp(call_tparm(cup, 2, cursor_y, cursor_x));
 	call_putp(cnorm);
+	fflush(stdout);
 }
 
 void term_get_size(int *height, int *width) {

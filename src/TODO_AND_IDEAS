@@ -1,5 +1,9 @@
-- UTF-8 locale detection and changin win_addstr calls automatically
-
+- UTF-8/multibyte locale detection and changin win_addstr calls automatically
+- should the windows be filled with spaces by default?? That is, should
+  they by default hide the underlying characters?
 - more attribute painting stuff
 - zero-width characters at start of line?
 - program alternatives
+- add mode in which updates to cursor aren't flushed until the next
+  term_refresh or similar special function. The point is to limit the number of
+  flushes so as to optimize the output

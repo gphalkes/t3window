@@ -8,6 +8,9 @@
 //FIXME: implement "hardware" scrolling for optimization
 //FIXME: add scrolling, because it can save a lot of repainting
 
+/* FIXME: ATTR_ACS should only be allowed on chars below 128 etc. Otherwise interpretation
+   of width info may be weird. */
+
 enum {
 	ERR_ILSEQ,
 	ERR_INCOMPLETE,
