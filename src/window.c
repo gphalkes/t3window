@@ -115,6 +115,7 @@ bool win_resize(Window *win, int height, int width) {
 		void *result;
 		if ((result = realloc(win->lines, height * sizeof(LineData))) == NULL)
 			return false;
+		win->lines = result;
 		memset(win->lines + win->height, 0, sizeof(LineData) * (height - win->height));
 		for (i = win->height; i < height; i++) {
 			if ((win->lines[i].data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL) {
@@ -394,7 +395,7 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	return result;
 }
 
-int win_mbaddnstra(Window *win, const char *str, size_t n, CharData attr) {
+int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t result, i;
 	int width;
 	mbstate_t mbstate;
@@ -444,11 +445,9 @@ int win_mbaddnstra(Window *win, const char *str, size_t n, CharData attr) {
 	return retval;
 }
 
-int win_mbaddnstr(Window *win, const char *str, size_t n) { return win_mbaddnstra(win, str, n, 0); }
-int win_mbaddstra(Window *win, const char *str, CharData attr) { return win_mbaddnstra(win, str, strlen(str), attr); }
-int win_mbaddstr(Window *win, const char *str) { return win_mbaddnstra(win, str, strlen(str), 0); }
+int win_mbaddstr(Window *win, const char *str, CharData attr) { return win_mbaddnstr(win, str, strlen(str), attr); }
 
-static bool _win_addnstra(Window *win, const char *str, size_t n, CharData attr) {
+static bool _win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i;
 	bool result = true;
 
@@ -462,7 +461,7 @@ static bool _win_addnstra(Window *win, const char *str, size_t n, CharData attr)
 	return result;
 }
 
-int win_addnstra(Window *win, const char *str, size_t n, CharData attr) {
+int win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i, print_from = 0;
 	int retval = 0;
 
@@ -471,18 +470,32 @@ int win_addnstra(Window *win, const char *str, size_t n, CharData attr) {
 		if (!isprint(str[i])) {
 			retval = ERR_NONPRINT;
 			if (print_from < i)
-				_win_addnstra(win, str + print_from, i - print_from, attr);
+				_win_addnstr(win, str + print_from, i - print_from, attr);
 			print_from = i + 1;
 		}
 	}
 	if (print_from < i)
-		_win_addnstra(win, str + print_from, i - print_from, attr);
+		_win_addnstr(win, str + print_from, i - print_from, attr);
 	return retval;
 }
 
-int win_addnstr(Window *win, const char *str, size_t n) { return win_addnstra(win, str, n, 0); }
-int win_addstra(Window *win, const char *str, CharData attr) { return win_addnstra(win, str, strlen(str), attr); }
-int win_addstr(Window *win, const char *str) { return win_addnstra(win, str, strlen(str), 0); }
+int win_addstr(Window *win, const char *str, CharData attr) { return win_addnstr(win, str, strlen(str), attr); }
+int win_addch(Window *win, char c, CharData attr) { return win_addnstr(win, &c, 1, attr); }
+
+int win_addnstrrep(Window *win, const char *str, size_t n, CharData attr, int rep) {
+	int i, ret;
+
+	for (i = 0; i < rep; i++) {
+		ret = win_addnstr(win, str, n, attr);
+		if (ret != 0)
+			return ret;
+	}
+	return 0;
+}
+
+int win_addstrrep(Window *win, const char *str, CharData attr, int rep) { return win_addnstrrep(win, str, strlen(str), attr, rep); }
+int win_addchrep(Window *win, char c, CharData attr, int rep) { return win_addnstrrep(win, &c, 1, attr, rep); }
+
 
 bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
 	LineData save, *draw;
@@ -547,5 +560,3 @@ void win_clrtoeol(Window *win) {
 
 //FIXME: make win_fill_line or something of the sort
 
-int win_addcha(Window *win, char c, CharData attr) { return win_addnstra(win, &c, 1, attr); }
-int win_addch(Window *win, char c) { return win_addnstra(win, &c, 1, 0); }

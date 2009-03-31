@@ -53,9 +53,9 @@ int main(int argc, char *argv[]) {
 	getchar();
 
 	win_set_paint(low, 0, 0);
-	win_addstr(low, "0123456789-");
+	win_addstr(low, "0123456789-", 0);
 	win_set_paint(low, 6, 0);
-	win_mbaddstr(low, "abＱc̃defghijk");
+	win_mbaddstr(low, "abＱc̃defghijk", 0);
 	term_refresh();
 	getchar();
 
@@ -66,18 +66,18 @@ int main(int argc, char *argv[]) {
 	getchar();
  */
 	win_set_paint(high, 0, 0);
-	win_addstr(high, "ABCDEFGHIJK");
+	win_addstr(high, "ABCDEFGHIJK", 0);
 /* 	term_refresh();
 	getchar();
  */
 	win_set_paint(high, 1, 0);
-	win_addstra(high, "9876543210+", ATTR_REVERSE | ATTR_FG_RED);
+	win_addstr(high, "9876543210+", ATTR_REVERSE | ATTR_FG_RED);
 	win_set_paint(high, 2, 0);
-	win_addstra(high, "wutvlkmjqx", ATTR_ACS);
+	win_addstr(high, "wutvlkmjqx", ATTR_ACS);
 
 	term_set_user_callback(callback);
 	win_set_paint(high, 3, 0);
-        win_addstra(high, "f", ATTR_USER1);
+	win_addstr(high, "f", ATTR_USER1);
 /* 	term_refresh();
 	getchar();
 
