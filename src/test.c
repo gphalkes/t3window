@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 	win_set_paint(low, 0, 0);
 	win_addstr(low, "0123456789-", 0);
 	win_set_paint(low, 6, 0);
-	win_mbaddstr(low, "abＱc̃defghijk", 0);
+	win_addstr(low, "abＱc̃defghijk", 0);
 	term_refresh();
 	getchar();
 

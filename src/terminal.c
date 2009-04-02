@@ -9,6 +9,8 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <limits.h>
+//FIXME: allow alternative
+#include <langinfo.h>
 
 #include "terminal.h"
 #include "window.h"
@@ -248,6 +250,10 @@ bool term_init(void) {
 		/* Start cursor positioning mode. */
 		call_putp(smcup);
 		call_putp(civis);
+
+		//FIXME: only for UTF-8, or can we do any multibyte encoding??
+		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
+			_win_set_multibyte();
 	}
 	return true;
 }

@@ -18,8 +18,12 @@ enum {
 	ERR_TRUNCATED
 };
 
+
+static int win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr);
+static int (*_win_addnstr)(Window *win, const char *str, size_t n, CharData attr) = win_sbaddnstr;
+
 /* Head and tail of depth sorted Window list */
-Window *head, *tail;
+static Window *head, *tail;
 
 static void _win_del(Window *win);
 static bool ensureSpace(LineData *line, size_t n);
@@ -395,7 +399,7 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	return result;
 }
 
-int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
+static int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t result, i;
 	int width;
 	mbstate_t mbstate;
@@ -445,9 +449,7 @@ int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
 	return retval;
 }
 
-int win_mbaddstr(Window *win, const char *str, CharData attr) { return win_mbaddnstr(win, str, strlen(str), attr); }
-
-static bool _win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
+static bool _win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i;
 	bool result = true;
 
@@ -461,7 +463,7 @@ static bool _win_addnstr(Window *win, const char *str, size_t n, CharData attr) 
 	return result;
 }
 
-int win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
+static int win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i, print_from = 0;
 	int retval = 0;
 
@@ -470,7 +472,7 @@ int win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
 		if (!isprint(str[i])) {
 			retval = ERR_NONPRINT;
 			if (print_from < i)
-				_win_addnstr(win, str + print_from, i - print_from, attr);
+				_win_sbaddnstr(win, str + print_from, i - print_from, attr);
 			print_from = i + 1;
 		}
 	}
@@ -479,14 +481,15 @@ int win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
 	return retval;
 }
 
-int win_addstr(Window *win, const char *str, CharData attr) { return win_addnstr(win, str, strlen(str), attr); }
-int win_addch(Window *win, char c, CharData attr) { return win_addnstr(win, &c, 1, attr); }
+int win_addnstr(Window *win, const char *str, size_t n, CharData attr) { return _win_addnstr(win, str, n, attr); }
+int win_addstr(Window *win, const char *str, CharData attr) { return _win_addnstr(win, str, strlen(str), attr); }
+int win_addch(Window *win, char c, CharData attr) { return _win_addnstr(win, &c, 1, attr); }
 
 int win_addnstrrep(Window *win, const char *str, size_t n, CharData attr, int rep) {
 	int i, ret;
 
 	for (i = 0; i < rep; i++) {
-		ret = win_addnstr(win, str, n, attr);
+		ret = _win_addnstr(win, str, n, attr);
 		if (ret != 0)
 			return ret;
 	}
@@ -558,5 +561,6 @@ void win_clrtoeol(Window *win) {
 }
 //FIXME: make win_clrtobol
 
-//FIXME: make win_fill_line or something of the sort
-
+void _win_set_multibyte(void) {
+	_win_addnstr = win_mbaddnstr;
+}
