@@ -477,7 +477,7 @@ static int win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr) 
 		}
 	}
 	if (print_from < i)
-		_win_addnstr(win, str + print_from, i - print_from, attr);
+		_win_sbaddnstr(win, str + print_from, i - print_from, attr);
 	return retval;
 }
 

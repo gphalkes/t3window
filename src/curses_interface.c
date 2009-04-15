@@ -7,7 +7,7 @@
 
 int call_setupterm(void) {
 	int error;
-	if (setupterm(NULL, 1, &error) == ERR)
+	if (setupterm(NULL, 1, &error) != OK)
 		return error + 2;
 	return 0;
 }
