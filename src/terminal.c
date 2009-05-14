@@ -251,6 +251,8 @@ bool term_init(void) {
 		call_putp(smcup);
 		call_putp(civis);
 
+		//FIXME: set the attributes of the terminal to a known value
+
 		//FIXME: only for UTF-8, or can we do any multibyte encoding??
 		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
 			_win_set_multibyte();
@@ -427,9 +429,11 @@ void term_set_user_callback(TermUserCallback callback) {
 #define SWAP_LINES(a, b) do { LineData save; save = (a); (a) = (b); (b) = save; } while (0)
 void term_refresh(void) {
 	int i, j;
-	CharData new_attrs;
+	CharData new_attrs, saved_attrs;
 
 	if (show_cursor) {
+		/* Save cursor also saves the current attributes */
+		saved_attrs = attrs;
 		call_putp(sc);
 		call_putp(civis);
 	}
@@ -504,6 +508,7 @@ done:
 	}
 
 	if (show_cursor) {
+		attrs = saved_attrs;
 		call_putp(rc);
 		call_putp(cnorm);
 	}
