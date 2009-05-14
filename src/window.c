@@ -564,3 +564,26 @@ void win_clrtoeol(Window *win) {
 void _win_set_multibyte(void) {
 	_win_addnstr = win_mbaddnstr;
 }
+
+int win_box(Window *win, int y, int x, int height, int width, CharData attr) {
+	int i;
+
+	//FIXME: verify parameters
+
+	win_set_paint(win, y, x);
+	win_addch(win, TERM_ULCORNER, attr | ATTR_ACS);
+	win_addchrep(win, TERM_HLINE, attr | ATTR_ACS, width - 2);
+	win_addch(win, TERM_URCORNER, attr | ATTR_ACS);
+	for (i = 1; i < height - 1; i++) {
+		win_set_paint(win, y + i, x);
+		win_addch(win, TERM_VLINE, attr | ATTR_ACS);
+		win_set_paint(win, y + i, x + width - 1);
+		win_addch(win, TERM_VLINE, attr | ATTR_ACS);
+	}
+	win_set_paint(win, y + height - 1, x);
+	win_addch(win, TERM_LLCORNER, attr | ATTR_ACS);
+	win_addchrep(win, TERM_HLINE, attr | ATTR_ACS, width - 2);
+	win_addch(win, TERM_LRCORNER, attr | ATTR_ACS);
+	//FIXME: quit on first unsuccessful addch
+	return 0;
+}

@@ -26,6 +26,8 @@ int win_addnstrrep(Window *win, const char *str, size_t n, CharData attr, int re
 int win_addstrrep(Window *win, const char *str, CharData attr, int rep);
 int win_addchrep(Window *win, char c, CharData attr, int rep);
 
+int win_box(Window *win, int y, int x, int height, int width, CharData attr);
+
 void win_clrtoeol(Window *win);
 
 #endif

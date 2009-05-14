@@ -95,6 +95,10 @@ int main(int argc, char *argv[]) {
 	term_refresh();
 	getchar();
 
+	win_box(low, 0, 0, 10, 10, ATTR_REVERSE);
+	term_refresh();
+	getchar();
+
 	return 0;
 }
 

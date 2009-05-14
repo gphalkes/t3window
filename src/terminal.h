@@ -50,16 +50,16 @@ int term_get_keychar(int msec);
 #define ATTR_BG_CYAN (7 << (_ATTR_COLOR_SHIFT + 4))
 #define ATTR_BG_WHITE (8 << (_ATTR_COLOR_SHIFT + 4))
 
-#define TERM_TTEE (ATTR_ACS | 'w')
-#define TERM_RTEE (ATTR_ACS | 'u')
-#define TERM_LTEE (ATTR_ACS | 't')
-#define TERM_BTEE (ATTR_ACS | 'v')
-#define TERM_ULCORNER (ATTR_ACS | 'l')
-#define TERM_URCORNER (ATTR_ACS | 'k')
-#define TERM_LLCORNER (ATTR_ACS | 'm')
-#define TERM_LRCORNER (ATTR_ACS | 'j')
-#define TERM_HLINE (ATTR_ACS | 'q')
-#define TERM_VLINE (ATTR_ACS | 'x')
+#define TERM_TTEE 'w'
+#define TERM_RTEE 'u'
+#define TERM_LTEE 't'
+#define TERM_BTEE 'v'
+#define TERM_ULCORNER 'l'
+#define TERM_URCORNER 'k'
+#define TERM_LLCORNER 'm'
+#define TERM_LRCORNER 'j'
+#define TERM_HLINE 'q'
+#define TERM_VLINE 'x'
 
 void term_set_cursor(int y, int x);
 void term_hide_cursor(void);
