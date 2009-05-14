@@ -249,7 +249,6 @@ bool term_init(void) {
 
 		/* Start cursor positioning mode. */
 		call_putp(smcup);
-		call_putp(civis);
 
 		//FIXME: set the attributes of the terminal to a known value
 
