@@ -463,7 +463,7 @@ void term_refresh(void) {
 			width += GET_WIDTH(new_data.data[j]);
 
 		/* Go back to the last non-zero-width character, because that is the one we want to print first. */
-		if (GET_WIDTH(new_data.data[j]) == 0 || GET_WIDTH(terminal_window->lines[i].data[j]) == 0) {
+		if ((j < new_idx && GET_WIDTH(new_data.data[j]) == 0) || (j < old_idx && GET_WIDTH(terminal_window->lines[i].data[j]) == 0)) {
 			for (; j > 0 && (GET_WIDTH(new_data.data[j]) == 0 || GET_WIDTH(terminal_window->lines[i].data[j]) == 0); j--) {}
 			width -= GET_WIDTH(new_data.data[j]);
 		}
