@@ -1,3 +1,6 @@
+- is special handling even required for single byte encodings? or can we simply
+  use the mb stuff to handle this.
+
 - UTF-8/multibyte locale detection and changin win_addstr calls automatically
 - should the windows be filled with spaces by default?? That is, should
   they by default hide the underlying characters?

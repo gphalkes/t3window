@@ -33,7 +33,7 @@ static fd_set inset;
 
 static char *smcup, *rmcup, *cup, *sc, *rc;
 static char *civis, *cnorm;
-static char *sgr, *setaf, *setab, *op, *smacs, *rmacs;
+static char *sgr, *setaf, *setab, *op, *smacs, *rmacs, *sgr0;
 static char *el;
 
 static Window *terminal_window;
@@ -182,6 +182,7 @@ bool term_init(void) {
 			if ((sgr = get_ti_string("sgr")) == NULL) {
 				/* FIXME: get alternatives. */
 			}
+			sgr0 = get_ti_string("sgr0");
 			if ((setaf = get_ti_string("setaf")) == NULL) {
 				/* FIXME: get alternatives. */
 			}
@@ -281,7 +282,10 @@ void term_restore(void) {
 			call_putp(cnorm);
 		/* Make sure attributes are reset */
 		//FIXME: do sgr0 if it exists
-		term_set_attrs(0);
+		if (sgr0 != NULL)
+			call_putp(sgr0);
+		else
+			term_set_attrs(0);
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
 		initialised = false;
 	}
