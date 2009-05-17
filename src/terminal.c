@@ -295,8 +295,11 @@ int term_get_keychar(int msec) {
 	fd_set _inset;
 	struct timeval timeout;
 
-	if (stored_key >= 0)
-		return last_key = stored_key;
+	if (stored_key >= 0) {
+		last_key = stored_key;
+		stored_key = -1;
+		return last_key;
+	}
 
 	while (1) {
 		_inset = inset;
