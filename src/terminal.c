@@ -142,6 +142,8 @@ static char *get_ti_string(const char *name) {
 
 bool term_init(void) {
 	struct winsize wsz;
+	char *enacs;
+
 	if (!initialised) {
 		struct termios new_params;
 		if (!isatty(STDOUT_FILENO))
@@ -247,8 +249,15 @@ bool term_init(void) {
 				return false;
 		}
 
+		//FIXME: can we find a way to save the current terminal settings (attrs etc)?
 		/* Start cursor positioning mode. */
 		call_putp(smcup);
+
+		if ((enacs = get_ti_string("enacs")) != NULL) {
+			call_putp(enacs);
+			free(enacs);
+		}
+
 
 		//FIXME: set the attributes of the terminal to a known value
 
@@ -270,6 +279,9 @@ void term_restore(void) {
 		/* Restore cursor to visible state. */
 		if (!show_cursor)
 			call_putp(cnorm);
+		/* Make sure attributes are reset */
+		//FIXME: do sgr0 if it exists
+		term_set_attrs(0);
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
 		initialised = false;
 	}
