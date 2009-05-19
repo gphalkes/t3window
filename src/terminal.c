@@ -31,7 +31,7 @@ static struct termios saved;
 static bool initialised, seqs_initialised;
 static fd_set inset;
 
-static char *smcup, *rmcup, *cup, *sc, *rc;
+static char *smcup, *rmcup, *cup, *sc, *rc, *clear, *home, *vpa, *hpa, *cud, *cud1, *cuf, *cuf1;
 static char *civis, *cnorm;
 static char *sgr, *setaf, *setab, *op, *smacs, *rmacs, *sgr0;
 static char *el;
@@ -140,6 +140,63 @@ static char *get_ti_string(const char *name) {
 	return strdup(result);
 }
 
+static void do_cup(int line, int col) {
+	if (cup != NULL) {
+		call_putp(call_tparm(cup, 2, line, col));
+		return;
+	}
+	if (vpa != NULL) {
+		call_putp(call_tparm(vpa, 1, line));
+		call_putp(call_tparm(hpa, 1, col));
+		return;
+	}
+	if (home != NULL) {
+		int i;
+
+		call_putp(home);
+		if (line > 0) {
+			if (cud != NULL) {
+				call_putp(call_tparm(cud, 1, line));
+			} else {
+				for (i = 0; i < line; i++)
+					call_putp(cud1);
+			}
+		}
+		if (col > 0) {
+			if (cuf != NULL) {
+				call_putp(call_tparm(cuf, 1, col));
+			} else {
+				for (i = 0; i < col; i++)
+					call_putp(cuf1);
+			}
+		}
+	}
+}
+
+static void do_smcup(void) {
+	if (smcup != NULL) {
+		call_putp(smcup);
+		return;
+	}
+	if (clear != NULL) {
+		call_putp(clear);
+		return;
+	}
+}
+
+static void do_rmcup(void) {
+	if (rmcup != NULL) {
+		call_putp(rmcup);
+		return;
+	}
+	if (clear != NULL) {
+		call_putp(clear);
+		do_cup(lines - 1, 0);
+		return;
+	}
+}
+
+
 bool term_init(void) {
 	struct winsize wsz;
 	char *enacs;
@@ -172,10 +229,15 @@ bool term_init(void) {
 				return false;
 			/*FIXME: we should probably have some way to return what was the problem. */
 
-			if ((smcup = get_ti_string("smcup")) == NULL)
-				return false;
-			if ((rmcup = get_ti_string("rmcup")) == NULL)
-				return false;
+			//FIXME: smcup is not always present or necessary!!
+			if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
+				if (smcup != NULL) {
+					free(smcup);
+					smcup = NULL;
+				}
+				if ((clear = get_ti_string("clear")) == NULL)
+					return false;
+			}
 			if ((cup = get_ti_string("cup")) == NULL)
 				return false;
 
@@ -210,8 +272,7 @@ bool term_init(void) {
 			if ((acsc = get_ti_string("acsc")) == NULL) {
 				set_alternate_chars_defaults();
 			} else {
-				/* FIXME: only required when sgr not found! */
-				if ((smacs = get_ti_string("smacs")) == NULL || (rmacs = get_ti_string("rmacs")) == NULL) {
+				if (sgr == NULL && ((smacs = get_ti_string("smacs")) == NULL || (rmacs = get_ti_string("rmacs")) == NULL)) {
 					set_alternate_chars_defaults();
 				} else {
 					size_t i;
@@ -252,7 +313,7 @@ bool term_init(void) {
 
 		//FIXME: can we find a way to save the current terminal settings (attrs etc)?
 		/* Start cursor positioning mode. */
-		call_putp(smcup);
+		do_smcup();
 
 		if ((enacs = get_ti_string("enacs")) != NULL) {
 			call_putp(enacs);
@@ -276,16 +337,14 @@ void term_restore(void) {
 		- saved modes for xterm
 	*/
 	if (initialised) {
-		call_putp(rmcup);
-		/* Restore cursor to visible state. */
-		if (!show_cursor)
-			call_putp(cnorm);
-		/* Make sure attributes are reset */
-		//FIXME: do sgr0 if it exists
-		if (sgr0 != NULL)
-			call_putp(sgr0);
-		else
+		if (seqs_initialised) {
+			do_rmcup();
+			/* Restore cursor to visible state. */
+			if (!show_cursor)
+				call_putp(cnorm);
+			/* Make sure attributes are reset */
 			term_set_attrs(0);
+		}
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
 		initialised = false;
 	}
@@ -351,7 +410,7 @@ void term_set_cursor(int y, int x) {
 	cursor_x = x;
 	/* FIXCOMPAT: use cup only when supported */
 	if (show_cursor) {
-		call_putp(call_tparm(cup, 2, y, x));
+		do_cup(y, x);
 		fflush(stdout);
 	}
 }
@@ -365,7 +424,7 @@ void term_hide_cursor(void) {
 void term_show_cursor(void) {
 	show_cursor = true;
 	/* FIXCOMPAT: use cup only when supported */
-	call_putp(call_tparm(cup, 2, cursor_y, cursor_x));
+	do_cup(cursor_y, cursor_x);
 	call_putp(cnorm);
 	fflush(stdout);
 }
@@ -396,6 +455,13 @@ bool term_resize(void) {
 void term_set_attrs(CharData new_attrs) {
 	/* Just in case the caller forgot */
 	new_attrs &= ATTR_MASK;
+
+	if (new_attrs == 0 && sgr0 != NULL) {
+		call_putp(sgr0);
+		attrs = new_attrs;
+		return;
+	}
+
 	if ((attrs & BASIC_ATTRS) != (new_attrs & BASIC_ATTRS)) {
 		/* FIXME: implement sgr alternatives */
 		if (sgr != NULL) {
@@ -488,7 +554,7 @@ void term_refresh(void) {
 		}
 
 		/* Position the cursor */
-		call_putp(call_tparm(cup, 2, i, width));
+		do_cup(i, width);
 		for (; j < new_idx; j++) {
 			if (GET_WIDTH(new_data.data[j]) > 0) {
 				//FIXME: clear also clears background which may not be what is required. Perhaps better to truncate line first!
@@ -510,12 +576,18 @@ void term_refresh(void) {
 					term_set_attrs(new_attrs);
 				}
 			}
-			putchar(new_data.data[j] & CHAR_MASK);
+			if (attrs & ATTR_ACS)
+				putchar(alternate_chars[new_data.data[j] & CHAR_MASK]);
+			else
+				putchar(new_data.data[j] & CHAR_MASK);
 		}
 		//FIXME: if bce cap is set, the background needs to be set properly before clear
 		//FIXME: clear also clears background which may not be what is required. Perhaps better to truncate line first!
-		if ((new_data.width < terminal_window->lines[i].width || j < new_idx) && width < terminal_window->width)
+		if ((new_data.width < terminal_window->lines[i].width || j < new_idx) && width < terminal_window->width) {
+			if (attrs != 0)
+				term_set_attrs(0);
 			call_putp(el);
+		}
 
 		SWAP_LINES(new_data, terminal_window->lines[i]);
 done:
