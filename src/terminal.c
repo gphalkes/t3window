@@ -235,9 +235,9 @@ bool term_init(void) {
 					free(smcup);
 					smcup = NULL;
 				}
-				if ((clear = get_ti_string("clear")) == NULL)
-					return false;
 			}
+			if ((clear = get_ti_string("clear")) == NULL)
+				return false;
 			if ((cup = get_ti_string("cup")) == NULL)
 				return false;
 
@@ -448,6 +448,14 @@ bool term_resize(void) {
 
 	lines = wsz.ws_row;
 	columns = wsz.ws_col;
+	if (columns > terminal_window->width || lines > terminal_window->height) {
+		int i;
+		for (i = 0; i < terminal_window->height; i++) {
+			win_set_paint(terminal_window, i, 0);
+			win_clrtoeol(terminal_window);
+		}
+		call_putp(clear);
+	}
 	return win_resize(terminal_window, lines, columns);
 }
 
