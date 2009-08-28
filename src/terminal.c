@@ -357,7 +357,7 @@ static int safe_read_char(void) {
 		if (retval < 0 && errno == EINTR)
 			continue;
 		else if (retval >= 1)
-			return c;
+			return (int) (unsigned char) c;
 
 		return KEY_ERROR;
 	}
