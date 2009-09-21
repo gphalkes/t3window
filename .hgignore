@@ -1,0 +1,5 @@
+syntax: glob
+src/.deps
+src/.objects
+src/libwindow.so
+src/test

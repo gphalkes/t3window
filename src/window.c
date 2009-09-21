@@ -275,7 +275,7 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		   where this string is supposed to go. */
 		for (i = 0; i < win->lines[win->paint_y].length; i++) {
 			pos_width += GET_WIDTH(win->lines[win->paint_y].data[i]);
-			if (GET_WIDTH(win->lines[win->paint_y].data[i]) >= win->paint_x)
+			if (pos_width >= win->paint_x)
 				break;
 		}
 
