@@ -121,7 +121,6 @@ static const char *ti_strings[] = {
 	"rev",
 	"sgr0", /* turn off all attributes */
 };
-/*FIXME: todo color */
 
 static const char *ti_nums[] = {
 	"xmc", /* number of spaces left on the screen when entering standout mode */
@@ -229,7 +228,6 @@ bool term_init(void) {
 				return false;
 			/*FIXME: we should probably have some way to return what was the problem. */
 
-			//FIXME: smcup is not always present or necessary!!
 			if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
 				if (smcup != NULL) {
 					free(smcup);
@@ -315,6 +313,7 @@ bool term_init(void) {
 		/* Start cursor positioning mode. */
 		do_smcup();
 
+		/* Enable alternate character set if required by terminal. */
 		if ((enacs = get_ti_string("enacs")) != NULL) {
 			call_putp(enacs);
 			free(enacs);
@@ -332,10 +331,6 @@ bool term_init(void) {
 
 
 void term_restore(void) {
-	/*FIXME: restore different attributes:
-		- color to original pair
-		- saved modes for xterm
-	*/
 	if (initialised) {
 		if (seqs_initialised) {
 			do_rmcup();

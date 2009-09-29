@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include "terminal.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Window Window;
 
 Window *win_new(int height, int width, int y, int x, int depth);
@@ -29,5 +33,9 @@ int win_addchrep(Window *win, char c, CharData attr, int rep);
 int win_box(Window *win, int y, int x, int height, int width, CharData attr);
 
 void win_clrtoeol(Window *win);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

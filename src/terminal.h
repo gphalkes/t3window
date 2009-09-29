@@ -1,9 +1,21 @@
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <limits.h>
 
-typedef enum { false, true } bool;
+/* Define a bool type if not already defined (C++ and C99 do)*/
+#if !(defined(__cplusplus) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 19990601L))
+/*@-incondefs@*/
+typedef enum {false, true} bool;
+/*@+incondefs@*/
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 19990601L
+#include <stdbool.h>
+#endif
+
 //FIXME: make sure that the base type is the correct size to store all the attributes
 typedef int CharData;
 typedef void (*TermUserCallback)(CharData *c, int length);
@@ -77,8 +89,9 @@ enum {
 	KEY_ERROR = -1,
 	KEY_TIMEOUT = -2
 };
-/* FIXME:
-- line drawing
-- add one char
-*/
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
 #endif
