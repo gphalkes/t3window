@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
 
 	ASSERT(term_init());
 	atexit(term_restore);
-	inited = true;
+	inited = True;
 
 	ASSERT(low = win_new(10, 10, 0, 5, 10));
 	ASSERT(high = win_new(10, 10, 5, 10, 0));

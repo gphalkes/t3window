@@ -7,20 +7,13 @@ extern "C" {
 
 #include <limits.h>
 
-/* Define a bool type if not already defined (C++ and C99 do)*/
-#if !(defined(__cplusplus) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 19990601L))
-/*@-incondefs@*/
-typedef enum {false, true} bool;
-/*@+incondefs@*/
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 19990601L
-#include <stdbool.h>
-#endif
+typedef enum {False, True} Bool;
 
 //FIXME: make sure that the base type is the correct size to store all the attributes
 typedef int CharData;
 typedef void (*TermUserCallback)(CharData *c, int length);
 
-bool term_init(void);
+Bool term_init(void);
 void term_restore(void);
 int term_get_keychar(int msec);
 
@@ -77,7 +70,7 @@ void term_set_cursor(int y, int x);
 void term_hide_cursor(void);
 void term_show_cursor(void);
 void term_get_size(int *height, int *width);
-bool term_resize(void);
+Bool term_resize(void);
 void term_refresh(void);
 void term_set_attrs(CharData new_attrs);
 void term_set_user_callback(TermUserCallback callback);

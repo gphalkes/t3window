@@ -13,7 +13,7 @@ typedef struct Window Window;
 Window *win_new(int height, int width, int y, int x, int depth);
 void win_del(Window *win);
 
-bool win_resize(Window *win, int height, int width);
+Bool win_resize(Window *win, int height, int width);
 void win_move(Window *win, int y, int x);
 int win_get_width(Window *win);
 int win_get_height(Window *win);

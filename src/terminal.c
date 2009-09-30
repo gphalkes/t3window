@@ -28,7 +28,7 @@ of interest. */
 /* FIXME: do proper cleanup on failure, especially on term_init */
 
 static struct termios saved;
-static bool initialised, seqs_initialised;
+static Bool initialised, seqs_initialised;
 static fd_set inset;
 
 static char *smcup, *rmcup, *cup, *sc, *rc, *clear, *home, *vpa, *hpa, *cud, *cud1, *cuf, *cuf1;
@@ -41,7 +41,7 @@ static LineData new_data;
 
 static int lines, columns;
 static int cursor_y, cursor_x;
-static bool show_cursor = true;
+static Bool show_cursor = True;
 
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
 static CharData attrs = 0;
@@ -196,17 +196,17 @@ static void do_rmcup(void) {
 }
 
 
-bool term_init(void) {
+Bool term_init(void) {
 	struct winsize wsz;
 	char *enacs;
 
 	if (!initialised) {
 		struct termios new_params;
 		if (!isatty(STDOUT_FILENO))
-			return false;
+			return False;
 
 		if (tcgetattr(STDOUT_FILENO, &saved) < 0)
-			return false;
+			return False;
 
 		new_params = saved;
 		new_params.c_iflag &= ~(IXON | IXOFF);
@@ -216,7 +216,7 @@ bool term_init(void) {
 
 		if (tcsetattr(STDOUT_FILENO, TCSADRAIN, &new_params) < 0)
 			return -1;
-		initialised = true;
+		initialised = True;
 		FD_ZERO(&inset);
 		FD_SET(STDIN_FILENO, &inset);
 
@@ -225,7 +225,7 @@ bool term_init(void) {
 			char *acsc;
 
 			if ((error = call_setupterm()) != 0)
-				return false;
+				return False;
 			/*FIXME: we should probably have some way to return what was the problem. */
 
 			if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
@@ -235,9 +235,9 @@ bool term_init(void) {
 				}
 			}
 			if ((clear = get_ti_string("clear")) == NULL)
-				return false;
+				return False;
 			if ((cup = get_ti_string("cup")) == NULL)
-				return false;
+				return False;
 
 			if ((sgr = get_ti_string("sgr")) == NULL) {
 				/* FIXME: get alternatives. */
@@ -280,7 +280,7 @@ bool term_init(void) {
 				free(acsc);
 			}
 
-			seqs_initialised = true;
+			seqs_initialised = True;
 		}
 
 		/* Get terminal size. First try ioctl, then environment, then terminfo. */
@@ -292,7 +292,7 @@ bool term_init(void) {
 			char *columns_env = getenv("COLUMNS");
 			if (lines_env == NULL || columns_env == NULL || (lines = atoi(lines_env)) == 0 || (columns = atoi(columns_env)) == 0) {
 				if ((lines = call_tigetnum("lines")) < 0 || (columns = call_tigetnum("columns")) < 0)
-					return false;
+					return False;
 			}
 		}
 
@@ -300,13 +300,13 @@ bool term_init(void) {
 		if (terminal_window == NULL) {
 			/* FIXME: maybe someday we can make the window outside of the window stack. */
 			if ((terminal_window = win_new(lines, columns, 0, 0, 0)) == NULL)
-				return false;
+				return False;
 			if ((new_data.data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL)
-				return false;
+				return False;
 			new_data.allocated = INITIAL_ALLOC;
 		} else {
 			if (!win_resize(terminal_window, lines, columns))
-				return false;
+				return False;
 		}
 
 		//FIXME: can we find a way to save the current terminal settings (attrs etc)?
@@ -326,7 +326,7 @@ bool term_init(void) {
 		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
 			_win_set_multibyte();
 	}
-	return true;
+	return True;
 }
 
 
@@ -341,7 +341,7 @@ void term_restore(void) {
 			term_set_attrs(0);
 		}
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
-		initialised = false;
+		initialised = False;
 	}
 }
 
@@ -411,13 +411,13 @@ void term_set_cursor(int y, int x) {
 }
 
 void term_hide_cursor(void) {
-	show_cursor = false;
+	show_cursor = False;
 	call_putp(civis);
 	fflush(stdout);
 }
 
 void term_show_cursor(void) {
-	show_cursor = true;
+	show_cursor = True;
 	/* FIXCOMPAT: use cup only when supported */
 	do_cup(cursor_y, cursor_x);
 	call_putp(cnorm);
@@ -435,11 +435,11 @@ void term_get_size(int *height, int *width) {
 	After calling @a term_resize, @a term_get_size can be called to retrieve
     the new terminal size. Should be called after a SIGWINCH.
 */
-bool term_resize(void) {
+Bool term_resize(void) {
 	struct winsize wsz;
 
 	if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) < 0)
-		return true;
+		return True;
 
 	lines = wsz.ws_row;
 	columns = wsz.ws_col;

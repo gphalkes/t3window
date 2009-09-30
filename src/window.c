@@ -26,7 +26,7 @@ static int (*_win_addnstr)(Window *win, const char *str, size_t n, CharData attr
 static Window *head, *tail;
 
 static void _win_del(Window *win);
-static bool ensureSpace(LineData *line, size_t n);
+static Bool ensureSpace(LineData *line, size_t n);
 
 Window *win_new(int height, int width, int y, int x, int depth) {
 	Window *retval, *ptr;
@@ -58,7 +58,7 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 	retval->width = width;
 	retval->height = height;
 	retval->depth = depth;
-	retval->shown = false;
+	retval->shown = False;
 
 	if (head == NULL) {
 		tail = head = retval;
@@ -112,20 +112,20 @@ void win_del(Window *win) {
 	_win_del(win);
 }
 
-bool win_resize(Window *win, int height, int width) {
+Bool win_resize(Window *win, int height, int width) {
 	int i;
 	//FIXME validate parameters
 	if (height > win->height) {
 		void *result;
 		if ((result = realloc(win->lines, height * sizeof(LineData))) == NULL)
-			return false;
+			return False;
 		win->lines = result;
 		memset(win->lines + win->height, 0, sizeof(LineData) * (height - win->height));
 		for (i = win->height; i < height; i++) {
 			if ((win->lines[i].data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL) {
 				for (i = win->height; i < height && win->lines[i].data != NULL; i++)
 					free(win->lines[i].data);
-				return false;
+				return False;
 			}
 			win->lines[i].allocated = INITIAL_ALLOC;
 		}
@@ -165,7 +165,7 @@ bool win_resize(Window *win, int height, int width) {
 
 	win->height = height;
 	win->width = width;
-	return true;
+	return True;
 }
 
 void win_move(Window *win, int y, int x) {
@@ -191,11 +191,11 @@ void win_set_paint(Window *win, int y, int x) {
 }
 
 void win_show(Window *win) {
-	win->shown = true;
+	win->shown = True;
 }
 
 void win_hide(Window *win) {
-	win->shown = false;
+	win->shown = False;
 }
 
 /*
@@ -206,16 +206,16 @@ static void copy_mb(CharData *dest, const char *src, size_t n, CharData meta) {
 		*dest++ = (unsigned char) *src++;
 }
 */
-static bool ensureSpace(LineData *line, size_t n) {
+static Bool ensureSpace(LineData *line, size_t n) {
 	int newsize;
 	CharData *resized;
 
 	/* FIXME: ensure that n + line->length will fit in int */
 	if (n > INT_MAX)
-		return false;
+		return False;
 
 	if ((unsigned) line->allocated > line->length + n)
-		return true;
+		return True;
 
 	newsize = line->allocated;
 
@@ -227,24 +227,24 @@ static bool ensureSpace(LineData *line, size_t n) {
 	} while ((unsigned) newsize - line->length < n);
 
 	if ((resized = realloc(line->data, sizeof(CharData) * newsize)) == NULL)
-		return false;
+		return False;
 	line->data = resized;
 	line->allocated = newsize;
-	return true;
+	return True;
 }
 
-static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
+static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	int width = 0;
 	int extra_spaces = 0;
 	int i, j;
 	size_t k;
-	bool result = true;
+	Bool result = True;
 	CharData space = ' ';
 
 	if (win->paint_y >= win->height)
-		return true;
+		return True;
 	if (win->paint_x > win->width)
-		return true;
+		return True;
 
 	for (k = 0; k < n; k++) {
 		if (win->paint_x + width + GET_WIDTH(str[k]) > win->width)
@@ -264,10 +264,10 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		if (win->lines[win->paint_y].length == 0 ||
 				win->paint_x <= win->lines[win->paint_y].start ||
 				win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width + 1)
-			return true;
+			return True;
 
 		if (!ensureSpace(win->lines + win->paint_y, n))
-			return false;
+			return False;
 
 		pos_width = win->lines[win->paint_y].start;
 
@@ -282,7 +282,7 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		/* Check whether we are being asked to add a zero-width character in the middle
 		   of a double-width character. If so, ignore. */
 		if (pos_width > win->paint_x)
-			return true;
+			return True;
 
 		/* Skip to the next non-zero-width character. */
 		if (i < win->lines[win->paint_y].length)
@@ -294,7 +294,7 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	} else if (win->lines[win->paint_y].length == 0) {
 		/* Empty line. */
 		if (!ensureSpace(win->lines + win->paint_y, n))
-			return false;
+			return False;
 		win->lines[win->paint_y].start = win->paint_x;
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(CharData));
 		win->lines[win->paint_y].length += n;
@@ -304,7 +304,7 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		int diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
 
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
-			return false;
+			return False;
 		for (i = diff; i > 0; i--)
 			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] =  WIDTH_TO_META(1) | ' ';
 		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n * sizeof(CharData));
@@ -315,7 +315,7 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		int diff = win->lines[win->paint_y].start - (win->paint_x + width);
 
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
-			return false;
+			return False;
 		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(CharData) * win->lines[win->paint_y].length);
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(CharData));
 		for (i = diff; i > 0; i--)
@@ -371,7 +371,7 @@ static bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		/* Move the existing characters out of the way. */
 		sdiff = n + end_spaces + start_spaces - (end_replace - start_replace);
 		if (sdiff > 0 && !ensureSpace(win->lines + win->paint_y, sdiff))
-			return false;
+			return False;
 
 		memmove(win->lines[win->paint_y].data + end_replace + sdiff, win->lines[win->paint_y].data + end_replace,
 			sizeof(CharData) * (win->lines[win->paint_y].length - end_replace));
@@ -449,9 +449,9 @@ static int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) 
 	return retval;
 }
 
-static bool _win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
+static Bool _win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i;
-	bool result = true;
+	Bool result = True;
 
 	/* FIXME: it would seem that this can be done more efficiently, especially
 	   if no multibyte characters are used at all. */
@@ -500,7 +500,7 @@ int win_addstrrep(Window *win, const char *str, CharData attr, int rep) { return
 int win_addchrep(Window *win, char c, CharData attr, int rep) { return win_addnstrrep(win, &c, 1, attr, rep); }
 
 
-bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
+Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
 	LineData save, *draw;
 	Window *ptr;
 
@@ -530,7 +530,7 @@ bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 
 	*store = terminal->lines[line];
 	terminal->lines[line] = save;
-	return true;
+	return True;
 }
 
 //FIXME: should we take background into account, or should we let the app be bothered about
