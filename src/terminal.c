@@ -443,7 +443,7 @@ Bool term_resize(void) {
 
 	lines = wsz.ws_row;
 	columns = wsz.ws_col;
-	if (columns > terminal_window->width || lines > terminal_window->height) {
+	if (columns > terminal_window->width || lines != terminal_window->height) {
 		int i;
 		for (i = 0; i < terminal_window->height; i++) {
 			win_set_paint(terminal_window, i, 0);
