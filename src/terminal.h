@@ -9,8 +9,12 @@ extern "C" {
 
 typedef enum {False, True} Bool;
 
-//FIXME: make sure that the base type is the correct size to store all the attributes
+#if INT_MAX < 2147483647L
+typedef long CharData;
+#else
 typedef int CharData;
+#endif
+
 typedef void (*TermUserCallback)(CharData *c, int length);
 
 Bool term_init(void);
