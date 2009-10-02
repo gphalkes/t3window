@@ -33,6 +33,7 @@ int win_addchrep(Window *win, char c, CharData attr, int rep);
 int win_box(Window *win, int y, int x, int height, int width, CharData attr);
 
 void win_clrtoeol(Window *win);
+void win_clrtobot(Window *win);
 
 #ifdef __cplusplus
 } /* extern "C" */

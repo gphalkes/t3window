@@ -587,3 +587,12 @@ int win_box(Window *win, int y, int x, int height, int width, CharData attr) {
 	//FIXME: quit on first unsuccessful addch
 	return 0;
 }
+
+
+void win_clrtobot(Window *win) {
+	for (win->paint_y++; win->paint_y < win->height; win->paint_y++) {
+		win->lines[win->paint_y].length = 0;
+		win->lines[win->paint_y].width = 0;
+		win->lines[win->paint_y].start = 0;
+	}
+}
