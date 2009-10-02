@@ -516,11 +516,9 @@ void term_set_user_callback(TermUserCallback callback) {
 #define SWAP_LINES(a, b) do { LineData save; save = (a); (a) = (b); (b) = save; } while (0)
 void term_refresh(void) {
 	int i, j;
-	CharData new_attrs, saved_attrs;
+	CharData new_attrs;
 
 	if (show_cursor) {
-		/* Save cursor also saves the current attributes */
-		saved_attrs = attrs;
 		call_putp(sc);
 		call_putp(civis);
 	}
@@ -600,8 +598,9 @@ done:
 		new_data.start = 0;
 	}
 
+	term_set_attrs(0);
+
 	if (show_cursor) {
-		attrs = saved_attrs;
 		call_putp(rc);
 		call_putp(cnorm);
 	}
