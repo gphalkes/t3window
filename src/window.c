@@ -596,17 +596,3 @@ void win_clrtobot(Window *win) {
 		win->lines[win->paint_y].start = 0;
 	}
 }
-
-/* FIXME: this isn't exactly the cleanest way to do this, but for now it works and
-   avoids code duplication */
-int win_strwidth(const char *str) {
-	Window *win = win_new(1, INT_MAX, 0, 0, 0);
-	int result;
-
-	win_set_paint(win, 0, 0);
-	win_addstr(win, str, 0);
-	result = win->paint_x;
-	win_del(win);
-
-	return result;
-}

@@ -87,6 +87,8 @@ enum {
 	KEY_TIMEOUT = -2
 };
 
+int term_strwidth(const char *str);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
