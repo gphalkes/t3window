@@ -312,6 +312,8 @@ Bool term_init(void) {
 		//FIXME: can we find a way to save the current terminal settings (attrs etc)?
 		/* Start cursor positioning mode. */
 		do_smcup();
+		/* Make sure the cursor is visible */
+		call_putp(cnorm);
 
 		/* Enable alternate character set if required by terminal. */
 		if ((enacs = get_ti_string("enacs")) != NULL) {
@@ -411,17 +413,21 @@ void term_set_cursor(int y, int x) {
 }
 
 void term_hide_cursor(void) {
-	show_cursor = False;
-	call_putp(civis);
-	fflush(stdout);
+	if (show_cursor) {
+		show_cursor = False;
+		call_putp(civis);
+		fflush(stdout);
+	}
 }
 
 void term_show_cursor(void) {
-	show_cursor = True;
-	/* FIXCOMPAT: use cup only when supported */
-	do_cup(cursor_y, cursor_x);
-	call_putp(cnorm);
-	fflush(stdout);
+	if (!show_cursor) {
+		show_cursor = True;
+		/* FIXCOMPAT: use cup only when supported */
+		do_cup(cursor_y, cursor_x);
+		call_putp(cnorm);
+		fflush(stdout);
+	}
 }
 
 void term_get_size(int *height, int *width) {

@@ -182,7 +182,8 @@ int win_get_height(Window *win) {
 }
 
 void win_set_cursor(Window *win, int y, int x) {
-	term_set_cursor(win->y + y, win->x + x);
+	if (win->shown)
+		term_set_cursor(win->y + y, win->x + x);
 }
 
 void win_set_paint(Window *win, int y, int x) {
