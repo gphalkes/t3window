@@ -215,7 +215,7 @@ Bool term_init(void) {
 		new_params.c_cc[VMIN] = 1;
 
 		if (tcsetattr(STDOUT_FILENO, TCSADRAIN, &new_params) < 0)
-			return -1;
+			return False;
 		initialised = True;
 		FD_ZERO(&inset);
 		FD_SET(STDIN_FILENO, &inset);
