@@ -244,7 +244,7 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 
 	if (win->paint_y >= win->height)
 		return True;
-	if (win->paint_x > win->width)
+	if (win->paint_x >= win->width)
 		return True;
 
 	for (k = 0; k < n; k++) {
@@ -537,6 +537,9 @@ Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 //FIXME: should we take background into account, or should we let the app be bothered about
 //erasing with proper background color
 void win_clrtoeol(Window *win) {
+	if (win->paint_y >= win->height)
+		return;
+
 	if (win->paint_x <= win->lines[win->paint_y].start) {
 		win->lines[win->paint_y].length = 0;
 		win->lines[win->paint_y].width = 0;
@@ -569,7 +572,9 @@ void _win_set_multibyte(void) {
 int win_box(Window *win, int y, int x, int height, int width, CharData attr) {
 	int i;
 
-	//FIXME: verify parameters
+	if (y >= win->height || y + height > win->height ||
+			x >= win->width || x + width > win->width)
+		return -1;
 
 	win_set_paint(win, y, x);
 	win_addch(win, TERM_ULCORNER, attr | ATTR_ACS);
