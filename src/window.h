@@ -17,6 +17,8 @@ Bool win_resize(Window *win, int height, int width);
 void win_move(Window *win, int y, int x);
 int win_get_width(Window *win);
 int win_get_height(Window *win);
+int win_get_x(Window *win);
+int win_get_y(Window *win);
 void win_set_cursor(Window *win, int y, int x);
 void win_set_paint(Window *win, int y, int x);
 void win_show(Window *win);
