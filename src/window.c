@@ -604,6 +604,7 @@ int win_box(Window *win, int y, int x, int height, int width, CharData attr) {
 
 
 void win_clrtobot(Window *win) {
+	win_clrtoeol(win);
 	for (win->paint_y++; win->paint_y < win->height; win->paint_y++) {
 		win->lines[win->paint_y].length = 0;
 		win->lines[win->paint_y].width = 0;
