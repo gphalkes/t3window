@@ -195,8 +195,8 @@ void win_set_cursor(Window *win, int y, int x) {
 }
 
 void win_set_paint(Window *win, int y, int x) {
-	win->paint_x = x;
-	win->paint_y = y;
+	win->paint_x = x < 0 ? 0 : x;
+	win->paint_y = y < 0 ? 0 : y;
 }
 
 void win_show(Window *win) {
