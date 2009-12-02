@@ -189,6 +189,10 @@ int win_get_y(Window *win) {
 	return win->y;
 }
 
+int win_get_depth(Window *win) {
+	return win->depth;
+}
+
 void win_set_cursor(Window *win, int y, int x) {
 	if (win->shown)
 		term_set_cursor(win->y + y, win->x + x);
