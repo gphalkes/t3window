@@ -209,9 +209,11 @@ Bool term_init(void) {
 			return False;
 
 		new_params = saved;
-		new_params.c_iflag &= ~(IXON | IXOFF);
-		new_params.c_iflag |= INLCR;
+		new_params.c_iflag &= ~(IXON | IXOFF | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
 		new_params.c_lflag &= ~(ISIG | ICANON | ECHO);
+		new_params.c_oflag &= ~OPOST;
+		new_params.c_cflag &= ~(CSIZE | PARENB);
+		new_params.c_cflag |= CS8;
 		new_params.c_cc[VMIN] = 1;
 
 		if (tcsetattr(STDOUT_FILENO, TCSADRAIN, &new_params) < 0)
