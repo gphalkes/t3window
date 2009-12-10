@@ -48,40 +48,41 @@ static CharData attrs = 0;
 static TermUserCallback user_callback = NULL;
 
 static char alternate_chars[256];
+static char default_alternate_chars[256];
 
-static void set_alternate_chars_defaults(void) {
-	alternate_chars['}'] = 'f';
-	alternate_chars['.'] = 'v';
-	alternate_chars[','] = '<';
-	alternate_chars['+'] = '>';
-	alternate_chars['-'] = '^';
-	alternate_chars['h'] = '#';
-	alternate_chars['~'] = 'o';
-	alternate_chars['a'] = ':';
-	alternate_chars['f'] = '\\';
-	alternate_chars['\''] = '+';
-	alternate_chars['z'] = '>';
-	alternate_chars['{'] = '*';
-	alternate_chars['q'] = '-';
-	alternate_chars['i'] = '#';
-	alternate_chars['n'] = '+';
-	alternate_chars['y'] = '<';
-	alternate_chars['m'] = '+';
-	alternate_chars['j'] = '+';
-	alternate_chars['|'] = '!';
-	alternate_chars['g'] = '#';
-	alternate_chars['o'] = '~';
-	alternate_chars['p'] = '-';
-	alternate_chars['r'] = '-';
-	alternate_chars['s'] = '_';
-	alternate_chars['0'] = '#';
-	alternate_chars['w'] = '+';
-	alternate_chars['u'] = '+';
-	alternate_chars['t'] = '+';
-	alternate_chars['v'] = '+';
-	alternate_chars['l'] = '+';
-	alternate_chars['k'] = '+';
-	alternate_chars['x'] = '|';
+static void set_alternate_chars_defaults(char *table) {
+	table['}'] = 'f';
+	table['.'] = 'v';
+	table[','] = '<';
+	table['+'] = '>';
+	table['-'] = '^';
+	table['h'] = '#';
+	table['~'] = 'o';
+	table['a'] = ':';
+	table['f'] = '\\';
+	table['\''] = '+';
+	table['z'] = '>';
+	table['{'] = '*';
+	table['q'] = '-';
+	table['i'] = '#';
+	table['n'] = '+';
+	table['y'] = '<';
+	table['m'] = '+';
+	table['j'] = '+';
+	table['|'] = '!';
+	table['g'] = '#';
+	table['o'] = '~';
+	table['p'] = '-';
+	table['r'] = '-';
+	table['s'] = '_';
+	table['0'] = '#';
+	table['w'] = '+';
+	table['u'] = '+';
+	table['t'] = '+';
+	table['v'] = '+';
+	table['l'] = '+';
+	table['k'] = '+';
+	table['x'] = '|';
 }
 
 
@@ -268,10 +269,10 @@ Bool term_init(void) {
 				/* FIXME: get alternatives. */
 			}
 			if ((acsc = get_ti_string("acsc")) == NULL) {
-				set_alternate_chars_defaults();
+				set_alternate_chars_defaults(alternate_chars);
 			} else {
 				if (sgr == NULL && ((smacs = get_ti_string("smacs")) == NULL || (rmacs = get_ti_string("rmacs")) == NULL)) {
-					set_alternate_chars_defaults();
+					set_alternate_chars_defaults(alternate_chars);
 				} else {
 					size_t i;
 					for (i = 0; i < strlen(acsc); i += 2)
@@ -282,6 +283,7 @@ Bool term_init(void) {
 
 			seqs_initialised = True;
 		}
+		set_alternate_chars_defaults(default_alternate_chars);
 
 		/* Get terminal size. First try ioctl, then environment, then terminfo. */
 		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) == 0) {
@@ -630,4 +632,16 @@ int term_strwidth(const char *str) {
 	win_del(win);
 
 	return result;
+}
+
+Bool term_acs_available(int idx) {
+	if (idx < 0 || idx > 255)
+		return False;
+	return alternate_chars[idx] != 0;
+}
+
+char term_get_default_acs(int idx) {
+	if (idx < 0 || idx > 255)
+		return ' ';
+	return default_alternate_chars[idx] != 0 ? default_alternate_chars[idx] : ' ';
 }

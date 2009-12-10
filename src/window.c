@@ -457,6 +457,13 @@ static int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) 
 		for (i = 1; i < result; i++)
 			cd_buf[i] = (unsigned char) buf[i];
 
+		if (result > 1)
+			cd_buf[0] &= ~ATTR_ACS;
+		else if ((cd_buf[0] & ATTR_ACS) && !term_acs_available(cd_buf[0] & CHAR_MASK)) {
+			int replacement = term_get_default_acs(cd_buf[0] & CHAR_MASK);
+			cd_buf[0] &= ~(ATTR_ACS | CHAR_MASK);
+			cd_buf[0] |= replacement & CHAR_MASK;
+		}
 		_win_add_chardata(win, cd_buf, result);
 	}
 	return retval;

@@ -69,6 +69,12 @@ int term_get_keychar(int msec);
 #define TERM_LRCORNER 'j'
 #define TERM_HLINE 'q'
 #define TERM_VLINE 'x'
+#define TERM_UARROW '-'
+#define TERM_DARROW '.'
+#define TERM_LARROW ','
+#define TERM_RARROW '+'
+#define TERM_BOARD 'h'
+#define TERM_CKBOARD 'a'
 
 void term_set_cursor(int y, int x);
 void term_hide_cursor(void);
@@ -81,6 +87,8 @@ void term_set_user_callback(TermUserCallback callback);
 int term_get_keychar(int msec);
 int term_unget_keychar(int c);
 void term_putp(const char *str);
+Bool term_acs_available(int idx);
+char term_get_default_acs(int idx);
 
 enum {
 	KEY_ERROR = -1,
