@@ -534,6 +534,7 @@ void term_refresh(void) {
 	}
 
 	for (i = 0; i < lines; i++) {
+		//FIXME: set terminal line to new_data first, so we don't have to swap in _win_refresh_term_line
 		int new_idx, old_idx = terminal_window->lines[i].length, width = 0;
 		_win_refresh_term_line(terminal_window, &new_data, i);
 
@@ -549,9 +550,9 @@ void term_refresh(void) {
 				goto done;
 			}
 			assert(old_idx >= 0);
-			for (new_idx++; GET_WIDTH(new_data.data[new_idx]) == 0 && new_idx < new_data.length; new_idx++) {}
-			for (old_idx++; GET_WIDTH(terminal_window->lines[i].data[old_idx]) == 0 &&
-					old_idx < terminal_window->lines[i].length; old_idx++) {}
+			for (new_idx++; new_idx < new_data.length && GET_WIDTH(new_data.data[new_idx]) == 0; new_idx++) {}
+			for (old_idx++; old_idx < terminal_window->lines[i].length &&
+				GET_WIDTH(terminal_window->lines[i].data[old_idx]) == 0; old_idx++) {}
 		}
 
 		/* Find the first character that is different */
