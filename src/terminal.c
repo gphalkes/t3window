@@ -338,6 +338,9 @@ Bool term_init(void) {
 
 void term_restore(void) {
 	if (initialised) {
+		/* Ensure complete repaint of the terminal on re-init (if required) */
+		win_set_paint(terminal_window, 0, 0);
+		win_clrtobot(terminal_window);
 		if (seqs_initialised) {
 			do_rmcup();
 			/* Restore cursor to visible state. */
@@ -345,6 +348,7 @@ void term_restore(void) {
 				call_putp(cnorm);
 			/* Make sure attributes are reset */
 			term_set_attrs(0);
+			fflush(stdout);
 		}
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
 		initialised = False;
