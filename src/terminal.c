@@ -623,6 +623,13 @@ done:
 	fflush(stdout);
 }
 
+void term_renew(void) {
+	if (clear != NULL)
+		call_putp(clear);
+	win_set_paint(terminal_window, 0, 0);
+	win_clrtobot(terminal_window);
+}
+
 void term_putp(const char *str) {
 	call_putp(str);
 }

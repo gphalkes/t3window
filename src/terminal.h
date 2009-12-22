@@ -82,6 +82,7 @@ void term_show_cursor(void);
 void term_get_size(int *height, int *width);
 Bool term_resize(void);
 void term_refresh(void);
+void term_renew(void);
 void term_set_attrs(CharData new_attrs);
 void term_set_user_callback(TermUserCallback callback);
 int term_get_keychar(int msec);
