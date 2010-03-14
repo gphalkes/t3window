@@ -48,6 +48,10 @@ enum {
 	REL_BOTTOMRIGHT
 };
 
+#define RELTO(_x) ((_x) << 3)
+#define GETREL(_x) ((_x) & 0x7)
+#define GETRELTO(_x) ((_x) >> 3)
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

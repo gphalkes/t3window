@@ -92,12 +92,18 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 Window *win_new_relative(int height, int width, int y, int x, int depth, Window *parent, int relation) {
 	Window *retval;
 
-	if (parent == NULL) {
-		if (relation != REL_ABSOLUTE)
+	if (parent == NULL && GETREL(relation) != REL_ABSOLUTE)
 			return NULL;
-	} else if (relation != REL_TOPLEFT && relation != REL_TOPRIGHT &&
-			relation != REL_BOTTOMLEFT && relation != REL_BOTTOMRIGHT &&
-			relation != REL_ABSOLUTE) {
+
+	if (GETREL(relation) != REL_TOPLEFT && GETREL(relation) != REL_TOPRIGHT &&
+			GETREL(relation) != REL_BOTTOMLEFT && GETREL(relation) != REL_BOTTOMRIGHT &&
+			GETREL(relation) != REL_ABSOLUTE) {
+		return NULL;
+	}
+
+	if (GETRELTO(relation) != REL_TOPLEFT && GETRELTO(relation) != REL_TOPRIGHT &&
+			GETRELTO(relation) != REL_BOTTOMLEFT && GETRELTO(relation) != REL_BOTTOMRIGHT &&
+			GETRELTO(relation) != REL_ABSOLUTE) {
 		return NULL;
 	}
 
@@ -223,36 +229,52 @@ int win_get_relation(Window *win, Window **parent) {
 }
 
 int win_get_abs_x(Window *win) {
-	if (win->relation == REL_ABSOLUTE)
-		return win->x;
-	switch (win->relation) {
-		case REL_ABSOLUTE:
-			return win->x;
+	int result;
+	switch (GETREL(win->relation)) {
 		case REL_TOPLEFT:
 		case REL_BOTTOMLEFT:
-			return win->x + win_get_abs_x(win->parent);
+			result = win->x + win_get_abs_x(win->parent);
+			break;
 		case REL_TOPRIGHT:
 		case REL_BOTTOMRIGHT:
-			return win_get_abs_x(win->parent) + win->parent->width - 1 - win->x;
+			result = win_get_abs_x(win->parent) + win->parent->width + win->x;
+			break;
 		default:
-			return win->x;
+			result = win->x;
+			break;
+	}
+
+	switch (GETRELTO(win->relation)) {
+		case REL_TOPRIGHT:
+		case REL_BOTTOMRIGHT:
+			return result - win->width;
+		default:
+			return result;
 	}
 }
 
 int win_get_abs_y(Window *win) {
-	if (win->relation == REL_ABSOLUTE)
-		return win->y;
-	switch (win->relation) {
-		case REL_ABSOLUTE:
-			return win->y;
+	int result;
+	switch (GETREL(win->relation)) {
 		case REL_TOPLEFT:
 		case REL_TOPRIGHT:
-			return win->y + win_get_abs_y(win->parent);
+			result = win->y + win_get_abs_y(win->parent);
+			break;
 		case REL_BOTTOMLEFT:
 		case REL_BOTTOMRIGHT:
-			return win_get_abs_y(win->parent) + win->parent->height - 1 - win->y;
+			result = win_get_abs_y(win->parent) + win->parent->height + win->y;
+			break;
 		default:
-			return win->y;
+			result = win->y;
+			break;
+	}
+
+	switch (GETRELTO(win->relation)) {
+		case REL_BOTTOMLEFT:
+		case REL_BOTTOMRIGHT:
+			return result - win->height;
+		default:
+			return result;
 	}
 }
 
