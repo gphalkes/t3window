@@ -27,8 +27,10 @@ struct Window {
 	int paint_x, paint_y;
 	int width, height;
 	int depth;
+	int relation;
 	Bool shown;
 	LineData *lines;
+	Window *parent;
 
 	/* Pointers for linking into depth sorted list. */
 	Window *next;

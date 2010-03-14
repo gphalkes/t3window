@@ -89,6 +89,29 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 	return retval;
 }
 
+Window *win_new_relative(int height, int width, int y, int x, int depth, Window *parent, int relation) {
+	Window *retval;
+
+	if (parent == NULL) {
+		if (relation != REL_ABSOLUTE)
+			return NULL;
+	} else if (relation != REL_TOPLEFT && relation != REL_TOPRIGHT &&
+			relation != REL_BOTTOMLEFT && relation != REL_BOTTOMRIGHT &&
+			relation != REL_ABSOLUTE) {
+		return NULL;
+	}
+
+	retval = win_new(height, width, y, x, depth);
+	if (retval == NULL)
+		return retval;
+
+	retval->parent = parent;
+	retval->relation = relation;
+	if (depth == INT_MIN && parent != NULL && parent->depth != INT_MIN)
+		retval->depth = parent->depth - 1;
+	return retval;
+}
+
 static void _win_del(Window *win) {
 	int i;
 	if (win->lines != NULL) {
@@ -191,6 +214,46 @@ int win_get_y(Window *win) {
 
 int win_get_depth(Window *win) {
 	return win->depth;
+}
+
+int win_get_relation(Window *win, Window **parent) {
+	if (parent != NULL)
+		*parent = win->parent;
+	return win->relation;
+}
+
+int win_get_abs_x(Window *win) {
+	if (win->relation == REL_ABSOLUTE)
+		return win->x;
+	switch (win->relation) {
+		case REL_ABSOLUTE:
+			return win->x;
+		case REL_TOPLEFT:
+		case REL_BOTTOMLEFT:
+			return win->x + win_get_abs_x(win->parent);
+		case REL_TOPRIGHT:
+		case REL_BOTTOMRIGHT:
+			return win_get_abs_x(win->parent) + win->parent->width - 1 - win->x;
+		default:
+			return win->x;
+	}
+}
+
+int win_get_abs_y(Window *win) {
+	if (win->relation == REL_ABSOLUTE)
+		return win->y;
+	switch (win->relation) {
+		case REL_ABSOLUTE:
+			return win->y;
+		case REL_TOPLEFT:
+		case REL_TOPRIGHT:
+			return win->y + win_get_abs_y(win->parent);
+		case REL_BOTTOMLEFT:
+		case REL_BOTTOMRIGHT:
+			return win_get_abs_y(win->parent) + win->parent->height - 1 - win->y;
+		default:
+			return win->y;
+	}
 }
 
 void win_set_cursor(Window *win, int y, int x) {
@@ -523,6 +586,7 @@ int win_addchrep(Window *win, char c, CharData attr, int rep) { return win_addns
 Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
 	LineData save, *draw;
 	Window *ptr;
+	int y;
 
 	save = terminal->lines[line];
 	terminal->lines[line] = *store;
@@ -532,11 +596,12 @@ Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 		if (!ptr->shown)
 			continue;
 
-		if (ptr->y > line || ptr->y + ptr->height <= line)
+		y = win_get_abs_y(ptr);
+		if (y > line || y + ptr->height <= line)
 			continue;
 
-		draw = ptr->lines + line - ptr->y;
-		terminal->paint_x = draw->start + ptr->x;
+		draw = ptr->lines + line - y;
+		terminal->paint_x = draw->start + win_get_abs_x(ptr);
 		_win_add_chardata(terminal, draw->data, draw->length);
 	}
 
