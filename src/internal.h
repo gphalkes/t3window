@@ -37,6 +37,6 @@ struct Window {
 	Window *prev;
 };
 
-Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line);
+Bool _win_refresh_term_line(struct Window *terminal, int line);
 void _win_set_multibyte(void);
 #endif

@@ -37,7 +37,7 @@ static char *sgr, *setaf, *setab, *op, *smacs, *rmacs, *sgr0;
 static char *el;
 
 static Window *terminal_window;
-static LineData new_data;
+static LineData old_data;
 
 static int lines, columns;
 static int cursor_y, cursor_x;
@@ -305,9 +305,9 @@ Bool term_init(void) {
 			/* FIXME: maybe someday we can make the window outside of the window stack. */
 			if ((terminal_window = win_new(lines, columns, 0, 0, 0)) == NULL)
 				return False;
-			if ((new_data.data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL)
+			if ((old_data.data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL)
 				return False;
-			new_data.allocated = INITIAL_ALLOC;
+			old_data.allocated = INITIAL_ALLOC;
 		} else {
 			if (!win_resize(terminal_window, lines, columns))
 				return False;
@@ -538,15 +538,15 @@ void term_refresh(void) {
 	}
 
 	for (i = 0; i < lines; i++) {
-		//FIXME: set terminal line to new_data first, so we don't have to swap in _win_refresh_term_line
 		int new_idx, old_idx = terminal_window->lines[i].length, width = 0;
-		_win_refresh_term_line(terminal_window, &new_data, i);
+		SWAP_LINES(old_data, terminal_window->lines[i]);
+		_win_refresh_term_line(terminal_window, i);
 
-		new_idx = new_data.length;
+		new_idx = terminal_window->lines[i].length;
 
-		if (new_data.width == terminal_window->lines[i].width) {
+		if (old_data.width == terminal_window->lines[i].width) {
 			for (new_idx--, old_idx--; new_idx >= 0 &&
-					old_idx >= 0 && new_data.data[new_idx] == terminal_window->lines[i].data[old_idx];
+					old_idx >= 0 && terminal_window->lines[i].data[new_idx] == old_data.data[old_idx];
 					new_idx--, old_idx--)
 			{}
 			if (new_idx == -1) {
@@ -554,37 +554,37 @@ void term_refresh(void) {
 				goto done;
 			}
 			assert(old_idx >= 0);
-			for (new_idx++; new_idx < new_data.length && GET_WIDTH(new_data.data[new_idx]) == 0; new_idx++) {}
-			for (old_idx++; old_idx < terminal_window->lines[i].length &&
-				GET_WIDTH(terminal_window->lines[i].data[old_idx]) == 0; old_idx++) {}
+			for (new_idx++; new_idx < terminal_window->lines[i].length && GET_WIDTH(terminal_window->lines[i].data[new_idx]) == 0; new_idx++) {}
+			for (old_idx++; old_idx < old_data.length &&
+				GET_WIDTH(old_data.data[old_idx]) == 0; old_idx++) {}
 		}
 
 		/* Find the first character that is different */
-		for (j = 0; j < new_idx && j < old_idx && new_data.data[j] == terminal_window->lines[i].data[j]; j++)
-			width += GET_WIDTH(new_data.data[j]);
+		for (j = 0; j < new_idx && j < old_idx && terminal_window->lines[i].data[j] == old_data.data[j]; j++)
+			width += GET_WIDTH(terminal_window->lines[i].data[j]);
 
 		/* Go back to the last non-zero-width character, because that is the one we want to print first. */
-		if ((j < new_idx && GET_WIDTH(new_data.data[j]) == 0) || (j < old_idx && GET_WIDTH(terminal_window->lines[i].data[j]) == 0)) {
-			for (; j > 0 && (GET_WIDTH(new_data.data[j]) == 0 || GET_WIDTH(terminal_window->lines[i].data[j]) == 0); j--) {}
-			width -= GET_WIDTH(new_data.data[j]);
+		if ((j < new_idx && GET_WIDTH(terminal_window->lines[i].data[j]) == 0) || (j < old_idx && GET_WIDTH(old_data.data[j]) == 0)) {
+			for (; j > 0 && (GET_WIDTH(terminal_window->lines[i].data[j]) == 0 || GET_WIDTH(old_data.data[j]) == 0); j--) {}
+			width -= GET_WIDTH(terminal_window->lines[i].data[j]);
 		}
 
 		/* Position the cursor */
 		do_cup(i, width);
 		for (; j < new_idx; j++) {
-			if (GET_WIDTH(new_data.data[j]) > 0) {
+			if (GET_WIDTH(terminal_window->lines[i].data[j]) > 0) {
 				//FIXME: clear also clears background which may not be what is required. Perhaps better to truncate line first!
-				if (width + GET_WIDTH(new_data.data[j]) > terminal_window->width)
+				if (width + GET_WIDTH(terminal_window->lines[i].data[j]) > terminal_window->width)
 					break;
 
-				new_attrs = new_data.data[j] & ATTR_MASK;
+				new_attrs = terminal_window->lines[i].data[j] & ATTR_MASK;
 
-				width += GET_WIDTH(new_data.data[j]);
+				width += GET_WIDTH(terminal_window->lines[i].data[j]);
 				if (user_callback != NULL && new_attrs & ATTR_USER_MASK) {
 					/* Let the user draw this character because they want funky attributes */
 					int start = j;
-					for (j++; j < new_idx && GET_WIDTH(new_data.data[j]) == 0; j++) {}
-					user_callback(new_data.data + start, j - start);
+					for (j++; j < new_idx && GET_WIDTH(terminal_window->lines[i].data[j]) == 0; j++) {}
+					user_callback(terminal_window->lines[i].data + start, j - start);
 					if (j < new_idx)
 						j--;
 					continue;
@@ -593,24 +593,19 @@ void term_refresh(void) {
 				}
 			}
 			if (attrs & ATTR_ACS)
-				putchar(alternate_chars[new_data.data[j] & CHAR_MASK]);
+				putchar(alternate_chars[terminal_window->lines[i].data[j] & CHAR_MASK]);
 			else
-				putchar(new_data.data[j] & CHAR_MASK);
+				putchar(terminal_window->lines[i].data[j] & CHAR_MASK);
 		}
 		//FIXME: if bce cap is set, the background needs to be set properly before clear
 		//FIXME: clear also clears background which may not be what is required. Perhaps better to truncate line first!
-		if ((new_data.width < terminal_window->lines[i].width || j < new_idx) && width < terminal_window->width) {
+		if ((terminal_window->lines[i].width < old_data.width || j < new_idx) && width < terminal_window->width) {
 			if (attrs != 0)
 				term_set_attrs(0);
 			call_putp(el);
 		}
 
-		SWAP_LINES(new_data, terminal_window->lines[i]);
-done:
-		/* Reset new_data for the next line. */
-		new_data.width = 0;
-		new_data.length = 0;
-		new_data.start = 0;
+done: ;
 	}
 
 	term_set_attrs(0);

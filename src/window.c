@@ -605,14 +605,15 @@ int win_addstrrep(Window *win, const char *str, CharData attr, int rep) { return
 int win_addchrep(Window *win, char c, CharData attr, int rep) { return win_addnstrrep(win, &c, 1, attr, rep); }
 
 
-Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) {
-	LineData save, *draw;
+Bool _win_refresh_term_line(struct Window *terminal, int line) {
+	LineData *draw;
 	Window *ptr;
 	int y;
 
-	save = terminal->lines[line];
-	terminal->lines[line] = *store;
 	terminal->paint_y = line;
+	terminal->lines[line].width = 0;
+	terminal->lines[line].length = 0;
+	terminal->lines[line].start = 0;
 
 	for (ptr = tail; ptr != NULL; ptr = ptr->prev) {
 		if (!ptr->shown)
@@ -635,8 +636,6 @@ Bool _win_refresh_term_line(struct Window *terminal, LineData *store, int line) 
 		_win_add_chardata(terminal, &space, 1);
 	}
 
-	*store = terminal->lines[line];
-	terminal->lines[line] = save;
 	return True;
 }
 
