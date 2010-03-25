@@ -3,3 +3,4 @@ src/.deps
 src/.objects
 src/libwindow.so
 src/test
+.backupfilter.hg

@@ -12,6 +12,69 @@
   term_refresh or similar special function. The point is to limit the number of
   flushes so as to optimize the output
 
+First test string from mined:
+C3 A5 D9 84 D8 A7 E0 B8 A9 E0 B8 A9 E5 88 88 E5 A2 A2
+
+C3 A5: LATIN SMALL LETTER A WITH RING ABOVE
+D9 84: ARABIC LETTER LAM
+D8 A7: ARABIC LETTER ALEF
+E0 B8 A9: THAI CHARACTER SO RUSI
+E5 88 88: U+5208
+E5 A2 A2: U+58A2
+
+61 CC A1: a followed by COMBINING PALATALIZED HOOK BELOW length 1->support for combining, length 2->no support, length 3->no support for UTF-8
+
+D9 84: ARABIC LETTER LAM
+D8 A7: ARABIC LETTER ALEF
+-> width = 1 if joining, otherwise width = 2
+
+E5 88 88: U+5208
+-> width = 1 if no double width, otherwise width = 2??
+
+From the ncurses terminfo database: [this means that u7 and u6 should be interpreted
+as cursor position report strings] From the terminfo file it seems that only
+a single (very old) terminal does not adhere to the ANSI standard way. We
+could use the terminfo file to verify that the capability exists and that
+they conform to expectations. On the other hand, there are terminals
+for which u6 and u7 are not included but which do support it (rxvt). This
+means that we should just try use the default ANSI strings
+
+# INTERPRETATION OF USER CAPABILITIES
+#
+# The System V Release 4 and XPG4 terminfo format defines ten string
+# capabilities for use by applications, <u0>...<u9>.   In this file, we use
+# certain of these capabilities to describe functions which are not covered
+# by terminfo.  The mapping is as follows:
+#
+#	u9	terminal enquire string (equivalent to ANSI DA)
+#	u8	terminal answerback description
+#	u7	cursor position request (equivalent to VT100 DSR 6)
+#	u6	cursor position report (equivalent to ANSI CPR)
+#
+# The terminal enquire string <u9> should elicit an answerback response
+# from the terminal.  Common values for <u9> will be ^E (on older ASCII
+# terminals) or \E[c (on newer VT100/ANSI-compatible terminals).
+#
+# The cursor position request (<u7>) string should elicit a cursor position
+# report.  A typical value (for ANSI/VT100 terminals) is \E[6n.
+#
+# The terminal answerback description (u8) must consist of an expected
+# answerback string.  The string may contain the following scanf(3)-like
+# escapes:
+#
+#	%c	Accept any character
+#	%[...]	Accept any number of characters in the given set
+#
+# The cursor position report (<u6>) string must contain two scanf(3)-style
+# %d format elements.  The first of these must correspond to the Y coordinate
+# and the second to the %d.  If the string contains the sequence %i, it is
+# taken as an instruction to decrement each value after reading it (this is
+# the inverse sense from the cup string).  The typical CPR value is
+# \E[%i%d;%dR (on VT100/ ANSI-compatible terminals).
+#
+# These capabilities are used by tac(1m), the terminfo action checker soon
+# to be distributed with ncurses.
+
 
 From the tcgetattr man-page:
 
