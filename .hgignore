@@ -1,4 +1,5 @@
 syntax: glob
+unicode/verify_proptables
 unicode/generate_proptables
 src/.deps
 src/.objects
