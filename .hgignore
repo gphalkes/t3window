@@ -1,6 +1,9 @@
 syntax: glob
+unicode/generate_proptables
 src/.deps
 src/.objects
 src/libwindow.so
 src/test
 .backupfilter.hg
+unicode/.deps
+unicode/.objects
