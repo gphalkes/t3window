@@ -1,6 +1,8 @@
 syntax: glob
 unicode/verify_proptables
 unicode/generate_proptables
+unicode/combiningClass.[ch]
+unicode/basicInfo.[ch]
 src/.deps
 src/.objects
 src/libwindow.so
