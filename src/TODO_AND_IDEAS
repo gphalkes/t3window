@@ -1,4 +1,4 @@
-- UTF-8 detection
+- UTF-8 detection/CJK detection
 - is special handling even required for single byte encodings? or can we simply
   use the mb stuff to handle this.
 
@@ -91,3 +91,18 @@ From the tcgetattr man-page:
            termios_p->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
            termios_p->c_cflag &= ~(CSIZE | PARENB);
            termios_p->c_cflag |= CS8;
+
+IDEAS:
+======
+Only accept UTF-8 as input. This allows the program to be programmed solely for
+UTF-8, which simplifies the program. To check character widths what should be
+done is the following: for each character (including the combining characters),
+convert to output encoding. If the conversion is not complete (inbuf does not
+point to end), then the character should be considered non-printable.
+Perhaps it is a good idea to do normalisation first (to the most composed form).
+
+To support proper interaction, the following functions should be provided:
+term_isprint(uint32_t c) - true if unicode printable and conversion to output
+		charset is possible
+term_strwidth(const char *str) - return width of string when printed to terminal
+		Non printable characters are discarded from input.
