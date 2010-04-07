@@ -14,6 +14,8 @@ Window *win_new(int height, int width, int y, int x, int depth);
 Window *win_new_relative(int height, int width, int y, int x, int depth, Window *parent, int relation);
 void win_del(Window *win);
 
+void win_set_default_attrs(Window *win, CharData attr);
+
 Bool win_resize(Window *win, int height, int width);
 void win_move(Window *win, int y, int x);
 int win_get_width(Window *win);

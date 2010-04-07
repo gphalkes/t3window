@@ -59,6 +59,7 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 	retval->height = height;
 	retval->depth = depth;
 	retval->shown = False;
+	retval->default_attrs = 0;
 
 	if (head == NULL) {
 		tail = head = retval;
@@ -128,6 +129,10 @@ static void _win_del(Window *win) {
 	free(win);
 }
 
+void win_set_default_attrs(Window *win, CharData attr) {
+	win->default_attrs = attr;
+}
+
 void win_del(Window *win) {
 	if (win->next == NULL)
 		tail = win->prev;
@@ -181,7 +186,7 @@ Bool win_resize(Window *win, int height, int width) {
 					if (spaces < win->lines[i].length - j ||
 							ensureSpace(win->lines + i, spaces - win->lines[i].length + j)) {
 						for (; spaces > 0; spaces--)
-							win->lines[i].data[j++] = WIDTH_TO_META(1) | ' ';
+							win->lines[i].data[j++] = WIDTH_TO_META(1) | ' ' | win->default_attrs;
 						sumwidth = width;
 					}
 				}
@@ -337,7 +342,7 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	int i, j;
 	size_t k;
 	Bool result = True;
-	CharData space = ' ';
+	CharData space = ' ' | win->default_attrs;
 
 	if (win->paint_y >= win->height)
 		return True;
@@ -404,7 +409,7 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
 			return False;
 		for (i = diff; i > 0; i--)
-			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] =  WIDTH_TO_META(1) | ' ';
+			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] = WIDTH_TO_META(1) | ' ' | win->default_attrs;
 		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n * sizeof(CharData));
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
@@ -417,7 +422,7 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(CharData) * win->lines[win->paint_y].length);
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(CharData));
 		for (i = diff; i > 0; i--)
-			win->lines[win->paint_y].data[n++] = WIDTH_TO_META(1) | ' ';
+			win->lines[win->paint_y].data[n++] = WIDTH_TO_META(1) | ' ' | win->default_attrs;
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
 		win->lines[win->paint_y].start = win->paint_x;
@@ -507,7 +512,7 @@ static int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) 
 	int retval = 0;
 
 	memset(&mbstate, 0, sizeof(mbstate_t));
-	attr = attr & ATTR_MASK;
+	attr = term_combine_attrs(attr & ATTR_MASK, win->default_attrs);
 
 	while (n > 0) {
 		result = mbrtowc(c, str, n, &mbstate);
@@ -624,8 +629,14 @@ Bool _win_refresh_term_line(struct Window *terminal, int line) {
 			continue;
 
 		draw = ptr->lines + line - y;
-		terminal->paint_x = draw->start + win_get_abs_x(ptr);
+		terminal->paint_x = win_get_abs_x(ptr);
+		if (ptr->default_attrs == 0)
+			terminal->paint_x += draw->start;
+		else
+			win_addchrep(terminal, ' ', ptr->default_attrs, draw->start);
 		_win_add_chardata(terminal, draw->data, draw->length);
+		if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width)
+			win_addchrep(terminal, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width);
 	}
 
 	/* If a line does not start at position 0, just make it do so. This makes the whole repainting
@@ -676,6 +687,8 @@ void _win_set_multibyte(void) {
 
 int win_box(Window *win, int y, int x, int height, int width, CharData attr) {
 	int i;
+
+	attr = term_combine_attrs(attr, win->default_attrs);
 
 	if (y >= win->height || y + height > win->height ||
 			x >= win->width || x + width > win->width)

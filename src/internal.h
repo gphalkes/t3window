@@ -15,22 +15,24 @@
 #define INITIAL_ALLOC 80
 
 typedef struct {
-	CharData *data;
-	int start;
-	int width;
-	int length;
-	int allocated;
+	CharData *data; /* Data bytes. */
+	int start; /* Offset of data bytes in screen cells from the edge of the Window. */
+	int width; /* Width in cells of the the data. */
+	int length; /* Length in CharData units of the data. */
+	int allocated; /* Allocated number of CharData units. */
 } LineData;
 
 struct Window {
-	int x, y;
-	int paint_x, paint_y;
-	int width, height;
-	int depth;
-	int relation;
-	Bool shown;
-	LineData *lines;
-	Window *parent;
+	int x, y; /* X and Y coordinates of the Window. These may be relative to parent, depending on relation. */
+	int paint_x, paint_y; /* Drawing cursor */
+	int width, height; /* Height and width of the Window */
+	int depth; /* Depth in stack. Higher values are deeper and thus obscured by Windows with lower depth. */
+	int relation; /* Relation of this Window to parent. See window.h for values. */
+	CharData default_attrs; /* Default attributes to be combined with drawing attributes.
+	                           Mostly useful for background specification. */
+	Bool shown; /* Indicates whether this Window is visible. */
+	LineData *lines; /* The contents of the Window. */
+	Window *parent; /* Window for relative placment. */
 
 	/* Pointers for linking into depth sorted list. */
 	Window *next;

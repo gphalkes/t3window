@@ -43,7 +43,7 @@ static int lines, columns;
 static int cursor_y, cursor_x;
 static Bool show_cursor = True;
 
-static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7 };
+static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7, 9 };
 static CharData attrs = 0;
 static TermUserCallback user_callback = NULL;
 
@@ -519,6 +519,10 @@ void term_set_attrs(CharData new_attrs) {
 
 	/* FIXME: for alternatives this may not work! specifically this won't
 	   work if only color pairs are supported, rather than random combinations. */
+	if ((new_attrs & FG_COLOR_ATTRS) == ATTR_FG_DEFAULT)
+		new_attrs &= ~(FG_COLOR_ATTRS);
+	if ((new_attrs & BG_COLOR_ATTRS) == ATTR_BG_DEFAULT)
+		new_attrs &= ~(BG_COLOR_ATTRS);
 
 	/* Set default color through op string */
 	if (((attrs & FG_COLOR_ATTRS) != (new_attrs & FG_COLOR_ATTRS) && (new_attrs & FG_COLOR_ATTRS) == 0) ||
@@ -674,4 +678,14 @@ char term_get_default_acs(int idx) {
 	if (idx < 0 || idx > 255)
 		return ' ';
 	return default_alternate_chars[idx] != 0 ? default_alternate_chars[idx] : ' ';
+}
+
+CharData term_combine_attrs(CharData a, CharData b) {
+	#warning FIXME: take ncv into account
+	CharData result = b | (a & ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS));
+	if ((a & FG_COLOR_ATTRS) != 0)
+		result = (result & ~(FG_COLOR_ATTRS)) | (a & FG_COLOR_ATTRS);
+	if ((a & BG_COLOR_ATTRS) != 0)
+		result = (result & ~(BG_COLOR_ATTRS)) | (a & BG_COLOR_ATTRS);
+	return result;
 }

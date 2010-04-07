@@ -1,3 +1,8 @@
+- background color for windows
+- add a attribute combine routine, which allows a dominant attribute to be
+  specified and takes curses ncv into account. I.e. if a dominant attribute
+  only specifies something which cannot be combined with color, the color should
+  be removed.
 - UTF-8 detection/CJK detection
 - is special handling even required for single byte encodings? or can we simply
   use the mb stuff to handle this.

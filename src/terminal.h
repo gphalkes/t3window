@@ -39,7 +39,7 @@ int term_get_keychar(int msec);
 #define ATTR_USER_MASK (ATTR_USER1)
 #define CHAR_MASK ((1 << CHAR_BIT) - 1)
 
-#define ATTR_FG_DEFAULT 0
+#define ATTR_FG_UNSPEC 0
 #define ATTR_FG_BLACK (1 << _ATTR_COLOR_SHIFT)
 #define ATTR_FG_RED (2 << _ATTR_COLOR_SHIFT)
 #define ATTR_FG_GREEN (3 << _ATTR_COLOR_SHIFT)
@@ -48,8 +48,9 @@ int term_get_keychar(int msec);
 #define ATTR_FG_MAGENTA (6 << _ATTR_COLOR_SHIFT)
 #define ATTR_FG_CYAN (7 << _ATTR_COLOR_SHIFT)
 #define ATTR_FG_WHITE (8 << _ATTR_COLOR_SHIFT)
+#define ATTR_FG_DEFAULT (9 << _ATTR_COLOR_SHIFT)
 
-#define ATTR_BG_DEFAULT 0
+#define ATTR_BG_UNSPEC 0
 #define ATTR_BG_BLACK (1 << (_ATTR_COLOR_SHIFT + 4))
 #define ATTR_BG_RED (2 << (_ATTR_COLOR_SHIFT + 4))
 #define ATTR_BG_GREEN (3 << (_ATTR_COLOR_SHIFT + 4))
@@ -58,6 +59,7 @@ int term_get_keychar(int msec);
 #define ATTR_BG_MAGENTA (6 << (_ATTR_COLOR_SHIFT + 4))
 #define ATTR_BG_CYAN (7 << (_ATTR_COLOR_SHIFT + 4))
 #define ATTR_BG_WHITE (8 << (_ATTR_COLOR_SHIFT + 4))
+#define ATTR_BG_DEFAULT (9 << (_ATTR_COLOR_SHIFT + 4))
 
 #define TERM_TTEE 'w'
 #define TERM_RTEE 'u'
@@ -90,6 +92,8 @@ int term_unget_keychar(int c);
 void term_putp(const char *str);
 Bool term_acs_available(int idx);
 char term_get_default_acs(int idx);
+
+CharData term_combine_attrs(CharData a, CharData b);
 
 enum {
 	KEY_ERROR = -1,
