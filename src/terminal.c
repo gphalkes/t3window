@@ -242,10 +242,28 @@ Bool term_init(void) {
 			if ((cup = get_ti_string("cup")) == NULL)
 				return False;
 
-			if ((sgr = get_ti_string("sgr")) == NULL) {
-				/* FIXME: get alternatives. */
-			}
+			sgr = get_ti_string("sgr");
+#if 0
+			reset_required_mask = ATTR_BOLD | ATTR_REVERSE | ATTR_BLINK | ATTR_DIM;
+			smul = get_ti_string("smul");
+			if (smul != NULL && (rmul = get_ti_string("rmul")) == NULL)
+				reset_required_mask |= ATTR_UNDERLINE;
+			bold = get_ti_string("bold");
+			smso = get_ti_string("smso");
+			if (smso != NULL && (rmso = get_ti_string("rmso")) == NULL)
+				reset_required_mask |= ATTR_STANDOUT;
+			rev = get_ti_string("rev");
+			blink = get_ti_string("blink");
+			dim = get_ti_string("dim");
+			smacs = get_ti_string("smacs");
+			if (smacs != NULL && (rmacs = get_ti_string("rmacs")) == NULL)
+				reset_required_mask |= ATTR_ACS;
+			//FIXME: if sgr0 is not defined, don't go into modes in reset_required_mask
+			/* FIXME: detect if terminal is ANSI. If so, define leave strings ourselves
+			   (or better yet, make a combined string ourselves) */
+#endif
 			sgr0 = get_ti_string("sgr0");
+
 			if ((setaf = get_ti_string("setaf")) == NULL) {
 				/* FIXME: get alternatives. */
 			}
@@ -481,6 +499,8 @@ void term_set_attrs(CharData new_attrs) {
 
 	if ((attrs & BASIC_ATTRS) != (new_attrs & BASIC_ATTRS)) {
 		/* FIXME: implement sgr alternatives */
+		#warning FIXME: use alternatives iso sgr, because sgr screws up other things
+		// like colors because it includes \E[0. Furthermore it tends to include too much
 		if (sgr != NULL) {
 			call_putp(call_tparm(sgr, 9,
 				new_attrs & ATTR_STANDOUT,
@@ -493,6 +513,7 @@ void term_set_attrs(CharData new_attrs) {
 				0,
 				/* FIXME: UTF-8 terminals may need different handling */
 				new_attrs & ATTR_ACS));
+			attrs &= ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS);
 		}
 	}
 
