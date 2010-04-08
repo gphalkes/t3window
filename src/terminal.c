@@ -201,43 +201,18 @@ static void do_rmcup(void) {
 	}
 }
 
-/** Compare two escape sequences, taking into account the different ways to denote an escape. */
-static int escapecmp(const char *a, const char *b) {
-	int last_was_backslash;
-
-	if (strcmp(a, b) == 0)
-		return 1;
-	for (; *a != 0 && *b != 0; a++, b++) {
-		if (*a != *b) {
-			if (last_was_backslash && *b == 'E') {
-				last_was_backslash = 0;
-				if (*a == 'e')
-					continue;
-				else if ((*a == '0' && a[1] == '3' && a[2] == '3') ||
-						(*a == 'x' && a[1] == '1' && (a[2] == 'b' || a[2] == 'B')))
-				{
-					a += 2;
-					continue;
-				}
-				return 0;
-			}
-		}
-		last_was_backslash = *a == '\\';
-	}
-	return *a == *b;
-}
-
+#define streq(a,b) (strcmp((a), (b)) == 0)
 static void detect_ansi(void) {
 	CharData non_existant = 0;
 
-	if (op != NULL && (escapecmp(op, "\\E[39;49m") || escapecmp(op, "\\E[49;39m"))) {
-		if (setaf != NULL && escapecmp(setaf, "\\E[3%p1%dm") &&
-				setab != NULL && escapecmp(setab, "\\E[4%p1%dm"))
+	if (op != NULL && (streq(op, "\033[39;49m") || streq(op, "\033[49;39m"))) {
+		if (setaf != NULL && streq(setaf, "\033[3%p1%dm") &&
+				setab != NULL && streq(setab, "\033[4%p1%dm"))
 			ansi_attrs |= FG_COLOR_ATTRS |BG_COLOR_ATTRS;
 	}
-	if (smul != NULL && rmul != NULL && escapecmp(smul, "\\E[4m") && escapecmp(rmul, "\\E[24m"))
+	if (smul != NULL && rmul != NULL && streq(smul, "\033[4m") && streq(rmul, "\033[24m"))
 		ansi_attrs |= ATTR_UNDERLINE;
-	if (smacs != NULL && rmacs != NULL && escapecmp(smacs, "\\E[11m") && escapecmp(rmacs, "\\E10m"))
+	if (smacs != NULL && rmacs != NULL && streq(smacs, "\033[11m") && streq(rmacs, "\03310m"))
 		ansi_attrs |= ATTR_ACS;
 
 	/* So far, we have been able to check that the "exit mode" operation was ANSI compatible as well.
@@ -248,28 +223,28 @@ static void detect_ansi(void) {
 		return;
 
 	if (rev != NULL) {
-		if (escapecmp(rev, "\\E[7m"))
+		if (streq(rev, "\033[7m"))
 			ansi_attrs |= ATTR_REVERSE;
 	} else {
 		non_existant |= ATTR_REVERSE;
 	}
 
 	if (bold != NULL) {
-		if (escapecmp(bold, "\\E[1m"))
+		if (streq(bold, "\033[1m"))
 			ansi_attrs |= ATTR_BOLD;
 	} else {
 		non_existant |= ATTR_BOLD;
 	}
 
 	if (dim != NULL) {
-		if (escapecmp(dim, "\\E[2m"))
+		if (streq(dim, "\033[2m"))
 			ansi_attrs |= ATTR_DIM;
 	} else {
 		non_existant |= ATTR_DIM;
 	}
 
 	if (blink != NULL) {
-		if (escapecmp(blink, "\\E[5m"))
+		if (streq(blink, "\033[5m"))
 			ansi_attrs |= ATTR_BLINK;
 	} else {
 		non_existant |= ATTR_BLINK;
@@ -608,6 +583,7 @@ static void set_attrs_non_ansi(CharData new_attrs) {
 					/* FIXME: UTF-8 terminals may need different handling */
 					new_attrs & ATTR_ACS));
 				attrs = new_attrs & ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS);
+				attrs_basic_non_ansi = attrs & ~ansi_attrs;
 			} else {
 				/* Note that this will not be NULL if it is required because of
 				   tests in the initialization. */
@@ -634,7 +610,7 @@ static void set_attrs_non_ansi(CharData new_attrs) {
 	}
 
 
-	if ((ansi_attrs & (FG_COLOR_ATTRS | BG_COLOR_ATTRS)) != 0)
+	if ((~ansi_attrs & (FG_COLOR_ATTRS | BG_COLOR_ATTRS)) == 0)
 		return;
 
 	if ((new_attrs & FG_COLOR_ATTRS) == ATTR_FG_DEFAULT)
