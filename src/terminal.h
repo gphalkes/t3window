@@ -25,7 +25,7 @@ int term_get_keychar(int msec);
 
 #define ATTR_UNDERLINE (1 << _ATTR_SHIFT)
 #define ATTR_BOLD (1 << (_ATTR_SHIFT + 1))
-#define ATTR_STANDOUT (1 << (_ATTR_SHIFT + 2))
+//~ #define ATTR_STANDOUT (1 << (_ATTR_SHIFT + 2))
 #define ATTR_REVERSE (1 << (_ATTR_SHIFT + 3))
 #define ATTR_BLINK (1 << (_ATTR_SHIFT + 4))
 #define ATTR_DIM (1 << (_ATTR_SHIFT + 5))

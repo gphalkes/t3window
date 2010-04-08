@@ -21,6 +21,8 @@ int call_tigetnum(const char *name) {
 }
 
 void call_putp(const char *string) {
+	if (string == NULL)
+		return;
 	putp(string);
 }
 

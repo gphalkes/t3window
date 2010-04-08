@@ -33,8 +33,10 @@ static fd_set inset;
 
 static char *smcup, *rmcup, *cup, *sc, *rc, *clear, *home, *vpa, *hpa, *cud, *cud1, *cuf, *cuf1;
 static char *civis, *cnorm;
-static char *sgr, *setaf, *setab, *op, *smacs, *rmacs, *sgr0;
+static char *sgr, *setaf, *setab, *op, *smacs, *rmacs, *sgr0, *smul, *rmul,
+	*rev, *bold, *blink, *dim, *setf, *setb;
 static char *el;
+static CharData ncv;
 
 static Window *terminal_window;
 static LineData old_data;
@@ -44,7 +46,10 @@ static int cursor_y, cursor_x;
 static Bool show_cursor = True;
 
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7, 9 };
+static int attr_to_alt_color[10] = { 0, 0, 4, 2, 6, 1, 5, 3, 7, 0 };
 static CharData attrs = 0;
+static CharData ansi_attrs = 0;
+static CharData reset_required_mask = ATTR_BOLD | ATTR_REVERSE | ATTR_BLINK | ATTR_DIM;
 static TermUserCallback user_callback = NULL;
 
 static char alternate_chars[256];
@@ -196,6 +201,85 @@ static void do_rmcup(void) {
 	}
 }
 
+/** Compare two escape sequences, taking into account the different ways to denote an escape. */
+static int escapecmp(const char *a, const char *b) {
+	int last_was_backslash;
+
+	if (strcmp(a, b) == 0)
+		return 1;
+	for (; *a != 0 && *b != 0; a++, b++) {
+		if (*a != *b) {
+			if (last_was_backslash && *b == 'E') {
+				last_was_backslash = 0;
+				if (*a == 'e')
+					continue;
+				else if ((*a == '0' && a[1] == '3' && a[2] == '3') ||
+						(*a == 'x' && a[1] == '1' && (a[2] == 'b' || a[2] == 'B')))
+				{
+					a += 2;
+					continue;
+				}
+				return 0;
+			}
+		}
+		last_was_backslash = *a == '\\';
+	}
+	return *a == *b;
+}
+
+static void detect_ansi(void) {
+	CharData non_existant = 0;
+
+	if (op != NULL && (escapecmp(op, "\\E[39;49m") || escapecmp(op, "\\E[49;39m"))) {
+		if (setaf != NULL && escapecmp(setaf, "\\E[3%p1%dm") &&
+				setab != NULL && escapecmp(setab, "\\E[4%p1%dm"))
+			ansi_attrs |= FG_COLOR_ATTRS |BG_COLOR_ATTRS;
+	}
+	if (smul != NULL && rmul != NULL && escapecmp(smul, "\\E[4m") && escapecmp(rmul, "\\E[24m"))
+		ansi_attrs |= ATTR_UNDERLINE;
+	if (smacs != NULL && rmacs != NULL && escapecmp(smacs, "\\E[11m") && escapecmp(rmacs, "\\E10m"))
+		ansi_attrs |= ATTR_ACS;
+
+	/* So far, we have been able to check that the "exit mode" operation was ANSI compatible as well.
+	   However, for bold, dim, reverse and blink we can't check this, so we will only accept them
+	   as attributes if the terminal uses ANSI colors, and they all match in as far as they exist.
+	*/
+	if ((ansi_attrs & (FG_COLOR_ATTRS | BG_COLOR_ATTRS)) == 0)
+		return;
+
+	if (rev != NULL) {
+		if (escapecmp(rev, "\\E[7m"))
+			ansi_attrs |= ATTR_REVERSE;
+	} else {
+		non_existant |= ATTR_REVERSE;
+	}
+
+	if (bold != NULL) {
+		if (escapecmp(bold, "\\E[1m"))
+			ansi_attrs |= ATTR_BOLD;
+	} else {
+		non_existant |= ATTR_BOLD;
+	}
+
+	if (dim != NULL) {
+		if (escapecmp(dim, "\\E[2m"))
+			ansi_attrs |= ATTR_DIM;
+	} else {
+		non_existant |= ATTR_DIM;
+	}
+
+	if (blink != NULL) {
+		if (escapecmp(blink, "\\E[5m"))
+			ansi_attrs |= ATTR_BLINK;
+	} else {
+		non_existant |= ATTR_BLINK;
+	}
+
+	if (((non_existant | ansi_attrs) & (ATTR_REVERSE | ATTR_BOLD | ATTR_DIM | ATTR_BLINK)) !=
+			(ATTR_REVERSE | ATTR_BOLD | ATTR_DIM | ATTR_BLINK))
+		ansi_attrs &= ~(ATTR_REVERSE | ATTR_BOLD | ATTR_DIM | ATTR_BLINK);
+}
+
 
 Bool term_init(void) {
 	struct winsize wsz;
@@ -203,6 +287,8 @@ Bool term_init(void) {
 
 	if (!initialised) {
 		struct termios new_params;
+		int ncv_int;
+
 		if (!isatty(STDOUT_FILENO))
 			return False;
 
@@ -243,36 +329,42 @@ Bool term_init(void) {
 				return False;
 
 			sgr = get_ti_string("sgr");
-#if 0
-			reset_required_mask = ATTR_BOLD | ATTR_REVERSE | ATTR_BLINK | ATTR_DIM;
 			smul = get_ti_string("smul");
 			if (smul != NULL && (rmul = get_ti_string("rmul")) == NULL)
 				reset_required_mask |= ATTR_UNDERLINE;
 			bold = get_ti_string("bold");
-			smso = get_ti_string("smso");
+/* 			smso = get_ti_string("smso");
 			if (smso != NULL && (rmso = get_ti_string("rmso")) == NULL)
-				reset_required_mask |= ATTR_STANDOUT;
+				reset_required_mask |= ATTR_STANDOUT; */
 			rev = get_ti_string("rev");
 			blink = get_ti_string("blink");
 			dim = get_ti_string("dim");
 			smacs = get_ti_string("smacs");
 			if (smacs != NULL && (rmacs = get_ti_string("rmacs")) == NULL)
 				reset_required_mask |= ATTR_ACS;
-			//FIXME: if sgr0 is not defined, don't go into modes in reset_required_mask
-			/* FIXME: detect if terminal is ANSI. If so, define leave strings ourselves
-			   (or better yet, make a combined string ourselves) */
-#endif
-			sgr0 = get_ti_string("sgr0");
 
-			if ((setaf = get_ti_string("setaf")) == NULL) {
-				/* FIXME: get alternatives. */
+			//FIXME: use scp if neither setaf/setf is available
+			if ((setaf = get_ti_string("setaf")) == NULL)
+				setf = get_ti_string("setf");
+			if ((setab = get_ti_string("setab")) == NULL)
+				setb = get_ti_string("setb");
+
+			op = get_ti_string("op");
+
+			detect_ansi();
+
+			sgr0 = get_ti_string("sgr0");
+			/* If sgr0 is not defined, don't go into modes in reset_required_mask. */
+			if (sgr0 == NULL) {
+				reset_required_mask = 0;
+				rev = NULL;
+				bold = NULL;
+				blink = NULL;
+				dim = NULL;
+				if (rmul == NULL) smul = NULL;
+				if (rmacs == NULL) smacs = NULL;
 			}
-			if ((setab = get_ti_string("setab")) == NULL) {
-				/* FIXME: get alternatives. */
-			}
-			if ((op = get_ti_string("op")) == NULL) {
-				/* FIXME: get alternatives. */
-			}
+
 			if ((el = get_ti_string("el")) == NULL) {
 				/* FIXME: get alternatives. */
 			}
@@ -304,6 +396,15 @@ Bool term_init(void) {
 			seqs_initialised = True;
 		}
 		set_alternate_chars_defaults(default_alternate_chars);
+
+		ncv_int = call_tigetnum("ncv");
+/* 		if (ncv_int & (1<<0)) ncv |= ATTR_STANDOUT; */
+		if (ncv_int & (1<<1)) ncv |= ATTR_UNDERLINE;
+		if (ncv_int & (1<<2)) ncv |= ATTR_REVERSE;
+		if (ncv_int & (1<<3)) ncv |= ATTR_BLINK;
+		if (ncv_int & (1<<4)) ncv |= ATTR_DIM;
+		if (ncv_int & (1<<5)) ncv |= ATTR_BOLD;
+		if (ncv_int & (1<<8)) ncv |= ATTR_ACS;
 
 		/* Get terminal size. First try ioctl, then environment, then terminfo. */
 		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) == 0) {
@@ -486,39 +587,56 @@ Bool term_resize(void) {
 	return win_resize(terminal_window, lines, columns);
 }
 
-/* FIXME: make this available to user for drawing user attributes */
-void term_set_attrs(CharData new_attrs) {
-	/* Just in case the caller forgot */
-	new_attrs &= ATTR_MASK;
+static void set_attrs_non_ansi(CharData new_attrs) {
+	CharData attrs_basic_non_ansi = attrs & BASIC_ATTRS & ~ansi_attrs;
+	CharData new_attrs_basic_non_ansi = new_attrs & BASIC_ATTRS & ~ansi_attrs;
 
-	if (new_attrs == 0 && sgr0 != NULL) {
-		call_putp(sgr0);
-		attrs = new_attrs;
-		return;
-	}
 
-	if ((attrs & BASIC_ATTRS) != (new_attrs & BASIC_ATTRS)) {
-		/* FIXME: implement sgr alternatives */
-		#warning FIXME: use alternatives iso sgr, because sgr screws up other things
-		// like colors because it includes \E[0. Furthermore it tends to include too much
-		if (sgr != NULL) {
-			call_putp(call_tparm(sgr, 9,
-				new_attrs & ATTR_STANDOUT,
-				new_attrs & ATTR_UNDERLINE,
-				new_attrs & ATTR_REVERSE,
-				new_attrs & ATTR_BLINK,
-				new_attrs & ATTR_DIM,
-				new_attrs & ATTR_BOLD,
-				0,
-				0,
-				/* FIXME: UTF-8 terminals may need different handling */
-				new_attrs & ATTR_ACS));
-			attrs &= ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS);
+	if (attrs_basic_non_ansi != new_attrs_basic_non_ansi) {
+		CharData changed;
+		if (attrs_basic_non_ansi & ~new_attrs & reset_required_mask) {
+			if (sgr != NULL) {
+				call_putp(call_tparm(sgr, 9,
+					/* new_attrs & ATTR_STANDOUT */ 0,
+					new_attrs & ATTR_UNDERLINE,
+					new_attrs & ATTR_REVERSE,
+					new_attrs & ATTR_BLINK,
+					new_attrs & ATTR_DIM,
+					new_attrs & ATTR_BOLD,
+					0,
+					0,
+					/* FIXME: UTF-8 terminals may need different handling */
+					new_attrs & ATTR_ACS));
+				attrs = new_attrs & ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS);
+			} else {
+				/* Note that this will not be NULL if it is required because of
+				   tests in the initialization. */
+				call_putp(sgr0);
+				attrs_basic_non_ansi = attrs = 0;
+			}
+		}
+
+		changed = attrs_basic_non_ansi ^ new_attrs_basic_non_ansi;
+		if (changed) {
+			if (changed & ATTR_UNDERLINE)
+				call_putp(new_attrs & ATTR_UNDERLINE ? smul : rmul);
+			if (changed & ATTR_REVERSE)
+				call_putp(rev);
+			if (changed & ATTR_BLINK)
+				call_putp(blink);
+			if (changed & ATTR_DIM)
+				call_putp(dim);
+			if (changed & ATTR_BOLD)
+				call_putp(bold);
+			if (changed & ATTR_ACS)
+				call_putp(new_attrs & ATTR_ACS ? smacs : rmacs);
 		}
 	}
 
-	/* FIXME: for alternatives this may not work! specifically this won't
-	   work if only color pairs are supported, rather than random combinations. */
+
+	if ((ansi_attrs & (FG_COLOR_ATTRS | BG_COLOR_ATTRS)) != 0)
+		return;
+
 	if ((new_attrs & FG_COLOR_ATTRS) == ATTR_FG_DEFAULT)
 		new_attrs &= ~(FG_COLOR_ATTRS);
 	if ((new_attrs & BG_COLOR_ATTRS) == ATTR_BG_DEFAULT)
@@ -533,19 +651,104 @@ void term_set_attrs(CharData new_attrs) {
 		}
 	}
 
+	/* FIXME: for alternatives this may not work! specifically this won't
+	   work if only color pairs are supported, rather than random combinations. */
 	if ((attrs & FG_COLOR_ATTRS) != (new_attrs & FG_COLOR_ATTRS)) {
-		/* FIXME: implement setaf alternatives */
 		if (setaf != NULL)
 			call_putp(call_tparm(setaf, 1, attr_to_color[(new_attrs >> _ATTR_COLOR_SHIFT) & 0xf]));
+		else if (setf != NULL)
+			call_putp(call_tparm(setf, 1, attr_to_alt_color[(new_attrs >> _ATTR_COLOR_SHIFT) & 0xf]));
 	}
 
 	if ((attrs & BG_COLOR_ATTRS) != (new_attrs & BG_COLOR_ATTRS)) {
-		/* FIXME: implement setab alternatives */
 		if (setab != NULL)
 			call_putp(call_tparm(setab, 1, attr_to_color[(new_attrs >> (_ATTR_COLOR_SHIFT + 4)) & 0xf]));
+		else if (setb != NULL)
+			call_putp(call_tparm(setb, 1, attr_to_alt_color[(new_attrs >> (_ATTR_COLOR_SHIFT + 4)) & 0xf]));
 	}
 
 	attrs = new_attrs;
+}
+
+#define ADD_SEP() do { strcat(mode_string, sep); sep = ";"; } while(0)
+
+/* FIXME: make this available to user for drawing user attributes */
+void term_set_attrs(CharData new_attrs) {
+	char mode_string[100]; //FIXME calculate the maximum
+	CharData changed_attrs;
+	const char *sep = "[";
+
+	/* Just in case the caller forgot */
+	new_attrs &= ATTR_MASK;
+
+	if (new_attrs == 0 && sgr0 != NULL) {
+		call_putp(sgr0);
+		attrs = 0;
+		return;
+	}
+
+	changed_attrs = (new_attrs ^ attrs) & ~ansi_attrs;
+	if (changed_attrs != 0)
+		/* Add ansi attributes from current attributes, because set_attrs_non_ansi
+		   will change attrs to the value passed here, or to some value without
+	       the ansi attributes if an sgr was required. */
+		set_attrs_non_ansi(new_attrs);
+
+	changed_attrs = (new_attrs ^ attrs) & ansi_attrs;
+	if (changed_attrs == 0) {
+		attrs = new_attrs;
+		return;
+	}
+
+	mode_string[0] = '\033';
+	mode_string[1] = 0;
+
+	if (changed_attrs & ATTR_UNDERLINE) {
+		ADD_SEP();
+		strcat(mode_string, new_attrs & ATTR_UNDERLINE ? "4" : "24");
+	}
+
+	if (changed_attrs & (ATTR_BOLD | ATTR_DIM)) {
+		ADD_SEP();
+		strcat(mode_string, new_attrs & ATTR_BOLD ? "1" : (new_attrs & ATTR_DIM ? "2" : "22"));
+	}
+
+	if (changed_attrs & ATTR_REVERSE) {
+		ADD_SEP();
+		strcat(mode_string, new_attrs & ATTR_REVERSE ? "7" : "27");
+	}
+
+	if (changed_attrs & ATTR_BLINK) {
+		ADD_SEP();
+		strcat(mode_string, new_attrs & ATTR_BLINK ? "5" : "25");
+	}
+
+	if (changed_attrs & ATTR_ACS) {
+		ADD_SEP();
+		strcat(mode_string, new_attrs & ATTR_ACS ? "11" : "10");
+	}
+
+	if (changed_attrs & FG_COLOR_ATTRS) {
+		char color[3];
+		color[0] = '3';
+		color[1] = '0' + attr_to_color[(new_attrs >> _ATTR_COLOR_SHIFT) & 0xf];
+		color[2] = 0;
+		ADD_SEP();
+		strcat(mode_string, color);
+	}
+
+	if (changed_attrs & BG_COLOR_ATTRS) {
+		char color[3];
+		color[0] = '4';
+		color[1] = '0' + attr_to_color[(new_attrs >> (_ATTR_COLOR_SHIFT + 4)) & 0xf];
+		color[2] = 0;
+		ADD_SEP();
+		strcat(mode_string, color);
+	}
+	strcat(mode_string, "m");
+	call_putp(mode_string);
+	attrs = new_attrs;
+#undef ADD_SEP
 }
 
 void term_set_user_callback(TermUserCallback callback) {
@@ -688,4 +891,8 @@ CharData term_combine_attrs(CharData a, CharData b) {
 	if ((a & BG_COLOR_ATTRS) != 0)
 		result = (result & ~(BG_COLOR_ATTRS)) | (a & BG_COLOR_ATTRS);
 	return result;
+}
+
+CharData term_get_ncv(void) {
+	return ncv;
 }
