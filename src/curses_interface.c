@@ -20,6 +20,10 @@ int call_tigetnum(const char *name) {
 	return tigetnum(name);
 }
 
+int call_tigetflag(const char *name) {
+	return tigetflag(name);
+}
+
 void call_putp(const char *string) {
 	if (string == NULL)
 		return;

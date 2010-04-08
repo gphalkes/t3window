@@ -26,6 +26,7 @@ drawing. On the other hand if it does do proper UTF-8 line drawing there is not
 really a problem anyway. Simply the question of which default to use may be
 of interest. */
 /* FIXME: do proper cleanup on failure, especially on term_init */
+/* FIXME: km property indicates that 8th bit *may* be alt. Then smm and rmm may help */
 
 static struct termios saved;
 static Bool initialised, seqs_initialised;
@@ -37,6 +38,7 @@ static char *sgr, *setaf, *setab, *op, *smacs, *rmacs, *sgr0, *smul, *rmul,
 	*rev, *bold, *blink, *dim, *setf, *setb;
 static char *el;
 static CharData ncv;
+static Bool bce;
 
 static Window *terminal_window;
 static LineData old_data;
@@ -89,53 +91,6 @@ static void set_alternate_chars_defaults(char *table) {
 	table['k'] = '+';
 	table['x'] = '|';
 }
-
-
-#if 0
-static const char *ti_strings[] = {
-/* Line drawing characters */
-	"acs_chars",
-	"smacs",
-	"rmacs",
-/* Clear screen (and home cursor) */
-	"clear",
-/* Cursor positioning, with alternatives */
-	"smcup",
-	"rmcup",
-	"cup",
-	"vpa", /* goto line */
-	"hpa", /* goto column */
-
-	"home",
-	"cud1",
-	"cud",
-	"cuf1",
-	"cuf",
-/* Cursor appearence */
-	"cnorm",
-	"civis",
-/* Attribute setting */
-	"sgr", /* set all modes at the same time */
-		/* Alternatively */
-	"blink",
-	"bold",
-	"dim",
-	"smso", /* standout */
-	"rmso",
-	"smul", /* standout */
-	"rmul",
-	"rev",
-	"sgr0", /* turn off all attributes */
-};
-
-static const char *ti_nums[] = {
-	"xmc", /* number of spaces left on the screen when entering standout mode */
-};
-
-static const char *ti_bools[] = {
-};
-#endif
-
 
 static char *get_ti_string(const char *name) {
 	char *result = call_tigetstr(name);
@@ -340,21 +295,16 @@ Bool term_init(void) {
 				if (rmacs == NULL) smacs = NULL;
 			}
 
-			if ((el = get_ti_string("el")) == NULL) {
-				/* FIXME: get alternatives. */
-			}
-			if ((sc = get_ti_string("sc")) == NULL) {
-				/* FIXME: get alternatives. */
-			}
-			if ((rc = get_ti_string("rc")) == NULL) {
-				/* FIXME: get alternatives. */
-			}
-			if ((civis = get_ti_string("civis")) == NULL) {
-				/* FIXME: get alternatives. */
-			}
-			if ((cnorm = get_ti_string("cnorm")) == NULL) {
-				/* FIXME: get alternatives. */
-			}
+			bce = call_tigetflag("bce");
+			if ((el = get_ti_string("el")) == NULL)
+				bce = True;
+
+			if ((sc = get_ti_string("sc")) != NULL && (rc = get_ti_string("rc")) == NULL)
+				sc = NULL;
+
+			civis = get_ti_string("civis");
+			cnorm = get_ti_string("cnorm");
+
 			if ((acsc = get_ti_string("acsc")) == NULL) {
 				set_alternate_chars_defaults(alternate_chars);
 			} else {
@@ -507,7 +457,6 @@ int term_unget_keychar(int c) {
 void term_set_cursor(int y, int x) {
 	cursor_y = y;
 	cursor_x = x;
-	/* FIXCOMPAT: use cup only when supported */
 	if (show_cursor) {
 		do_cup(y, x);
 		fflush(stdout);
@@ -525,7 +474,6 @@ void term_hide_cursor(void) {
 void term_show_cursor(void) {
 	if (!show_cursor) {
 		show_cursor = True;
-		/* FIXCOMPAT: use cup only when supported */
 		do_cup(cursor_y, cursor_x);
 		call_putp(cnorm);
 		fflush(stdout);
@@ -565,7 +513,6 @@ Bool term_resize(void) {
 static void set_attrs_non_ansi(CharData new_attrs) {
 	CharData attrs_basic_non_ansi = attrs & BASIC_ATTRS & ~ansi_attrs;
 	CharData new_attrs_basic_non_ansi = new_attrs & BASIC_ATTRS & ~ansi_attrs;
-
 
 	if (attrs_basic_non_ansi != new_attrs_basic_non_ansi) {
 		CharData changed;
@@ -648,9 +595,8 @@ static void set_attrs_non_ansi(CharData new_attrs) {
 
 #define ADD_SEP() do { strcat(mode_string, sep); sep = ";"; } while(0)
 
-/* FIXME: make this available to user for drawing user attributes */
 void term_set_attrs(CharData new_attrs) {
-	char mode_string[100]; //FIXME calculate the maximum
+	char mode_string[30]; /* Max is (if I counted correctly) 24. Use 30 for if I miscounted. */
 	CharData changed_attrs;
 	const char *sep = "[";
 
@@ -777,7 +723,6 @@ void term_refresh(void) {
 		do_cup(i, width);
 		for (; j < new_idx; j++) {
 			if (GET_WIDTH(terminal_window->lines[i].data[j]) > 0) {
-				//FIXME: clear also clears background which may not be what is required. Perhaps better to truncate line first!
 				if (width + GET_WIDTH(terminal_window->lines[i].data[j]) > terminal_window->width)
 					break;
 
@@ -801,12 +746,17 @@ void term_refresh(void) {
 			else
 				putchar(terminal_window->lines[i].data[j] & CHAR_MASK);
 		}
-		//FIXME: if bce cap is set, the background needs to be set properly before clear
-		//FIXME: clear also clears background which may not be what is required. Perhaps better to truncate line first!
+
 		if ((terminal_window->lines[i].width < old_data.width || j < new_idx) && width < terminal_window->width) {
-			if (attrs != 0)
+			if (bce && (attrs & ~FG_COLOR_ATTRS) != 0)
 				term_set_attrs(0);
-			call_putp(el);
+
+			if (el != NULL) {
+				call_putp(el);
+			} else {
+				for (; width < terminal_window->width; width++)
+					putchar(' ');
+			}
 		}
 
 done: ;
@@ -815,7 +765,10 @@ done: ;
 	term_set_attrs(0);
 
 	if (show_cursor) {
-		call_putp(rc);
+		if (rc != NULL)
+			call_putp(rc);
+		else
+			do_cup(cursor_y, cursor_x);
 		call_putp(cnorm);
 	}
 

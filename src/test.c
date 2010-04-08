@@ -99,6 +99,11 @@ int main(int argc, char *argv[]) {
 	term_refresh();
 	getchar();
 
+	win_hide(low);
+	win_show(high);
+	term_refresh();
+	getchar();
+
 	return 0;
 }
 
