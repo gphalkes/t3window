@@ -687,6 +687,12 @@ void term_refresh(void) {
 		call_putp(civis);
 	}
 
+	/* There may be another optimization possibility here: if the new line is
+	   shorter than the old line, we could detect that the end of the new line
+	   matches the old line. In that case we could skip printing the end of the
+	   new line. Of course the question is how often this will actually happen.
+	   It also brings with it several issues with the clearing of the end of
+	   the line. */
 	for (i = 0; i < lines; i++) {
 		int new_idx, old_idx = terminal_window->lines[i].length, width = 0;
 		SWAP_LINES(old_data, terminal_window->lines[i]);
@@ -694,6 +700,7 @@ void term_refresh(void) {
 
 		new_idx = terminal_window->lines[i].length;
 
+		/* Find the last character that is different. */
 		if (old_data.width == terminal_window->lines[i].width) {
 			for (new_idx--, old_idx--; new_idx >= 0 &&
 					old_idx >= 0 && terminal_window->lines[i].data[new_idx] == old_data.data[old_idx];
@@ -747,6 +754,7 @@ void term_refresh(void) {
 				putchar(terminal_window->lines[i].data[j] & CHAR_MASK);
 		}
 
+		/* Clear the terminal line if the new line is shorter than the old one. */
 		if ((terminal_window->lines[i].width < old_data.width || j < new_idx) && width < terminal_window->width) {
 			if (bce && (attrs & ~FG_COLOR_ATTRS) != 0)
 				term_set_attrs(0);
@@ -754,12 +762,13 @@ void term_refresh(void) {
 			if (el != NULL) {
 				call_putp(el);
 			} else {
-				for (; width < terminal_window->width; width++)
+				int max = old_data.width < terminal_window->width ? old_data.width : terminal_window->width;
+				for (; width < max; width++)
 					putchar(' ');
 			}
 		}
 
-done: ;
+done: /* Add empty statement to shut up compilers */ ;
 	}
 
 	term_set_attrs(0);
@@ -776,8 +785,8 @@ done: ;
 }
 
 void term_renew(void) {
-	if (clear != NULL)
-		call_putp(clear);
+	term_set_attrs(0);
+	call_putp(clear);
 	win_set_paint(terminal_window, 0, 0);
 	win_clrtobot(terminal_window);
 }
