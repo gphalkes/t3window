@@ -121,6 +121,10 @@ Window *win_new_relative(int height, int width, int y, int x, int depth, Window 
 
 static void _win_del(Window *win) {
 	int i;
+
+	if (win == NULL)
+		return;
+
 	if (win->lines != NULL) {
 		for (i = 0; i < win->height; i++)
 			free(win->lines[i].data);
