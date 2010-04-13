@@ -263,6 +263,8 @@ Bool term_init(void) {
 			if (smul != NULL && (rmul = get_ti_string("rmul")) == NULL)
 				reset_required_mask |= ATTR_UNDERLINE;
 			bold = get_ti_string("bold");
+			/*FIXME: we could get smso and rmso for the purpose of ANSI detection. On many
+			  terminals smso == rev and rmso = exit rev */
 /* 			smso = get_ti_string("smso");
 			if (smso != NULL && (rmso = get_ti_string("rmso")) == NULL)
 				reset_required_mask |= ATTR_STANDOUT; */
@@ -372,9 +374,13 @@ Bool term_init(void) {
 
 		//FIXME: set the attributes of the terminal to a known value
 
+		//FIXME: only works when setlocale has been called first. This should
+		// therefore be a requirement for calling this function
 		//FIXME: only for UTF-8, or can we do any multibyte encoding??
-		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
+		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0) {
+			//FIXME: no iconv needed (for now)
 			_win_set_multibyte();
+		}
 	}
 	return True;
 }
