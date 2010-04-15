@@ -1,4 +1,5 @@
 syntax: glob
+src/unicode
 unicode/verify_proptables
 unicode/generate_proptables
 unicode/generated

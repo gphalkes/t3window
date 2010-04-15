@@ -5,6 +5,8 @@
 
 #include "window.h"
 #include "internal.h"
+
+#include "unicode/tdunicode.h"
 //FIXME: implement "hardware" scrolling for optimization
 //FIXME: add scrolling, because it can save a lot of repainting
 
@@ -563,6 +565,46 @@ static int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) 
 	return retval;
 }
 
+#define UTF8_MAX_BYTES 4
+static int win_utf8_addnstr(Window *win, const char *str, size_t n, CharData attr) {
+	size_t bytes_read, i;
+	CharData cd_buf[UTF8_MAX_BYTES + 1];
+	uint32_t c;
+	uint8_t char_info;
+	int retval = 0;
+	int width;
+
+	attr = term_combine_attrs(attr & ATTR_MASK, win->default_attrs);
+
+	for (; n > 0; n -= bytes_read, str += bytes_read) {
+		//FIXME: tdu_getuc assumes valid unicode. We may have a truncated or otherwise invalid string!
+		c = tdu_getuc(str, &bytes_read);
+
+		char_info = tdu_get_info(c);
+		width = TDU_INFO_TO_WIDTH(char_info);
+		if ((char_info & (TDU_GRAPH_BIT | TDU_SPACE_BIT)) == 0 || width < 0) {
+			retval = ERR_NONPRINT;
+			continue;
+		}
+
+		cd_buf[0] = attr | WIDTH_TO_META(width) | (unsigned char) str[0];
+		for (i = 1; i < bytes_read; i++)
+			cd_buf[i] = (unsigned char) str[i];
+
+		if (bytes_read > 1) {
+			cd_buf[0] &= ~ATTR_ACS;
+		} else if ((cd_buf[0] & ATTR_ACS) && !term_acs_available(cd_buf[0] & CHAR_MASK)) {
+			int replacement = term_get_default_acs(cd_buf[0] & CHAR_MASK);
+			cd_buf[0] &= ~(ATTR_ACS | CHAR_MASK);
+			cd_buf[0] |= replacement & CHAR_MASK;
+		}
+		_win_add_chardata(win, cd_buf, bytes_read);
+	}
+	return retval;
+}
+
+
+
 static Bool _win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t i;
 	Bool result = True;
@@ -686,7 +728,8 @@ void win_clrtoeol(Window *win) {
 //FIXME: make win_clrtobol
 
 void _win_set_multibyte(void) {
-	_win_addnstr = win_mbaddnstr;
+	//~ _win_addnstr = win_mbaddnstr;
+	_win_addnstr = win_utf8_addnstr;
 }
 
 int win_box(Window *win, int y, int x, int height, int width, CharData attr) {

@@ -18,12 +18,12 @@ CFLAGS+=-I. -I.objects -fPIC
 
 
 CFILES.libwindow.so:= window.c terminal.c curses_interface.c convert_output.c
-LDFLAGS.libwindow.so:= -shared
+LDFLAGS.libwindow.so:= -shared -Lunicode
 CFLAGS.window:= -D_XOPEN_SOURCE
-LDLIBS.libwindow.so:= -lncurses
+LDLIBS.libwindow.so:= -lncurses -ltdunicode
 
 CFILES.test:= test.c
-LDFLAGS.test:= -L.
+LDFLAGS.test:= -L. -Lunicode
 LDLIBS.test:=-lwindow
 
 TARGETS:= libwindow.so test
