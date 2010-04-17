@@ -48,6 +48,7 @@ Bool output_buffer_add(char c) {
 }
 
 void output_buffer_print(void) {
+	//FIXME: to_nfc!
 	if (output_iconv == (iconv_t) -1) {
 		fwrite(output_buffer, 1, output_buffer_idx, stdout);
 	} else {

@@ -577,7 +577,7 @@ static int win_utf8_addnstr(Window *win, const char *str, size_t n, CharData att
 	attr = term_combine_attrs(attr & ATTR_MASK, win->default_attrs);
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
-		//FIXME: tdu_getuc assumes valid unicode. We may have a truncated or otherwise invalid string!
+		bytes_read = n;
 		c = tdu_getuc(str, &bytes_read);
 
 		char_info = tdu_get_info(c);
