@@ -20,6 +20,8 @@
    we actually use. */
 #include "curses_interface.h"
 
+#include "convert_output.h"
+
 /*FIXME: line drawing for UTF-8 may require that we use the UTF-8 line drawing
 characters as apparently the linux console does not do alternate character set
 drawing. On the other hand if it does do proper UTF-8 line drawing there is not
@@ -381,6 +383,7 @@ Bool term_init(void) {
 			//FIXME: no iconv needed (for now)
 			_win_set_multibyte();
 		}
+		init_output_buffer();
 	}
 	return True;
 }
@@ -606,6 +609,8 @@ void term_set_attrs(CharData new_attrs) {
 	CharData changed_attrs;
 	const char *sep = "[";
 
+	output_buffer_print();
+
 	/* Just in case the caller forgot */
 	new_attrs &= ATTR_MASK;
 
@@ -755,9 +760,9 @@ void term_refresh(void) {
 				}
 			}
 			if (attrs & ATTR_ACS)
-				putchar(alternate_chars[terminal_window->lines[i].data[j] & CHAR_MASK]);
+				output_buffer_add(alternate_chars[terminal_window->lines[i].data[j] & CHAR_MASK]);
 			else
-				putchar(terminal_window->lines[i].data[j] & CHAR_MASK);
+				output_buffer_add(terminal_window->lines[i].data[j] & CHAR_MASK);
 		}
 
 		/* Clear the terminal line if the new line is shorter than the old one. */
@@ -770,9 +775,10 @@ void term_refresh(void) {
 			} else {
 				int max = old_data.width < terminal_window->width ? old_data.width : terminal_window->width;
 				for (; width < max; width++)
-					putchar(' ');
+					output_buffer_add(' ');
 			}
 		}
+		output_buffer_print();
 
 done: /* Add empty statement to shut up compilers */ ;
 	}

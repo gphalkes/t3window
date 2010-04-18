@@ -8,12 +8,17 @@
 #include "terminal.h"
 #include "window.h"
 #include "internal.h"
+#include "unicode/tdunicode.h"
 
 #define CONV_BUFFER_LEN (160)
 
 static char *output_buffer;
 static size_t output_buffer_size, output_buffer_idx;
 static iconv_t output_iconv = (iconv_t) -1;
+
+static char *nfc_output;
+static size_t nfc_output_size;
+
 
 Bool init_output_buffer(void) {
 	output_buffer_size = 160;
@@ -48,13 +53,18 @@ Bool output_buffer_add(char c) {
 }
 
 void output_buffer_print(void) {
-	//FIXME: to_nfc!
+	size_t nfc_output_len;
+	if (output_buffer_idx == 0)
+		return;
+	//FIXME: check return value!
+	nfc_output_len = tdu_to_nfc(output_buffer, output_buffer_idx, &nfc_output, &nfc_output_size);
+
 	if (output_iconv == (iconv_t) -1) {
-		fwrite(output_buffer, 1, output_buffer_idx, stdout);
+		fwrite(nfc_output, 1, nfc_output_len, stdout);
 	} else {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr = conversion_output,
-			*conversion_input = output_buffer;
-		size_t input_len = output_buffer_idx, output_len = CONV_BUFFER_LEN, retval;
+			*conversion_input = nfc_output;
+		size_t input_len = nfc_output_len, output_len = CONV_BUFFER_LEN, retval;
 
 		/* Convert UTF-8 sequence into current output encoding using iconv. */
 		while (input_len > 0) {
