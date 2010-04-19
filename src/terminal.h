@@ -102,6 +102,12 @@ enum {
 
 int term_strwidth(const char *str);
 
+typedef enum {
+	DRAW_NONE,
+	DRAW_PARTIAL,
+	DRAW_FULL
+} DrawType;
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

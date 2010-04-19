@@ -60,6 +60,7 @@ void output_buffer_print(void) {
 	nfc_output_len = tdu_to_nfc(output_buffer, output_buffer_idx, &nfc_output, &nfc_output_size);
 
 	if (output_iconv == (iconv_t) -1) {
+		//FIXME: filter out combining characters if the terminal is known not to support them! (gnome-terminal)
 		fwrite(nfc_output, 1, nfc_output_len, stdout);
 	} else {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr = conversion_output,
@@ -124,3 +125,31 @@ void output_buffer_print(void) {
 	output_buffer_idx = 0;
 }
 
+/** Determine if the terminal can draw a character.
+    @param str The UTF-8 string representing the character to be displayed.
+    @param str_len The length of @a str.
+    @return A @a DrawType indicating to what extent the terminal is able to draw
+        the character.
+
+    Note that @a str may contain combining characters, which will only be drawn
+    correctly if a precomposed character is available or the terminal supports
+    them. And even if the terminal supports combining characters they _may_ not
+    be correctly rendered, depending on the combination of combining marks.
+*/
+DrawType term_can_draw(const char *str, size_t str_len) {
+	size_t nfc_output_len = tdu_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
+
+	if (output_iconv == (iconv_t) -1) {
+		for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
+			codepoint_len = nfc_output_len - idx;
+			c = tdu_getuc(nfc_output + idx, &codepoint_len);
+			if (tdu_get_info(c) & TDU_COMBINING_BIT)
+				return DRAW_PARTIAL;
+		}
+		return DRAW_FULL;
+	} else {
+		//FIXME: do conversion and return result. May not be possible to draw at all!
+
+
+	}
+}
