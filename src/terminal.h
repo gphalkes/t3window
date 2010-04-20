@@ -102,11 +102,8 @@ enum {
 
 int term_strwidth(const char *str);
 
-typedef enum {
-	DRAW_NONE,
-	DRAW_PARTIAL,
-	DRAW_FULL
-} DrawType;
+Bool term_can_draw(const char *str, size_t str_len);
+void term_set_replacement_char(char c);
 
 #ifdef __cplusplus
 } /* extern "C" */

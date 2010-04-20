@@ -376,14 +376,12 @@ Bool term_init(void) {
 
 		//FIXME: set the attributes of the terminal to a known value
 
-		//FIXME: only works when setlocale has been called first. This should
-		// therefore be a requirement for calling this function
-		//FIXME: only for UTF-8, or can we do any multibyte encoding??
-		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0) {
-			//FIXME: no iconv needed (for now)
-			_win_set_multibyte();
-		}
 		init_output_buffer();
+		//FIXME: make sure that the encoding is really set!
+		//FIXME: nl_langinfo only works when setlocale has been called first. This should
+		// therefore be a requirement for calling this function
+		init_output_iconv(nl_langinfo(CODESET));
+		_win_set_multibyte();
 	}
 	return True;
 }

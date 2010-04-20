@@ -18,7 +18,7 @@ static iconv_t output_iconv = (iconv_t) -1;
 
 static char *nfc_output;
 static size_t nfc_output_size;
-
+static char replacement_char = ' ';
 
 Bool init_output_buffer(void) {
 	output_buffer_size = 160;
@@ -72,9 +72,11 @@ void output_buffer_print(void) {
 			retval = iconv(output_iconv, &conversion_input, &input_len, &conversion_output_ptr, &output_len);
 			if (retval == (size_t) -1) {
 				switch (errno) {
-					case EILSEQ:
+					case EILSEQ: {
 						//FIXME: ensure that the output_buffer actually contains the number of bytes being skipped!
-						/* Conversion did not succeed on this character; skip. */
+						/* Conversion did not succeed on this character; print chars with length equal to char. */
+						size_t width, char_len = input_len;
+						uint32_t c = tdu_getuc(conversion_input, &char_len);
 						switch ((*conversion_input) & 0xF0) {
 							default:
 							/* case 0x80: case 0x90: case 0xA0: case 0xB0: */
@@ -94,7 +96,13 @@ void output_buffer_print(void) {
 								input_len -= 4;
 								break;
 						}
+
+						//FIXME: take -1 width chars into account!
+						for (width = TDU_INFO_TO_WIDTH(tdu_get_info(c)); width > 0; width--)
+							putchar(replacement_char);
+
 						break;
+					}
 					case EINVAL:
 						/* This should only happen if there is an incomplete UTF-8 character at the end of
 						   the buffer. Not much we can do about that... */
@@ -136,22 +144,49 @@ void output_buffer_print(void) {
     them. And even if the terminal supports combining characters they _may_ not
     be correctly rendered, depending on the combination of combining marks.
 */
-DrawType term_can_draw(const char *str, size_t str_len) {
+Bool term_can_draw(const char *str, size_t str_len) {
 	size_t idx, codepoint_len;
 	size_t nfc_output_len = tdu_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
 	uint32_t c;
 
 	if (output_iconv == (iconv_t) -1) {
+		//FIXME: make this dependent on the detected terminal capabilities
 		for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = tdu_getuc(nfc_output + idx, &codepoint_len);
 			if (tdu_get_info(c) & TDU_COMBINING_BIT)
-				return DRAW_PARTIAL;
+				return False;
 		}
-		return DRAW_FULL;
+		return True;
 	} else {
 		//FIXME: do conversion and return result. May not be possible to draw at all!
+		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr = conversion_output,
+			*conversion_input = nfc_output;
+		size_t input_len = nfc_output_len, output_len = CONV_BUFFER_LEN, retval;
 
-		return DRAW_FULL;
+		/* Convert UTF-8 sequence into current output encoding using iconv. */
+		while (input_len > 0) {
+			retval = iconv(output_iconv, &conversion_input, &input_len, &conversion_output_ptr, &output_len);
+			if (retval == (size_t) -1) {
+				switch (errno) {
+					case EILSEQ:
+					case EINVAL:
+						return False;
+					case E2BIG:
+						/* Not enough space in output buffer. Restart conversion with remaining chars. */
+						conversion_output_ptr = conversion_output;
+						output_len = CONV_BUFFER_LEN;
+						break;
+					default:
+						//FIXME: what to do here?
+						break;
+				}
+			}
+		}
+		return True;
 	}
+}
+
+void term_set_replacement_char(char c) {
+	replacement_char = c;
 }

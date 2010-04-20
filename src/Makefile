@@ -23,7 +23,7 @@ CFLAGS.window:= -D_XOPEN_SOURCE
 LDLIBS.libwindow.so:= -lncurses -ltdunicode
 
 CFILES.test:= test.c
-LDFLAGS.test:= -L. -Lunicode
+LDFLAGS.test:= -L.
 LDLIBS.test:=-lwindow
 
 TARGETS:= libwindow.so test
