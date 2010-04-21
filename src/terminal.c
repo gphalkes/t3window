@@ -169,14 +169,14 @@ static void detect_ansi(void) {
 	}
 	if (smul != NULL && rmul != NULL && streq(smul, "\033[4m") && streq(rmul, "\033[24m"))
 		ansi_attrs |= ATTR_UNDERLINE;
-	if (smacs != NULL && rmacs != NULL && streq(smacs, "\033[11m") && streq(rmacs, "\03310m"))
+	if (smacs != NULL && rmacs != NULL && streq(smacs, "\033[11m") && streq(rmacs, "\033[10m"))
 		ansi_attrs |= ATTR_ACS;
 
 	/* So far, we have been able to check that the "exit mode" operation was ANSI compatible as well.
 	   However, for bold, dim, reverse and blink we can't check this, so we will only accept them
 	   as attributes if the terminal uses ANSI colors, and they all match in as far as they exist.
 	*/
-	if ((ansi_attrs & (FG_COLOR_ATTRS | BG_COLOR_ATTRS)) == 0)
+	if ((ansi_attrs & (FG_COLOR_ATTRS | BG_COLOR_ATTRS)) == 0 || (ansi_attrs & (ATTR_UNDERLINE | ATTR_ACS)) == 0)
 		return;
 
 	if (rev != NULL) {
@@ -262,7 +262,7 @@ Bool term_init(void) {
 
 			sgr = get_ti_string("sgr");
 			smul = get_ti_string("smul");
-			if (smul != NULL && (rmul = get_ti_string("rmul")) == NULL)
+			if (smul != NULL && ((rmul = get_ti_string("rmul")) == NULL || streq(rmul, "\033[m")))
 				reset_required_mask |= ATTR_UNDERLINE;
 			bold = get_ti_string("bold");
 			/*FIXME: we could get smso and rmso for the purpose of ANSI detection. On many
@@ -274,7 +274,7 @@ Bool term_init(void) {
 			blink = get_ti_string("blink");
 			dim = get_ti_string("dim");
 			smacs = get_ti_string("smacs");
-			if (smacs != NULL && (rmacs = get_ti_string("rmacs")) == NULL)
+			if (smacs != NULL && ((rmacs = get_ti_string("rmacs")) == NULL || streq(rmul, "\033[m")))
 				reset_required_mask |= ATTR_ACS;
 
 			//FIXME: use scp if neither setaf/setf is available
@@ -596,8 +596,6 @@ static void set_attrs_non_ansi(CharData new_attrs) {
 		else if (setb != NULL)
 			call_putp(call_tparm(setb, 1, attr_to_alt_color[(new_attrs >> (_ATTR_COLOR_SHIFT + 4)) & 0xf]));
 	}
-
-	attrs = new_attrs;
 }
 
 #define ADD_SEP() do { strcat(mode_string, sep); sep = ";"; } while(0)
@@ -620,9 +618,6 @@ void term_set_attrs(CharData new_attrs) {
 
 	changed_attrs = (new_attrs ^ attrs) & ~ansi_attrs;
 	if (changed_attrs != 0)
-		/* Add ansi attributes from current attributes, because set_attrs_non_ansi
-		   will change attrs to the value passed here, or to some value without
-	       the ansi attributes if an sgr was required. */
 		set_attrs_non_ansi(new_attrs);
 
 	changed_attrs = (new_attrs ^ attrs) & ansi_attrs;
