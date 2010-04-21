@@ -73,29 +73,11 @@ void output_buffer_print(void) {
 			if (retval == (size_t) -1) {
 				switch (errno) {
 					case EILSEQ: {
-						//FIXME: ensure that the output_buffer actually contains the number of bytes being skipped!
 						/* Conversion did not succeed on this character; print chars with length equal to char. */
 						size_t width, char_len = input_len;
 						uint32_t c = tdu_getuc(conversion_input, &char_len);
-						switch ((*conversion_input) & 0xF0) {
-							default:
-							/* case 0x80: case 0x90: case 0xA0: case 0xB0: */
-								conversion_input++;
-								input_len--;
-								break;
-							case 0xC0: case 0xD0:
-								conversion_input += 2;
-								input_len -= 2;
-								break;
-							case 0xE0:
-								conversion_input += 3;
-								input_len -= 3;
-								break;
-							case 0xF0:
-								conversion_input += 4;
-								input_len -= 4;
-								break;
-						}
+						conversion_input += char_len;
+						input_len -= char_len;
 
 						//FIXME: take -1 width chars into account!
 						for (width = TDU_INFO_TO_WIDTH(tdu_get_info(c)); width > 0; width--)
