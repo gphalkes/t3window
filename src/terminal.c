@@ -207,6 +207,7 @@ static void detect_ansi(void) {
 		non_existant |= ATTR_BLINK;
 	}
 
+	/* Only accept as ANSI if all attributes accept ACS are either non specified or ANSI. */
 	if (((non_existant | ansi_attrs) & (ATTR_REVERSE | ATTR_BOLD | ATTR_DIM | ATTR_BLINK)) !=
 			(ATTR_REVERSE | ATTR_BOLD | ATTR_DIM | ATTR_BLINK))
 		ansi_attrs &= ~(ATTR_REVERSE | ATTR_BOLD | ATTR_DIM | ATTR_BLINK);
@@ -288,8 +289,8 @@ Bool term_init(void) {
 			detect_ansi();
 
 			sgr0 = get_ti_string("sgr0");
-			/* If sgr0 is not defined, don't go into modes in reset_required_mask. */
-			if (sgr0 == NULL) {
+			/* If sgr0 and sgr are not defined, don't go into modes in reset_required_mask. */
+			if (sgr0 == NULL && sgr == NULL) {
 				reset_required_mask = 0;
 				rev = NULL;
 				bold = NULL;
@@ -312,7 +313,7 @@ Bool term_init(void) {
 			if ((acsc = get_ti_string("acsc")) == NULL) {
 				set_alternate_chars_defaults(alternate_chars);
 			} else {
-				if (sgr == NULL && ((smacs = get_ti_string("smacs")) == NULL || (rmacs = get_ti_string("rmacs")) == NULL)) {
+				if (sgr == NULL && smacs == NULL) {
 					set_alternate_chars_defaults(alternate_chars);
 				} else {
 					size_t i;
@@ -610,8 +611,12 @@ void term_set_attrs(CharData new_attrs) {
 	/* Just in case the caller forgot */
 	new_attrs &= ATTR_MASK;
 
-	if (new_attrs == 0 && sgr0 != NULL) {
-		call_putp(sgr0);
+	if (new_attrs == 0 && (sgr0 != NULL || sgr != NULL)) {
+		/* Use sgr instead of sgr0 as this is probably more tested (see rxvt-unicode terminfo bug) */
+		if (sgr != NULL)
+			call_putp(call_tparm(sgr, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+		else
+			call_putp(sgr0);
 		attrs = 0;
 		return;
 	}
