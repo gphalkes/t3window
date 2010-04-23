@@ -75,7 +75,13 @@ void output_buffer_print(void) {
 					case EILSEQ: {
 						/* Conversion did not succeed on this character; print chars with length equal to char. */
 						size_t width, char_len = input_len;
-						uint32_t c = tdu_getuc(conversion_input, &char_len);
+						uint32_t c;
+
+						/* First write all output that has been converted. */
+						if (output_len < CONV_BUFFER_LEN)
+							fwrite(conversion_output, 1, CONV_BUFFER_LEN - output_len, stdout);
+
+						c = tdu_getuc(conversion_input, &char_len);
 						conversion_input += char_len;
 						input_len -= char_len;
 
