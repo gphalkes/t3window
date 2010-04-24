@@ -64,28 +64,28 @@ void output_buffer_print(void) {
 		fwrite(nfc_output, 1, nfc_output_len, stdout);
 	} else {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr = conversion_output,
-			*conversion_input = nfc_output;
+			*conversion_input_ptr = nfc_output;
 		size_t input_len = nfc_output_len, output_len = CONV_BUFFER_LEN, retval;
 
 		/* Convert UTF-8 sequence into current output encoding using iconv. */
 		while (input_len > 0) {
-			retval = iconv(output_iconv, &conversion_input, &input_len, &conversion_output_ptr, &output_len);
+			retval = iconv(output_iconv, &conversion_input_ptr, &input_len, &conversion_output_ptr, &output_len);
 			if (retval == (size_t) -1) {
 				switch (errno) {
 					case EILSEQ: {
 						/* Conversion did not succeed on this character; print chars with length equal to char. */
-						size_t width, char_len = input_len;
+						size_t char_len = input_len;
+						int width;
 						uint32_t c;
 
 						/* First write all output that has been converted. */
 						if (output_len < CONV_BUFFER_LEN)
 							fwrite(conversion_output, 1, CONV_BUFFER_LEN - output_len, stdout);
 
-						c = tdu_getuc(conversion_input, &char_len);
-						conversion_input += char_len;
+						c = tdu_getuc(conversion_input_ptr, &char_len);
+						conversion_input_ptr += char_len;
 						input_len -= char_len;
 
-						//FIXME: take -1 width chars into account!
 						for (width = TDU_INFO_TO_WIDTH(tdu_get_info(c)); width > 0; width--)
 							putchar(replacement_char);
 
@@ -147,18 +147,21 @@ Bool term_can_draw(const char *str, size_t str_len) {
 		}
 		return True;
 	} else {
-		//FIXME: do conversion and return result. May not be possible to draw at all!
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr = conversion_output,
-			*conversion_input = nfc_output;
+			*conversion_input_ptr = nfc_output;
 		size_t input_len = nfc_output_len, output_len = CONV_BUFFER_LEN, retval;
 
 		/* Convert UTF-8 sequence into current output encoding using iconv. */
 		while (input_len > 0) {
-			retval = iconv(output_iconv, &conversion_input, &input_len, &conversion_output_ptr, &output_len);
+			retval = iconv(output_iconv, &conversion_input_ptr, &input_len, &conversion_output_ptr, &output_len);
 			if (retval == (size_t) -1) {
 				switch (errno) {
 					case EILSEQ:
 					case EINVAL:
+						/* Reset conversion to initial state. */
+						conversion_output_ptr = conversion_output;
+						output_len = CONV_BUFFER_LEN;
+						iconv(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
 						return False;
 					case E2BIG:
 						/* Not enough space in output buffer. Restart conversion with remaining chars. */
@@ -171,6 +174,10 @@ Bool term_can_draw(const char *str, size_t str_len) {
 				}
 			}
 		}
+		/* Reset conversion to initial state. */
+		conversion_output_ptr = conversion_output;
+		output_len = CONV_BUFFER_LEN;
+		iconv(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
 		return True;
 	}
 }
