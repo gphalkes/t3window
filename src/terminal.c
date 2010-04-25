@@ -30,35 +30,76 @@ of interest. */
 /* FIXME: do proper cleanup on failure, especially on term_init */
 /* FIXME: km property indicates that 8th bit *may* be alt. Then smm and rmm may help */
 
-static struct termios saved;
-static Bool initialised, seqs_initialised;
-static fd_set inset;
 
-static char *smcup, *rmcup, *cup, *sc, *rc, *clear, *home, *vpa, *hpa, *cud, *cud1, *cuf, *cuf1;
-static char *civis, *cnorm;
-static char *sgr, *setaf, *setab, *op, *smacs, *rmacs, *sgr0, *smul, *rmul,
-	*rev, *bold, *blink, *dim, *setf, *setb;
-static char *el;
-static CharData ncv;
-static Bool bce;
+static struct termios saved; /**< Terminal state as saved in ::term_init */
+static Bool initialised, /**< Boolean indicating whether the terminal has been initialised. */
+	seqs_initialised; /**< Boolean indicating whether the terminal control sequences have been initialised. */
+static fd_set inset; /**< File-descriptor set used for select in ::term_get_keychar. */
 
-static Window *terminal_window;
-static LineData old_data;
+static char *smcup, /**< Terminal control string: start cursor positioning mode. */
+	*rmcup, /**< Terminal control string: stop cursor positioning mode. */
+	*cup, /**< Terminal control string: position cursor. */
+	*sc, /**< Terminal control string: save cursor position. */
+	*rc, /**< Terminal control string: restore cursor position. */
+	*clear, /**< Terminal control string: clear terminal. */
+	*home, /**< Terminal control string: cursor to home position. */
+	*vpa, /**< Terminal control string: set vertical cursor position. */
+	*hpa, /**< Terminal control string: set horizontal cursor position. */
+	*cud, /**< Terminal control string: move cursor up. */
+	*cud1, /**< Terminal control string: move cursor up 1 line. */
+	*cuf, /**< Terminal control string: move cursor forward. */
+	*cuf1, /**< Terminal control string: move cursor forward one position. */
+	*civis, /**< Terminal control string: hide cursor. */
+	*cnorm, /**< Terminal control string: show cursor. */
+	*sgr, /**< Terminal control string: set graphics rendition. */
+	*setaf, /**< Terminal control string: set foreground color (ANSI). */
+	*setab, /**< Terminal control string: set background color (ANSI). */
+	*op, /**< Terminal control string: reset colors. */
+	*smacs, /**< Terminal control string: start alternate character set mode. */
+	*rmacs, /**< Terminal control string: stop alternate character set mode. */
+	*sgr0, /**< Terminal control string: reset graphics rendition. */
+	*smul, /**< Terminal control string: start underline mode. */
+	*rmul, /**< Terminal control string: stop underline mode. */
+	*rev, /**< Terminal control string: start reverse video. */
+	*bold, /**< Terminal control string: start bold. */
+	*blink, /**< Terminal control string: start blink. */
+	*dim, /**< Terminal control string: start dim. */
+	*setf, /**< Terminal control string: set foreground color. */
+	*setb, /**< Terminal control string: set background color. */
+	*el; /**< Terminal control string: clear to end of line. */
+static CharData ncv; /**< Terminal info: Non-color video attributes (encoded in CharData). */
+static Bool bce; /**< Terminal info: screen erased with background color. */
 
-static int lines, columns;
-static int cursor_y, cursor_x;
-static Bool show_cursor = True;
+static Window *terminal_window; /**< Window struct representing the last drawn terminal state. */
+static LineData old_data; /**< LineData struct used in terminal update to save previous line state. */
 
+static int lines, /**< Size of terminal (lines). */
+	columns, /**< Size of terminal (columns). */
+	cursor_y, /**< Cursor position (y coordinate). */
+	cursor_x; /**< Cursor position (x coordinate). */
+static Bool show_cursor = True; /**< Boolean indicating whether the cursor is visible currently. */
+
+/** Conversion table between color attributes and ANSI colors. */
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7, 9 };
+/** Conversion table between color attributes and non-ANSI colors. */
 static int attr_to_alt_color[10] = { 0, 0, 4, 2, 6, 1, 5, 3, 7, 0 };
-static CharData attrs = 0;
-static CharData ansi_attrs = 0;
-static CharData reset_required_mask = ATTR_BOLD | ATTR_REVERSE | ATTR_BLINK | ATTR_DIM;
+static CharData attrs = 0, /**< Last used set of attributes. */
+	ansi_attrs = 0, /**< Bit mask indicating which attributes should be drawn as ANSI colors. */
+	/** Attributes for which the only way to turn of the attribute is to reset all attributes. */
+	reset_required_mask = ATTR_BOLD | ATTR_REVERSE | ATTR_BLINK | ATTR_DIM;
+/** Callback for ATTR_USER1. */
 static TermUserCallback user_callback = NULL;
 
-static char alternate_chars[256];
-static char default_alternate_chars[256];
+/** Alternate character set conversion table from TERM_* values to terminal ACS characters. */
+static char alternate_chars[256],
+/** Alternate character set fall-back characters for when the terminal does not
+    provide a proper ACS character. */
+	default_alternate_chars[256];
 
+/*FIXME: Should this be a function or should we simply set the default_alternate_chars
+	array as it is the only one still being filled this way. */
+/** Fill a table with fall-back characters for the alternate character set.
+    @param table The table to fill. */
 static void set_alternate_chars_defaults(char *table) {
 	table['}'] = 'f';
 	table['.'] = 'v';
@@ -310,12 +351,8 @@ Bool term_init(void) {
 			civis = get_ti_string("civis");
 			cnorm = get_ti_string("cnorm");
 
-			if ((acsc = get_ti_string("acsc")) == NULL) {
-				set_alternate_chars_defaults(alternate_chars);
-			} else {
-				if (sgr == NULL && smacs == NULL) {
-					set_alternate_chars_defaults(alternate_chars);
-				} else {
+			if ((acsc = get_ti_string("acsc")) != NULL) {
+				if (sgr != NULL || smacs != NULL) {
 					size_t i;
 					for (i = 0; i < strlen(acsc); i += 2)
 						alternate_chars[(unsigned int) acsc[i]] = acsc[i + 1];
@@ -473,9 +510,14 @@ void term_set_cursor(int y, int x) {
 
 void term_hide_cursor(void) {
 	if (show_cursor) {
-		show_cursor = False;
-		call_putp(civis);
-		fflush(stdout);
+		if (civis != NULL) {
+			show_cursor = False;
+			call_putp(civis);
+			fflush(stdout);
+		} else {
+			/* Put cursor in bottom-right corner if it can't be made invisible. */
+			do_cup(lines - 1, columns - 1);
+		}
 	}
 }
 

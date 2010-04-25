@@ -26,7 +26,7 @@ CFILES.test:= test.c
 LDFLAGS.test:= -L.
 LDLIBS.test:=-lwindow
 
-TARGETS:= libwindow.so test
+TARGETS:= libwindow.so #test
 #===========================================================================
 .PHONY: all clean
 

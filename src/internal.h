@@ -1,7 +1,6 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
-#include <limits.h>
 #define WIDTH_TO_META(_w) (((_w) & 3) << CHAR_BIT)
 #define GET_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
 
