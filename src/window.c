@@ -7,29 +7,35 @@
 #include "internal.h"
 
 #include "unicode/tdunicode.h"
-//FIXME: implement "hardware" scrolling for optimization
-//FIXME: add scrolling, because it can save a lot of repainting
 
-/* FIXME: ATTR_ACS should only be allowed on chars below 128 etc. Otherwise interpretation
-   of width info may be weird. */
+/* TODO list:
+- ATTR_ACS should only be allowed on chars below 128 etc. Otherwise interpretation
+  of width info may be weird.
+- make win_clrtobol
+*/
 
-enum {
-	ERR_ILSEQ,
-	ERR_INCOMPLETE,
-	ERR_NONPRINT,
-	ERR_TRUNCATED
-};
+/** @internal
+    @brief The maximum size of a UTF-8 character in bytes. Used in ::_win_addnstr.
+*/
+#define UTF8_MAX_BYTES 4
 
-
-static int win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr);
-static int (*_win_addnstr)(Window *win, const char *str, size_t n, CharData attr) = win_sbaddnstr;
-
-/* Head and tail of depth sorted Window list */
-static Window *head, *tail;
+static Window *head, /**< Head of depth sorted Window list. */
+	*tail; /**< Tail of depth sorted Window list. */
 
 static void _win_del(Window *win);
 static Bool ensureSpace(LineData *line, size_t n);
 
+/** Create a new Window.
+    @param height The desired height in terminal lines.
+    @param width The desired width in terminal columns.
+    @param y The vertical location of the window in terminal lines.
+    @param x The horizontal location of the window in terminal columns.
+	@param depth The depth of the window in the stack of windows.
+	@return A pointer to a new Window struct or @c NULL on error.
+
+    The @p depth parameter determines the z-order of the windows. Windows
+	with lower depth will hide windows with higher depths.
+*/
 Window *win_new(int height, int width, int y, int x, int depth) {
 	Window *retval, *ptr;
 	int i;
@@ -69,6 +75,7 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 		return retval;
 	}
 
+	/* Insert new window at the correct place in the sorted list of windows. */
 	ptr = head;
 	while (ptr != NULL && ptr->depth < depth)
 		ptr = ptr->next;
@@ -92,21 +99,34 @@ Window *win_new(int height, int width, int y, int x, int depth) {
 	return retval;
 }
 
+/** Create a new Window with relative position.
+    @param height The desired height in terminal lines.
+    @param width The desired width in terminal columns.
+    @param y The vertical location of the window in terminal lines.
+    @param x The horizontal location of the window in terminal columns.
+	@param depth The depth of the window in the stack of windows.
+    @param parent The window used as reference for relative positioning.
+    @param relation The relation between this window and @p parent (see WinAnchor).
+	@return A pointer to a new Window struct or @c NULL on error.
+
+    The @p depth parameter determines the z-order of the windows. Windows
+	with lower depth will hide windows with higher depths.
+*/
 Window *win_new_relative(int height, int width, int y, int x, int depth, Window *parent, int relation) {
 	Window *retval;
 
-	if (parent == NULL && GETREL(relation) != REL_ABSOLUTE)
+	if (parent == NULL && GETPARENT(relation) != ANCHOR_ABSOLUTE)
 			return NULL;
 
-	if (GETREL(relation) != REL_TOPLEFT && GETREL(relation) != REL_TOPRIGHT &&
-			GETREL(relation) != REL_BOTTOMLEFT && GETREL(relation) != REL_BOTTOMRIGHT &&
-			GETREL(relation) != REL_ABSOLUTE) {
+	if (GETPARENT(relation) != ANCHOR_TOPLEFT && GETPARENT(relation) != ANCHOR_TOPRIGHT &&
+			GETPARENT(relation) != ANCHOR_BOTTOMLEFT && GETPARENT(relation) != ANCHOR_BOTTOMRIGHT &&
+			GETPARENT(relation) != ANCHOR_ABSOLUTE) {
 		return NULL;
 	}
 
-	if (GETRELTO(relation) != REL_TOPLEFT && GETRELTO(relation) != REL_TOPRIGHT &&
-			GETRELTO(relation) != REL_BOTTOMLEFT && GETRELTO(relation) != REL_BOTTOMRIGHT &&
-			GETRELTO(relation) != REL_ABSOLUTE) {
+	if (GETCHILD(relation) != ANCHOR_TOPLEFT && GETCHILD(relation) != ANCHOR_TOPRIGHT &&
+			GETCHILD(relation) != ANCHOR_BOTTOMLEFT && GETCHILD(relation) != ANCHOR_BOTTOMRIGHT &&
+			GETCHILD(relation) != ANCHOR_ABSOLUTE) {
 		return NULL;
 	}
 
@@ -121,6 +141,11 @@ Window *win_new_relative(int height, int width, int y, int x, int depth, Window 
 	return retval;
 }
 
+/** Free a Window struct.
+
+    This function only @c free's the memory associated with the Window. For
+    a full clean-up, call ::win_del.
+*/
 static void _win_del(Window *win) {
 	int i;
 
@@ -135,10 +160,18 @@ static void _win_del(Window *win) {
 	free(win);
 }
 
+/** Set default attributes for a window.
+    @param win The Window to set the default attributes for.
+    @param attr The attributes to set.
+
+    This function can be used to set a default background for the entire window, as
+    well as any other attributes.
+*/
 void win_set_default_attrs(Window *win, CharData attr) {
-	win->default_attrs = attr;
+	win->default_attrs = attr & ATTR_MASK;
 }
 
+/** Discard a Window. */
 void win_del(Window *win) {
 	if (win->next == NULL)
 		tail = win->prev;
@@ -152,9 +185,20 @@ void win_del(Window *win) {
 	_win_del(win);
 }
 
+/** Change a Window's size.
+    @param win The Window to change the size of.
+    @param height The desired new height of the Window in terminal lines.
+    @param width The desired new width of the Window in terminal columns.
+    @return A boolean indicating succes, depending on the validity of the
+        parameters and whether reallocation of the internal data
+        structures succeeds.
+*/
 Bool win_resize(Window *win, int height, int width) {
 	int i;
-	//FIXME validate parameters
+
+	if (height <= 0 || width <= 0)
+		return False;
+
 	if (height > win->height) {
 		void *result;
 		if ((result = realloc(win->lines, height * sizeof(LineData))) == NULL)
@@ -174,10 +218,11 @@ Bool win_resize(Window *win, int height, int width) {
 			free(win->lines[i].data);
 		memset(win->lines + height, 0, sizeof(LineData) * (win->height - height));
 	}
-//FIXME: we should use the clrtoeol function to do this for us, as it uses pretty much the same code!
+
+	/* FIXME: we should use the clrtoeol function to do this for us, as it uses pretty much the same code! */
 	if (width < win->width) {
 		/* Chop lines to maximum width */
-		//FIXME: should we also try to resize the lines (as in realloc)?
+		/* FIXME: should we also try to resize the lines (as in realloc)? */
 		for (i = 0; i < height; i++) {
 			if (win->lines[i].start > width) {
 				win->lines[i].length = 0;
@@ -241,13 +286,13 @@ int win_get_relation(Window *win, Window **parent) {
 
 int win_get_abs_x(Window *win) {
 	int result;
-	switch (GETREL(win->relation)) {
-		case REL_TOPLEFT:
-		case REL_BOTTOMLEFT:
+	switch (GETPARENT(win->relation)) {
+		case ANCHOR_TOPLEFT:
+		case ANCHOR_BOTTOMLEFT:
 			result = win->x + win_get_abs_x(win->parent);
 			break;
-		case REL_TOPRIGHT:
-		case REL_BOTTOMRIGHT:
+		case ANCHOR_TOPRIGHT:
+		case ANCHOR_BOTTOMRIGHT:
 			result = win_get_abs_x(win->parent) + win->parent->width + win->x;
 			break;
 		default:
@@ -255,9 +300,9 @@ int win_get_abs_x(Window *win) {
 			break;
 	}
 
-	switch (GETRELTO(win->relation)) {
-		case REL_TOPRIGHT:
-		case REL_BOTTOMRIGHT:
+	switch (GETCHILD(win->relation)) {
+		case ANCHOR_TOPRIGHT:
+		case ANCHOR_BOTTOMRIGHT:
 			return result - win->width;
 		default:
 			return result;
@@ -266,13 +311,13 @@ int win_get_abs_x(Window *win) {
 
 int win_get_abs_y(Window *win) {
 	int result;
-	switch (GETREL(win->relation)) {
-		case REL_TOPLEFT:
-		case REL_TOPRIGHT:
+	switch (GETPARENT(win->relation)) {
+		case ANCHOR_TOPLEFT:
+		case ANCHOR_TOPRIGHT:
 			result = win->y + win_get_abs_y(win->parent);
 			break;
-		case REL_BOTTOMLEFT:
-		case REL_BOTTOMRIGHT:
+		case ANCHOR_BOTTOMLEFT:
+		case ANCHOR_BOTTOMRIGHT:
 			result = win_get_abs_y(win->parent) + win->parent->height + win->y;
 			break;
 		default:
@@ -280,9 +325,9 @@ int win_get_abs_y(Window *win) {
 			break;
 	}
 
-	switch (GETRELTO(win->relation)) {
-		case REL_BOTTOMLEFT:
-		case REL_BOTTOMRIGHT:
+	switch (GETCHILD(win->relation)) {
+		case ANCHOR_BOTTOMLEFT:
+		case ANCHOR_BOTTOMRIGHT:
 			return result - win->height;
 		default:
 			return result;
@@ -307,14 +352,6 @@ void win_hide(Window *win) {
 	win->shown = False;
 }
 
-/*
-static void copy_mb(CharData *dest, const char *src, size_t n, CharData meta) {
-	*dest++ = ((unsigned char) *src++) | meta;
-	n--;
-	while (n > 0)
-		*dest++ = (unsigned char) *src++;
-}
-*/
 static Bool ensureSpace(LineData *line, size_t n) {
 	int newsize;
 	CharData *resized;
@@ -508,65 +545,7 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	return result;
 }
 
-static int win_mbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
-	size_t result, i;
-	int width;
-	mbstate_t mbstate;
-	wchar_t c[2];
-	char buf[MB_LEN_MAX + 1];
-	CharData cd_buf[MB_LEN_MAX + 1];
-	int retval = 0;
-
-	memset(&mbstate, 0, sizeof(mbstate_t));
-	attr = term_combine_attrs(attr & ATTR_MASK, win->default_attrs);
-
-	while (n > 0) {
-		result = mbrtowc(c, str, n, &mbstate);
-		/* Handle error conditions. Because embedded L'\0' characters have a
-		   zero result, they cannot be skipped. */
-		if (result == 0)
-			return ERR_TRUNCATED;
-		else if (result == (size_t)(-1))
-			return ERR_ILSEQ;
-		else if (result == (size_t)(-2))
-			return ERR_INCOMPLETE;
-
-		width = wcwidth(c[0]);
-		if (width < 0) {
-			retval = ERR_NONPRINT;
-			str += result;
-			n -= result;
-			continue;
-		}
-		c[1] = L'\0';
-		n -= result;
-		str += result;
-
-		/* Convert the wchar_t back to an mb string. The reason for doing this
-		   is that we want to make sure that the encoding is in the initial
-		   shift state before and after we print this character. This allows
-		   separate printing of the character. */
-		result = wcstombs(buf, c, MB_LEN_MAX + 1);
-		/*FIXME: should we check for conversion errors? We probably do for
-		  16 bit wchar_t's because those may need to be handled differently */
-		cd_buf[0] = attr | WIDTH_TO_META(width) | (unsigned char) buf[0];
-		for (i = 1; i < result; i++)
-			cd_buf[i] = (unsigned char) buf[i];
-
-		if (result > 1)
-			cd_buf[0] &= ~ATTR_ACS;
-		else if ((cd_buf[0] & ATTR_ACS) && !term_acs_available(cd_buf[0] & CHAR_MASK)) {
-			int replacement = term_get_default_acs(cd_buf[0] & CHAR_MASK);
-			cd_buf[0] &= ~(ATTR_ACS | CHAR_MASK);
-			cd_buf[0] |= replacement & CHAR_MASK;
-		}
-		_win_add_chardata(win, cd_buf, result);
-	}
-	return retval;
-}
-
-#define UTF8_MAX_BYTES 4
-static int win_utf8_addnstr(Window *win, const char *str, size_t n, CharData attr) {
+static int _win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t bytes_read, i;
 	CharData cd_buf[UTF8_MAX_BYTES + 1];
 	uint32_t c;
@@ -594,7 +573,7 @@ static int win_utf8_addnstr(Window *win, const char *str, size_t n, CharData att
 		if (bytes_read > 1) {
 			cd_buf[0] &= ~ATTR_ACS;
 		} else if ((cd_buf[0] & ATTR_ACS) && !term_acs_available(cd_buf[0] & CHAR_MASK)) {
-			int replacement = term_get_default_acs(cd_buf[0] & CHAR_MASK);
+			int replacement = _term_get_default_acs(cd_buf[0] & CHAR_MASK);
 			cd_buf[0] &= ~(ATTR_ACS | CHAR_MASK);
 			cd_buf[0] |= replacement & CHAR_MASK;
 		}
@@ -603,39 +582,6 @@ static int win_utf8_addnstr(Window *win, const char *str, size_t n, CharData att
 	return retval;
 }
 
-
-
-static Bool _win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
-	size_t i;
-	Bool result = True;
-
-	/* FIXME: it would seem that this can be done more efficiently, especially
-	   if no multibyte characters are used at all. */
-	for (i = 0; i < n; i++) {
-		CharData c = WIDTH_TO_META(1) | attr | (unsigned char) str[i];
-		result &= _win_add_chardata(win, &c, 1);
-	}
-
-	return result;
-}
-
-static int win_sbaddnstr(Window *win, const char *str, size_t n, CharData attr) {
-	size_t i, print_from = 0;
-	int retval = 0;
-
-	attr &= ATTR_MASK;
-	for (i = 0; i < n; i++) {
-		if (!isprint(str[i])) {
-			retval = ERR_NONPRINT;
-			if (print_from < i)
-				_win_sbaddnstr(win, str + print_from, i - print_from, attr);
-			print_from = i + 1;
-		}
-	}
-	if (print_from < i)
-		_win_sbaddnstr(win, str + print_from, i - print_from, attr);
-	return retval;
-}
 
 int win_addnstr(Window *win, const char *str, size_t n, CharData attr) { return _win_addnstr(win, str, n, attr); }
 int win_addstr(Window *win, const char *str, CharData attr) { return _win_addnstr(win, str, strlen(str), attr); }
@@ -654,7 +600,6 @@ int win_addnstrrep(Window *win, const char *str, size_t n, CharData attr, int re
 
 int win_addstrrep(Window *win, const char *str, CharData attr, int rep) { return win_addnstrrep(win, str, strlen(str), attr, rep); }
 int win_addchrep(Window *win, char c, CharData attr, int rep) { return win_addnstrrep(win, &c, 1, attr, rep); }
-
 
 Bool _win_refresh_term_line(struct Window *terminal, int line) {
 	LineData *draw;
@@ -724,12 +669,6 @@ void win_clrtoeol(Window *win) {
 		win->lines[win->paint_y].length = i;
 		win->lines[win->paint_y].width = win->paint_x - win->lines[win->paint_y].start;
 	}
-}
-//FIXME: make win_clrtobol
-
-void _win_set_multibyte(void) {
-	//~ _win_addnstr = win_mbaddnstr;
-	_win_addnstr = win_utf8_addnstr;
 }
 
 int win_box(Window *win, int y, int x, int height, int width, CharData attr) {

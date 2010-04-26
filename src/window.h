@@ -8,6 +8,35 @@
 extern "C" {
 #endif
 
+/** Error value(s) returned from @c win_addXXX functions. */
+enum {
+	ERR_NONPRINT = -1
+};
+
+/** Define a parent anchor point for a relation (see WinAnchor). */
+#define PARENT(_x) ((_x) << 3)
+/** Define a child anchor point a relation (see WinAnchor). */
+#define CHILD(_x) ((_x) << 6)
+/** Get a parent anchor point from a relation (see WinAnchor). */
+#define GETPARENT(_x) (((_x) >> 3) & 0x7)
+/** Get a child anchor point from a relation (see WinAnchor). */
+#define GETCHILD(_x) (((_x) >> 6) & 0x7)
+
+/** Anchor points for defining relations between the positions of two windows.
+
+    The anchor points can be used to define the relative positioning of two
+    windows. For example, using PARENT(ANCHOR_TOPRIGHT) | CHILD(ANCHOR_TOPLEFT)
+	allows positioning of one window left of another.
+*/
+enum WinAnchor {
+	ANCHOR_ABSOLUTE,
+	ANCHOR_TOPLEFT,
+	ANCHOR_TOPRIGHT,
+	ANCHOR_BOTTOMLEFT,
+	ANCHOR_BOTTOMRIGHT
+};
+
+
 typedef struct Window Window;
 
 Window *win_new(int height, int width, int y, int x, int depth);
@@ -41,18 +70,6 @@ int win_box(Window *win, int y, int x, int height, int width, CharData attr);
 
 void win_clrtoeol(Window *win);
 void win_clrtobot(Window *win);
-
-enum {
-	REL_ABSOLUTE,
-	REL_TOPLEFT,
-	REL_TOPRIGHT,
-	REL_BOTTOMLEFT,
-	REL_BOTTOMRIGHT
-};
-
-#define RELTO(_x) ((_x) << 3)
-#define GETREL(_x) ((_x) & 0x7)
-#define GETRELTO(_x) ((_x) >> 3)
 
 #ifdef __cplusplus
 } /* extern "C" */

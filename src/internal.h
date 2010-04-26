@@ -39,5 +39,6 @@ struct Window {
 };
 
 Bool _win_refresh_term_line(struct Window *terminal, int line);
-void _win_set_multibyte(void);
+int _term_get_default_acs(int idx);
+
 #endif

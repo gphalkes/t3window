@@ -4,32 +4,50 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-//FIXME: we need to do some checking which header files we need
 #include <sys/select.h>
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <limits.h>
-//FIXME: allow alternative
 #include <langinfo.h>
 
 #include "terminal.h"
 #include "window.h"
 #include "internal.h"
-/* The curses header file defines to many symbols that get in the way of our
+#include "convert_output.h"
+
+/* The curses header file defines too many symbols that get in the way of our
    own, so we have a separate C file which exports only those functions that
    we actually use. */
 #include "curses_interface.h"
 
-#include "convert_output.h"
+/** @file */
 
-/*FIXME: line drawing for UTF-8 may require that we use the UTF-8 line drawing
-characters as apparently the linux console does not do alternate character set
-drawing. On the other hand if it does do proper UTF-8 line drawing there is not
-really a problem anyway. Simply the question of which default to use may be
-of interest. */
-/* FIXME: do proper cleanup on failure, especially on term_init */
-/* FIXME: km property indicates that 8th bit *may* be alt. Then smm and rmm may help */
+/*
+TODO list:
+- line drawing for UTF-8 may require that we use the UTF-8 line drawing
+  characters as apparently the linux console does not do alternate character set
+  drawing. On the other hand if it does do proper UTF-8 line drawing there is not
+  really a problem anyway. Simply the question of which default to use may be
+  of interest.
+- do proper cleanup on failure, especially on term_init
+- km property indicates that 8th bit *may* be alt. Then smm and rmm may help.
+  (it seems the smm and rmm properties are not often filled in though).
+- we need to do some checking which header files we need
+- allow alternative for langinfo.h/nl_langinfo
+*/
 
+
+/** @internal
+    @brief Wrapper for strcmp which converts the return value to boolean. */
+#define streq(a,b) (strcmp((a), (b)) == 0)
+
+/** @internal
+    @brief Add a separator for creating ANSI strings in ::term_set_attrs. */
+#define ADD_ANSI_SEP() do { strcat(mode_string, sep); sep = ";"; } while(0)
+
+/** @internal
+    @brief Swap two LineData structures. Used in ::term_update. */
+#define SWAP_LINES(a, b) do { LineData save; save = (a); (a) = (b); (b) = save; } while (0)
 
 static struct termios saved; /**< Terminal state as saved in ::term_init */
 static Bool initialised, /**< Boolean indicating whether the terminal has been initialised. */
@@ -135,6 +153,12 @@ static void set_alternate_chars_defaults(char *table) {
 	table['x'] = '|';
 }
 
+/** Get a terminfo string.
+    @param name The name of the requested terminfo string.
+    @return The value of the string @p name, or @a NULL if not available.
+
+    Strings returned must be free'd.
+*/
 static char *get_ti_string(const char *name) {
 	char *result = call_tigetstr(name);
 	if (result == (char *) 0 || result == (char *) -1)
@@ -143,6 +167,13 @@ static char *get_ti_string(const char *name) {
 	return strdup(result);
 }
 
+/** Move cursor to screen position.
+    @param line The screen line to move the cursor to.
+    @param col The screen column to move the cursor to.
+
+	This function uses the @c cup terminfo string if available, and emulates
+    it through other means if necessary.
+*/
 static void do_cup(int line, int col) {
 	if (cup != NULL) {
 		call_putp(call_tparm(cup, 2, line, col));
@@ -176,6 +207,10 @@ static void do_cup(int line, int col) {
 	}
 }
 
+/** Start cursor positioning mode.
+
+    If @c smcup is not available for the terminal, a simple @c clear is used instead.
+*/
 static void do_smcup(void) {
 	if (smcup != NULL) {
 		call_putp(smcup);
@@ -187,6 +222,11 @@ static void do_smcup(void) {
 	}
 }
 
+/** Stop cursor positioning mode.
+
+    If @c rmcup is not available for the terminal, a @c clear is used instead,
+    followed by positioning the cursor in the bottom left corner.
+*/
 static void do_rmcup(void) {
 	if (rmcup != NULL) {
 		call_putp(rmcup);
@@ -199,7 +239,11 @@ static void do_rmcup(void) {
 	}
 }
 
-#define streq(a,b) (strcmp((a), (b)) == 0)
+/** Detect to what extent a terminal description matches the ANSI terminal standard.
+
+    For (partially) ANSI compliant terminals optimization of the output can be done
+    such that fewer characters need to be sent to the terminal than by using @c sgr.
+*/
 static void detect_ansi(void) {
 	CharData non_existant = 0;
 
@@ -254,7 +298,13 @@ static void detect_ansi(void) {
 		ansi_attrs &= ~(ATTR_REVERSE | ATTR_BOLD | ATTR_DIM | ATTR_BLINK);
 }
 
+/** Initialize the terminal.
+    @return A boolean indicating initialization success.
 
+    This function depends on the correct setting of the @c LC_CTYPE property
+    by the @c setlocale function. Therefore, the @c setlocale function should
+    be called before this function.
+*/
 Bool term_init(void) {
 	struct winsize wsz;
 	char *enacs;
@@ -289,7 +339,7 @@ Bool term_init(void) {
 
 			if ((error = call_setupterm()) != 0)
 				return False;
-			/*FIXME: we should probably have some way to return what was the problem. */
+			/* FIXME: we should probably have some way to return what was the problem. */
 
 			if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
 				if (smcup != NULL) {
@@ -307,11 +357,8 @@ Bool term_init(void) {
 			if (smul != NULL && ((rmul = get_ti_string("rmul")) == NULL || streq(rmul, "\033[m")))
 				reset_required_mask |= ATTR_UNDERLINE;
 			bold = get_ti_string("bold");
-			/*FIXME: we could get smso and rmso for the purpose of ANSI detection. On many
-			  terminals smso == rev and rmso = exit rev */
-/* 			smso = get_ti_string("smso");
-			if (smso != NULL && (rmso = get_ti_string("rmso")) == NULL)
-				reset_required_mask |= ATTR_STANDOUT; */
+			/* FIXME: we could get smso and rmso for the purpose of ANSI detection. On many
+			   terminals smso == rev and rmso = exit rev */
 			rev = get_ti_string("rev");
 			blink = get_ti_string("blink");
 			dim = get_ti_string("dim");
@@ -319,7 +366,7 @@ Bool term_init(void) {
 			if (smacs != NULL && ((rmacs = get_ti_string("rmacs")) == NULL || streq(rmul, "\033[m")))
 				reset_required_mask |= ATTR_ACS;
 
-			//FIXME: use scp if neither setaf/setf is available
+			/* FIXME: use scp if neither setaf/setf is available */
 			if ((setaf = get_ti_string("setaf")) == NULL)
 				setf = get_ti_string("setf");
 			if ((setab = get_ti_string("setab")) == NULL)
@@ -360,18 +407,18 @@ Bool term_init(void) {
 				free(acsc);
 			}
 
+			set_alternate_chars_defaults(default_alternate_chars);
+
+			ncv_int = call_tigetnum("ncv");
+			if (ncv_int & (1<<1)) ncv |= ATTR_UNDERLINE;
+			if (ncv_int & (1<<2)) ncv |= ATTR_REVERSE;
+			if (ncv_int & (1<<3)) ncv |= ATTR_BLINK;
+			if (ncv_int & (1<<4)) ncv |= ATTR_DIM;
+			if (ncv_int & (1<<5)) ncv |= ATTR_BOLD;
+			if (ncv_int & (1<<8)) ncv |= ATTR_ACS;
+
 			seqs_initialised = True;
 		}
-		set_alternate_chars_defaults(default_alternate_chars);
-
-		ncv_int = call_tigetnum("ncv");
-/* 		if (ncv_int & (1<<0)) ncv |= ATTR_STANDOUT; */
-		if (ncv_int & (1<<1)) ncv |= ATTR_UNDERLINE;
-		if (ncv_int & (1<<2)) ncv |= ATTR_REVERSE;
-		if (ncv_int & (1<<3)) ncv |= ATTR_BLINK;
-		if (ncv_int & (1<<4)) ncv |= ATTR_DIM;
-		if (ncv_int & (1<<5)) ncv |= ATTR_BOLD;
-		if (ncv_int & (1<<8)) ncv |= ATTR_ACS;
 
 		/* Get terminal size. First try ioctl, then environment, then terminfo. */
 		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) == 0) {
@@ -399,7 +446,7 @@ Bool term_init(void) {
 				return False;
 		}
 
-		//FIXME: can we find a way to save the current terminal settings (attrs etc)?
+		/* FIXME: can we find a way to save the current terminal settings (attrs etc)? */
 		/* Start cursor positioning mode. */
 		do_smcup();
 		/* Make sure the cursor is visible */
@@ -411,20 +458,19 @@ Bool term_init(void) {
 			free(enacs);
 		}
 
-
-		//FIXME: set the attributes of the terminal to a known value
+		/* Set the attributes of the terminal to a known value. */
+		term_set_attrs(0);
 
 		init_output_buffer();
-		//FIXME: make sure that the encoding is really set!
-		//FIXME: nl_langinfo only works when setlocale has been called first. This should
-		// therefore be a requirement for calling this function
+		/* FIXME: make sure that the encoding is really set! */
+		/* FIXME: nl_langinfo only works when setlocale has been called first. This should
+		   therefore be a requirement for calling this function */
 		init_output_iconv(nl_langinfo(CODESET));
-		_win_set_multibyte();
 	}
 	return True;
 }
 
-
+/** Restore terminal state (de-initialize). */
 void term_restore(void) {
 	if (initialised) {
 		/* Ensure complete repaint of the terminal on re-init (if required) */
@@ -437,6 +483,7 @@ void term_restore(void) {
 				call_putp(cnorm);
 			/* Make sure attributes are reset */
 			term_set_attrs(0);
+			attrs = 0;
 			fflush(stdout);
 		}
 		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
@@ -444,6 +491,9 @@ void term_restore(void) {
 	}
 }
 
+/** Read a character from @c stdin, continueing after interrupts.
+    @return A @c char read from stdin, or KEY_ERROR if an error occurred or on end of file.
+*/
 static int safe_read_char(void) {
 	char c;
 	while (1) {
@@ -452,13 +502,21 @@ static int safe_read_char(void) {
 			continue;
 		else if (retval >= 1)
 			return (int) (unsigned char) c;
-
+		else if (retval == 0)
+			return KEY_EOF;
 		return KEY_ERROR;
 	}
 }
 
-static int last_key = -1, stored_key = -1;
+static int last_key = -1, /**< Last keychar returned from ::term_get_keychar. Used in ::term_unget_keychar. */
+	stored_key = -1; /**< Location for storing "ungot" keys in ::term_unget_keychar. */
 
+/** Get a key @c char from stdin with timeout.
+    @param msec The time out in miliseconds, or a value <= 0 for indefinite wait.
+    @retval A @c char read from stdin.
+    @retval ::KEY_ERROR on error, with @c errno set to the error.
+    @retval ::KEY_TIMEOUT if there was no character to read within the specified timeout.
+*/
 int term_get_keychar(int msec) {
 	int retval;
 	fd_set _inset;
@@ -491,6 +549,12 @@ int term_get_keychar(int msec) {
 	}
 }
 
+/** Push a @c char back for later retrieval with ::term_get_keychar.
+    @param c The @c char to push back.
+    @return The @c char pushed back or ::KEY_ERROR.
+
+    Only a @c char just read from stdin with ::term_get_keychar can be pushed back.
+*/
 int term_unget_keychar(int c) {
 	if (c == last_key) {
 		stored_key = c;
@@ -499,6 +563,12 @@ int term_unget_keychar(int c) {
 	return KEY_ERROR;
 }
 
+/** Move cursor.
+    @param y The terminal line to move the cursor to.
+    @param x The terminal column to move the cursor to.
+
+    If the cursor is invisible the new position is recorded, but not actually moved yet.
+*/
 void term_set_cursor(int y, int x) {
 	cursor_y = y;
 	cursor_x = x;
@@ -508,6 +578,11 @@ void term_set_cursor(int y, int x) {
 	}
 }
 
+/** Hide the cursor.
+
+    Instructs the terminal to make the cursor invisible. If the terminal does not provide
+    the required functionality, the cursor is moved to the bottom right corner.
+*/
 void term_hide_cursor(void) {
 	if (show_cursor) {
 		if (civis != NULL) {
@@ -515,12 +590,13 @@ void term_hide_cursor(void) {
 			call_putp(civis);
 			fflush(stdout);
 		} else {
-			/* Put cursor in bottom-right corner if it can't be made invisible. */
+			/* Put cursor in bottom right corner if it can't be made invisible. */
 			do_cup(lines - 1, columns - 1);
 		}
 	}
 }
 
+/** Show the cursor. */
 void term_show_cursor(void) {
 	if (!show_cursor) {
 		show_cursor = True;
@@ -530,16 +606,19 @@ void term_show_cursor(void) {
 	}
 }
 
+/** Retrieve the terminal size. */
 void term_get_size(int *height, int *width) {
-	*height = terminal_window->height;
-	*width = terminal_window->width;
+	*height = lines;
+	*width = columns;
 }
 
 /** Handle resizing of the terminal.
+    @return A boolean indicating success of the resizing operation, which depends on
+		memory allocation success.
 
     Retrieves the size of the terminal and resizes the backing structures.
-	After calling @a term_resize, @a term_get_size can be called to retrieve
-    the new terminal size. Should be called after a SIGWINCH.
+	After calling ::term_resize, ::term_get_size can be called to retrieve
+    the new terminal size. Should be called after a @c SIGWINCH.
 */
 Bool term_resize(void) {
 	struct winsize wsz;
@@ -551,6 +630,10 @@ Bool term_resize(void) {
 	columns = wsz.ws_col;
 	if (columns > terminal_window->width || lines != terminal_window->height) {
 		int i;
+
+		/* Clear the cache of the terminal contents and the actual terminal. This
+		   is necessary because shrinking the terminal tends to cause all kinds of
+		   weird corruption of the on screen state. */
 		for (i = 0; i < terminal_window->height; i++) {
 			win_set_paint(terminal_window, i, 0);
 			win_clrtoeol(terminal_window);
@@ -560,6 +643,13 @@ Bool term_resize(void) {
 	return win_resize(terminal_window, lines, columns);
 }
 
+/** Set the non-ANSI terminal drawing attributes.
+    @param new_attrs The new attributes that should be used for subsequent character display.
+
+    This function updates ::attrs to reflect any changes made to the terminal attributes.
+    Note that this function may reset all attributes if an attribute was previously set for
+    which no independent reset is available.
+*/
 static void set_attrs_non_ansi(CharData new_attrs) {
 	CharData attrs_basic_non_ansi = attrs & BASIC_ATTRS & ~ansi_attrs;
 	CharData new_attrs_basic_non_ansi = new_attrs & BASIC_ATTRS & ~ansi_attrs;
@@ -589,6 +679,8 @@ static void set_attrs_non_ansi(CharData new_attrs) {
 			}
 		}
 
+		/* Set any attributes required. If sgr was previously used, the calculation
+		   of 'changed' results in 0. */
 		changed = attrs_basic_non_ansi ^ new_attrs_basic_non_ansi;
 		if (changed) {
 			if (changed & ATTR_UNDERLINE)
@@ -607,9 +699,13 @@ static void set_attrs_non_ansi(CharData new_attrs) {
 	}
 
 
+	/* If colors are set using ANSI sequences, we are done here. */
 	if ((~ansi_attrs & (FG_COLOR_ATTRS | BG_COLOR_ATTRS)) == 0)
 		return;
 
+	/* Specifying DEFAULT as color is the same as not specifying anything. However,
+	   for ::term_combine_attrs there is a distinction between an explicit and an
+	   implicit color. Here we don't care about that distinction so we remove it. */
 	if ((new_attrs & FG_COLOR_ATTRS) == ATTR_FG_DEFAULT)
 		new_attrs &= ~(FG_COLOR_ATTRS);
 	if ((new_attrs & BG_COLOR_ATTRS) == ATTR_BG_DEFAULT)
@@ -641,13 +737,17 @@ static void set_attrs_non_ansi(CharData new_attrs) {
 	}
 }
 
-#define ADD_SEP() do { strcat(mode_string, sep); sep = ";"; } while(0)
+/** Set terminal drawing attributes.
+    @param new_attrs The new attributes that should be used for subsequent character display.
 
+    The state of ::attrs is updated to reflect the new state.
+*/
 void term_set_attrs(CharData new_attrs) {
 	char mode_string[30]; /* Max is (if I counted correctly) 24. Use 30 for if I miscounted. */
 	CharData changed_attrs;
 	const char *sep = "[";
 
+	/* Flush any characters accumulated in the output buffer before switching attributes. */
 	output_buffer_print();
 
 	/* Just in case the caller forgot */
@@ -677,27 +777,27 @@ void term_set_attrs(CharData new_attrs) {
 	mode_string[1] = 0;
 
 	if (changed_attrs & ATTR_UNDERLINE) {
-		ADD_SEP();
+		ADD_ANSI_SEP();
 		strcat(mode_string, new_attrs & ATTR_UNDERLINE ? "4" : "24");
 	}
 
 	if (changed_attrs & (ATTR_BOLD | ATTR_DIM)) {
-		ADD_SEP();
+		ADD_ANSI_SEP();
 		strcat(mode_string, new_attrs & ATTR_BOLD ? "1" : (new_attrs & ATTR_DIM ? "2" : "22"));
 	}
 
 	if (changed_attrs & ATTR_REVERSE) {
-		ADD_SEP();
+		ADD_ANSI_SEP();
 		strcat(mode_string, new_attrs & ATTR_REVERSE ? "7" : "27");
 	}
 
 	if (changed_attrs & ATTR_BLINK) {
-		ADD_SEP();
+		ADD_ANSI_SEP();
 		strcat(mode_string, new_attrs & ATTR_BLINK ? "5" : "25");
 	}
 
 	if (changed_attrs & ATTR_ACS) {
-		ADD_SEP();
+		ADD_ANSI_SEP();
 		strcat(mode_string, new_attrs & ATTR_ACS ? "11" : "10");
 	}
 
@@ -706,7 +806,7 @@ void term_set_attrs(CharData new_attrs) {
 		color[0] = '3';
 		color[1] = '0' + attr_to_color[(new_attrs >> _ATTR_COLOR_SHIFT) & 0xf];
 		color[2] = 0;
-		ADD_SEP();
+		ADD_ANSI_SEP();
 		strcat(mode_string, color);
 	}
 
@@ -715,21 +815,29 @@ void term_set_attrs(CharData new_attrs) {
 		color[0] = '4';
 		color[1] = '0' + attr_to_color[(new_attrs >> (_ATTR_COLOR_SHIFT + 4)) & 0xf];
 		color[2] = 0;
-		ADD_SEP();
+		ADD_ANSI_SEP();
 		strcat(mode_string, color);
 	}
 	strcat(mode_string, "m");
 	call_putp(mode_string);
 	attrs = new_attrs;
-#undef ADD_SEP
 }
 
+/** Set callback for drawing characters with ::ATTR_USER1 attribute.
+    @param callback The function to call for drawing.
+*/
 void term_set_user_callback(TermUserCallback callback) {
 	user_callback = callback;
 }
 
-#define SWAP_LINES(a, b) do { LineData save; save = (a); (a) = (b); (b) = save; } while (0)
-void term_refresh(void) {
+/** Update the terminal, drawing all changes since last refresh.
+
+    After changing window contents, this function should be called to make those
+    changes visible on the terminal. The refresh is not done automatically to allow
+    programs to bunch many separate updates. Generally this is called right before
+    ::term_get_keychar.
+*/
+void term_update(void) {
 	int i, j;
 	CharData new_attrs;
 
@@ -836,19 +944,29 @@ done: /* Add empty statement to shut up compilers */ ;
 	fflush(stdout);
 }
 
-void term_renew(void) {
+/** Redraw the entire terminal from scratch. */
+void term_redraw(void) {
 	term_set_attrs(0);
 	call_putp(clear);
 	win_set_paint(terminal_window, 0, 0);
 	win_clrtobot(terminal_window);
 }
 
+/** Send a terminal control string to the terminal, with correct padding. */
 void term_putp(const char *str) {
+	output_buffer_print();
 	call_putp(str);
 }
 
 /* FIXME: this isn't exactly the cleanest way to do this, but for now it works and
    avoids code duplication */
+/** Calculate the cell width of a string.
+    @param str The string to calculate the width of.
+    @return The width of the string in character cells.
+
+    Using @c strlen on a string will not give one the correct width of a UTF-8 string
+    on the terminal screen. This function is provided to calculate that value.
+*/
 int term_strwidth(const char *str) {
 	Window *win = win_new(1, INT_MAX, 0, 0, 0);
 	int result;
@@ -861,20 +979,40 @@ int term_strwidth(const char *str) {
 	return result;
 }
 
+/** Check if a character is available in the alternate character set (internal use mostly).
+    @param idx The character to check.
+    @return ::True if the character is available in the alternate character set.
+
+    Characters for which an alternate character is generally available are documented in
+    terminfo(5), but most are encoded in TermAcsConstants.
+*/
 Bool term_acs_available(int idx) {
 	if (idx < 0 || idx > 255)
 		return False;
 	return alternate_chars[idx] != 0;
 }
 
-char term_get_default_acs(int idx) {
+/** @internal
+    @brief Get fall-back character for alternate character set character (internal use only).
+    @param idx The character to retrieve the fall-back character for.
+    @return The fall-back character.
+*/
+int _term_get_default_acs(int idx) {
 	if (idx < 0 || idx > 255)
 		return ' ';
 	return default_alternate_chars[idx] != 0 ? default_alternate_chars[idx] : ' ';
 }
 
+/** Combine attributes, with priority.
+    @param a The first set of attributes to combine (priority).
+    @param b The second set of attributes to combine (no priority).
+    @return The combined attributes.
+
+    This function combines @p a and @p b, with the color attributes from @p a overriding
+	the color attributes from @p b if both specify colors.
+*/
 CharData term_combine_attrs(CharData a, CharData b) {
-	#warning FIXME: take ncv into account
+	/* FIXME: take ncv into account */
 	CharData result = b | (a & ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS));
 	if ((a & FG_COLOR_ATTRS) != 0)
 		result = (result & ~(FG_COLOR_ATTRS)) | (a & FG_COLOR_ATTRS);
@@ -883,6 +1021,7 @@ CharData term_combine_attrs(CharData a, CharData b) {
 	return result;
 }
 
+/** Get the set of non-color video attributes. */
 CharData term_get_ncv(void) {
 	return ncv;
 }
