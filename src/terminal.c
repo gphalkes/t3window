@@ -24,6 +24,7 @@
 
 /*
 TODO list:
+- TermError to localized string conversion routine
 - line drawing for UTF-8 may require that we use the UTF-8 line drawing
   characters as apparently the linux console does not do alternate character set
   drawing. On the other hand if it does do proper UTF-8 line drawing there is not
@@ -299,13 +300,13 @@ static void detect_ansi(void) {
 }
 
 /** Initialize the terminal.
-    @return A boolean indicating initialization success.
+    @return A TermError inidicating the result.
 
     This function depends on the correct setting of the @c LC_CTYPE property
     by the @c setlocale function. Therefore, the @c setlocale function should
     be called before this function.
 */
-Bool term_init(void) {
+int term_init(void) {
 	struct winsize wsz;
 	char *enacs;
 
@@ -314,10 +315,10 @@ Bool term_init(void) {
 		int ncv_int;
 
 		if (!isatty(STDOUT_FILENO))
-			return False;
+			return ERR_NOT_A_TTY;
 
 		if (tcgetattr(STDOUT_FILENO, &saved) < 0)
-			return False;
+			return ERR_ERRNO;
 
 		new_params = saved;
 		new_params.c_iflag &= ~(IXON | IXOFF | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
@@ -328,7 +329,8 @@ Bool term_init(void) {
 		new_params.c_cc[VMIN] = 1;
 
 		if (tcsetattr(STDOUT_FILENO, TCSADRAIN, &new_params) < 0)
-			return False;
+			return ERR_ERRNO;
+
 		initialised = True;
 		FD_ZERO(&inset);
 		FD_SET(STDIN_FILENO, &inset);
@@ -337,9 +339,14 @@ Bool term_init(void) {
 			int error;
 			char *acsc;
 
-			if ((error = call_setupterm()) != 0)
-				return False;
-			/* FIXME: we should probably have some way to return what was the problem. */
+			if ((error = call_setupterm()) != 0) {
+				if (error == 1)
+					return ERR_HARDCOPY_TERMINAL;
+				else if (error == -1)
+					return ERR_TERMINFODB_NOT_FOUND;
+
+				return ERR_UNKNOWN;
+			}
 
 			if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
 				if (smcup != NULL) {
@@ -348,9 +355,9 @@ Bool term_init(void) {
 				}
 			}
 			if ((clear = get_ti_string("clear")) == NULL)
-				return False;
+				return ERR_TERMINAL_TOO_LIMITED;
 			if ((cup = get_ti_string("cup")) == NULL)
-				return False;
+				return ERR_TERMINAL_TOO_LIMITED;
 
 			sgr = get_ti_string("sgr");
 			smul = get_ti_string("smul");
@@ -429,7 +436,7 @@ Bool term_init(void) {
 			char *columns_env = getenv("COLUMNS");
 			if (lines_env == NULL || columns_env == NULL || (lines = atoi(lines_env)) == 0 || (columns = atoi(columns_env)) == 0) {
 				if ((lines = call_tigetnum("lines")) < 0 || (columns = call_tigetnum("columns")) < 0)
-					return False;
+					return ERR_NO_SIZE_INFO;
 			}
 		}
 
@@ -437,13 +444,13 @@ Bool term_init(void) {
 		if (terminal_window == NULL) {
 			/* FIXME: maybe someday we can make the window outside of the window stack. */
 			if ((terminal_window = win_new(lines, columns, 0, 0, 0)) == NULL)
-				return False;
+				return ERR_ERRNO;
 			if ((old_data.data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL)
-				return False;
+				return ERR_ERRNO;
 			old_data.allocated = INITIAL_ALLOC;
 		} else {
 			if (!win_resize(terminal_window, lines, columns))
-				return False;
+				return ERR_ERRNO;
 		}
 
 		/* FIXME: can we find a way to save the current terminal settings (attrs etc)? */
@@ -467,7 +474,7 @@ Bool term_init(void) {
 		   therefore be a requirement for calling this function */
 		init_output_iconv(nl_langinfo(CODESET));
 	}
-	return True;
+	return ERR_SUCCESS;
 }
 
 /** Restore terminal state (de-initialize). */
@@ -503,8 +510,8 @@ static int safe_read_char(void) {
 		else if (retval >= 1)
 			return (int) (unsigned char) c;
 		else if (retval == 0)
-			return KEY_EOF;
-		return KEY_ERROR;
+			return ERR_EOF;
+		return ERR_ERRNO;
 	}
 }
 
@@ -540,9 +547,9 @@ int term_get_keychar(int msec) {
 		if (retval < 0) {
 			if (errno == EINTR)
 				continue;
-			return KEY_ERROR;
+			return ERR_ERRNO;
 		} else if (retval == 0) {
-			return KEY_TIMEOUT;
+			return ERR_TIMEOUT;
 		} else {
 			return last_key = safe_read_char();
 		}
@@ -560,7 +567,7 @@ int term_unget_keychar(int c) {
 		stored_key = c;
 		return c;
 	}
-	return KEY_ERROR;
+	return ERR_BAD_ARG;
 }
 
 /** Move cursor.

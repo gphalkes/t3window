@@ -85,14 +85,24 @@ enum TermAcsConstants {
 	TERM_CKBOARD = 'a' /**< Checker board pattern (stipple). */
 };
 
-/** Values returned by ::term_get_keychar. */
-enum {
-	KEY_ERROR = -1, /**< An error as reported through @c errno has been encountered. */
-	KEY_TIMEOUT = -2, /**< A timeout has occured before a @c char could be read. */
-	KEY_EOF = -3 /**< End of file condition occured on stdin. */
+/** Error return values for ::term_init and ::term_get_keychar. */
+enum TermError {
+	ERR_SUCCESS,
+	/* Use large negative value, such that we don't have to number each and
+	   every value. */
+	ERR_TERMINFODB_NOT_FOUND = -128,
+	ERR_HARDCOPY_TERMINAL,
+	ERR_NOT_A_TTY,
+	ERR_ERRNO,
+	ERR_TIMEOUT,
+	ERR_EOF,
+	ERR_UNKNOWN,
+	ERR_TERMINAL_TOO_LIMITED,
+	ERR_NO_SIZE_INFO,
+	ERR_BAD_ARG
 };
 
-Bool term_init(void);
+int term_init(void);
 void term_restore(void);
 int term_get_keychar(int msec);
 void term_set_cursor(int y, int x);
