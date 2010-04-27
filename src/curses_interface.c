@@ -2,8 +2,11 @@
 #include <term.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "curses_interface.h"
+
+FILE *_putp_file;
 
 int call_setupterm(void) {
 	int error;
@@ -24,10 +27,14 @@ int call_tigetflag(const char *name) {
 	return tigetflag(name);
 }
 
+static int writechar(int c) {
+	return fputc(c, _putp_file);
+}
+
 void call_putp(const char *string) {
 	if (string == NULL)
 		return;
-	putp(string);
+	tputs(string, 1, writechar);
 }
 
 char *call_tparm(char *string, int nr_of_args, ...) {

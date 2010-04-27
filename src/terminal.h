@@ -99,10 +99,11 @@ enum TermError {
 	ERR_UNKNOWN,
 	ERR_TERMINAL_TOO_LIMITED,
 	ERR_NO_SIZE_INFO,
-	ERR_BAD_ARG
+	ERR_BAD_ARG,
+	ERR_NONPRINT
 };
 
-int term_init(void);
+int term_init(int fd);
 void term_restore(void);
 int term_get_keychar(int msec);
 void term_set_cursor(int y, int x);

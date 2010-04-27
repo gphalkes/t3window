@@ -115,6 +115,9 @@ static char alternate_chars[256],
     provide a proper ACS character. */
 	default_alternate_chars[256];
 
+/** File descriptor of the terminal. */
+static int terminal_fd = STDIN_FILENO;
+
 /*FIXME: Should this be a function or should we simply set the default_alternate_chars
 	array as it is the only one still being filled this way. */
 /** Fill a table with fall-back characters for the alternate character set.
@@ -300,180 +303,196 @@ static void detect_ansi(void) {
 }
 
 /** Initialize the terminal.
+    @param fd The file descriptor of the terminal or -1 for default/last used.
     @return A TermError inidicating the result.
 
     This function depends on the correct setting of the @c LC_CTYPE property
     by the @c setlocale function. Therefore, the @c setlocale function should
     be called before this function.
+
+    If standard input/output should be used as the terminal, -1 should be
+    passed. However, if a previous call to ::term_init has set the terminal
+    to another value, using -1 as the file descriptor will use the previous
+    value passed unless the previous call resulted in ::ERR_NOT_A_TTY.
 */
-int term_init(void) {
+int term_init(int fd) {
 	struct winsize wsz;
 	char *enacs;
+	struct termios new_params;
+	int ncv_int;
 
-	if (!initialised) {
-		struct termios new_params;
-		int ncv_int;
+	if (initialised)
+		return ERR_SUCCESS;
 
-		if (!isatty(STDOUT_FILENO))
-			return ERR_NOT_A_TTY;
+	if (!isatty(fd >= 0 ? fd : terminal_fd))
+		return ERR_NOT_A_TTY;
 
-		if (tcgetattr(STDOUT_FILENO, &saved) < 0)
+	if (fd >= 0) {
+		if ((_putp_file = fdopen(fd, "w")) == NULL)
 			return ERR_ERRNO;
-
-		new_params = saved;
-		new_params.c_iflag &= ~(IXON | IXOFF | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
-		new_params.c_lflag &= ~(ISIG | ICANON | ECHO);
-		new_params.c_oflag &= ~OPOST;
-		new_params.c_cflag &= ~(CSIZE | PARENB);
-		new_params.c_cflag |= CS8;
-		new_params.c_cc[VMIN] = 1;
-
-		if (tcsetattr(STDOUT_FILENO, TCSADRAIN, &new_params) < 0)
-			return ERR_ERRNO;
-
-		initialised = True;
-		FD_ZERO(&inset);
-		FD_SET(STDIN_FILENO, &inset);
-
-		if (!seqs_initialised) {
-			int error;
-			char *acsc;
-
-			if ((error = call_setupterm()) != 0) {
-				if (error == 1)
-					return ERR_HARDCOPY_TERMINAL;
-				else if (error == -1)
-					return ERR_TERMINFODB_NOT_FOUND;
-
-				return ERR_UNKNOWN;
-			}
-
-			if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
-				if (smcup != NULL) {
-					free(smcup);
-					smcup = NULL;
-				}
-			}
-			if ((clear = get_ti_string("clear")) == NULL)
-				return ERR_TERMINAL_TOO_LIMITED;
-			if ((cup = get_ti_string("cup")) == NULL)
-				return ERR_TERMINAL_TOO_LIMITED;
-
-			sgr = get_ti_string("sgr");
-			smul = get_ti_string("smul");
-			if (smul != NULL && ((rmul = get_ti_string("rmul")) == NULL || streq(rmul, "\033[m")))
-				reset_required_mask |= ATTR_UNDERLINE;
-			bold = get_ti_string("bold");
-			/* FIXME: we could get smso and rmso for the purpose of ANSI detection. On many
-			   terminals smso == rev and rmso = exit rev */
-			rev = get_ti_string("rev");
-			blink = get_ti_string("blink");
-			dim = get_ti_string("dim");
-			smacs = get_ti_string("smacs");
-			if (smacs != NULL && ((rmacs = get_ti_string("rmacs")) == NULL || streq(rmul, "\033[m")))
-				reset_required_mask |= ATTR_ACS;
-
-			/* FIXME: use scp if neither setaf/setf is available */
-			if ((setaf = get_ti_string("setaf")) == NULL)
-				setf = get_ti_string("setf");
-			if ((setab = get_ti_string("setab")) == NULL)
-				setb = get_ti_string("setb");
-
-			op = get_ti_string("op");
-
-			detect_ansi();
-
-			sgr0 = get_ti_string("sgr0");
-			/* If sgr0 and sgr are not defined, don't go into modes in reset_required_mask. */
-			if (sgr0 == NULL && sgr == NULL) {
-				reset_required_mask = 0;
-				rev = NULL;
-				bold = NULL;
-				blink = NULL;
-				dim = NULL;
-				if (rmul == NULL) smul = NULL;
-				if (rmacs == NULL) smacs = NULL;
-			}
-
-			bce = call_tigetflag("bce");
-			if ((el = get_ti_string("el")) == NULL)
-				bce = True;
-
-			if ((sc = get_ti_string("sc")) != NULL && (rc = get_ti_string("rc")) == NULL)
-				sc = NULL;
-
-			civis = get_ti_string("civis");
-			cnorm = get_ti_string("cnorm");
-
-			if ((acsc = get_ti_string("acsc")) != NULL) {
-				if (sgr != NULL || smacs != NULL) {
-					size_t i;
-					for (i = 0; i < strlen(acsc); i += 2)
-						alternate_chars[(unsigned int) acsc[i]] = acsc[i + 1];
-				}
-				free(acsc);
-			}
-
-			set_alternate_chars_defaults(default_alternate_chars);
-
-			ncv_int = call_tigetnum("ncv");
-			if (ncv_int & (1<<1)) ncv |= ATTR_UNDERLINE;
-			if (ncv_int & (1<<2)) ncv |= ATTR_REVERSE;
-			if (ncv_int & (1<<3)) ncv |= ATTR_BLINK;
-			if (ncv_int & (1<<4)) ncv |= ATTR_DIM;
-			if (ncv_int & (1<<5)) ncv |= ATTR_BOLD;
-			if (ncv_int & (1<<8)) ncv |= ATTR_ACS;
-
-			seqs_initialised = True;
-		}
-
-		/* Get terminal size. First try ioctl, then environment, then terminfo. */
-		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) == 0) {
-			lines = wsz.ws_row;
-			columns = wsz.ws_col;
-		} else {
-			char *lines_env = getenv("LINES");
-			char *columns_env = getenv("COLUMNS");
-			if (lines_env == NULL || columns_env == NULL || (lines = atoi(lines_env)) == 0 || (columns = atoi(columns_env)) == 0) {
-				if ((lines = call_tigetnum("lines")) < 0 || (columns = call_tigetnum("columns")) < 0)
-					return ERR_NO_SIZE_INFO;
-			}
-		}
-
-		/* Create or resize terminal window */
-		if (terminal_window == NULL) {
-			/* FIXME: maybe someday we can make the window outside of the window stack. */
-			if ((terminal_window = win_new(lines, columns, 0, 0, 0)) == NULL)
-				return ERR_ERRNO;
-			if ((old_data.data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL)
-				return ERR_ERRNO;
-			old_data.allocated = INITIAL_ALLOC;
-		} else {
-			if (!win_resize(terminal_window, lines, columns))
-				return ERR_ERRNO;
-		}
-
-		/* FIXME: can we find a way to save the current terminal settings (attrs etc)? */
-		/* Start cursor positioning mode. */
-		do_smcup();
-		/* Make sure the cursor is visible */
-		call_putp(cnorm);
-
-		/* Enable alternate character set if required by terminal. */
-		if ((enacs = get_ti_string("enacs")) != NULL) {
-			call_putp(enacs);
-			free(enacs);
-		}
-
-		/* Set the attributes of the terminal to a known value. */
-		term_set_attrs(0);
-
-		init_output_buffer();
-		/* FIXME: make sure that the encoding is really set! */
-		/* FIXME: nl_langinfo only works when setlocale has been called first. This should
-		   therefore be a requirement for calling this function */
-		init_output_iconv(nl_langinfo(CODESET));
+		terminal_fd = fd;
+	} else if (_putp_file == NULL) {
+		/* Unfortunately stdout is not a constant, and _putp_file can therefore not be
+		   initialized statically. */
+		_putp_file = stdout;
 	}
+
+	if (tcgetattr(terminal_fd, &saved) < 0)
+		return ERR_ERRNO;
+
+	new_params = saved;
+	new_params.c_iflag &= ~(IXON | IXOFF | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
+	new_params.c_lflag &= ~(ISIG | ICANON | ECHO);
+	new_params.c_oflag &= ~OPOST;
+	new_params.c_cflag &= ~(CSIZE | PARENB);
+	new_params.c_cflag |= CS8;
+	new_params.c_cc[VMIN] = 1;
+
+	if (tcsetattr(terminal_fd, TCSADRAIN, &new_params) < 0)
+		return ERR_ERRNO;
+
+	initialised = True;
+	FD_ZERO(&inset);
+	FD_SET(terminal_fd, &inset);
+
+	if (!seqs_initialised) {
+		int error;
+		char *acsc;
+
+		if ((error = call_setupterm()) != 0) {
+			if (error == 1)
+				return ERR_HARDCOPY_TERMINAL;
+			else if (error == -1)
+				return ERR_TERMINFODB_NOT_FOUND;
+
+			return ERR_UNKNOWN;
+		}
+
+		if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
+			if (smcup != NULL) {
+				free(smcup);
+				smcup = NULL;
+			}
+		}
+		if ((clear = get_ti_string("clear")) == NULL)
+			return ERR_TERMINAL_TOO_LIMITED;
+		if ((cup = get_ti_string("cup")) == NULL)
+			return ERR_TERMINAL_TOO_LIMITED;
+
+		sgr = get_ti_string("sgr");
+		smul = get_ti_string("smul");
+		if (smul != NULL && ((rmul = get_ti_string("rmul")) == NULL || streq(rmul, "\033[m")))
+			reset_required_mask |= ATTR_UNDERLINE;
+		bold = get_ti_string("bold");
+		/* FIXME: we could get smso and rmso for the purpose of ANSI detection. On many
+		   terminals smso == rev and rmso = exit rev */
+		rev = get_ti_string("rev");
+		blink = get_ti_string("blink");
+		dim = get_ti_string("dim");
+		smacs = get_ti_string("smacs");
+		if (smacs != NULL && ((rmacs = get_ti_string("rmacs")) == NULL || streq(rmul, "\033[m")))
+			reset_required_mask |= ATTR_ACS;
+
+		/* FIXME: use scp if neither setaf/setf is available */
+		if ((setaf = get_ti_string("setaf")) == NULL)
+			setf = get_ti_string("setf");
+		if ((setab = get_ti_string("setab")) == NULL)
+			setb = get_ti_string("setb");
+
+		op = get_ti_string("op");
+
+		detect_ansi();
+
+		sgr0 = get_ti_string("sgr0");
+		/* If sgr0 and sgr are not defined, don't go into modes in reset_required_mask. */
+		if (sgr0 == NULL && sgr == NULL) {
+			reset_required_mask = 0;
+			rev = NULL;
+			bold = NULL;
+			blink = NULL;
+			dim = NULL;
+			if (rmul == NULL) smul = NULL;
+			if (rmacs == NULL) smacs = NULL;
+		}
+
+		bce = call_tigetflag("bce");
+		if ((el = get_ti_string("el")) == NULL)
+			bce = True;
+
+		if ((sc = get_ti_string("sc")) != NULL && (rc = get_ti_string("rc")) == NULL)
+			sc = NULL;
+
+		civis = get_ti_string("civis");
+		cnorm = get_ti_string("cnorm");
+
+		if ((acsc = get_ti_string("acsc")) != NULL) {
+			if (sgr != NULL || smacs != NULL) {
+				size_t i;
+				for (i = 0; i < strlen(acsc); i += 2)
+					alternate_chars[(unsigned int) acsc[i]] = acsc[i + 1];
+			}
+			free(acsc);
+		}
+
+		set_alternate_chars_defaults(default_alternate_chars);
+
+		ncv_int = call_tigetnum("ncv");
+		if (ncv_int & (1<<1)) ncv |= ATTR_UNDERLINE;
+		if (ncv_int & (1<<2)) ncv |= ATTR_REVERSE;
+		if (ncv_int & (1<<3)) ncv |= ATTR_BLINK;
+		if (ncv_int & (1<<4)) ncv |= ATTR_DIM;
+		if (ncv_int & (1<<5)) ncv |= ATTR_BOLD;
+		if (ncv_int & (1<<8)) ncv |= ATTR_ACS;
+
+		seqs_initialised = True;
+	}
+
+	/* Get terminal size. First try ioctl, then environment, then terminfo. */
+	if (ioctl(terminal_fd, TIOCGWINSZ, &wsz) == 0) {
+		lines = wsz.ws_row;
+		columns = wsz.ws_col;
+	} else {
+		char *lines_env = getenv("LINES");
+		char *columns_env = getenv("COLUMNS");
+		if (lines_env == NULL || columns_env == NULL || (lines = atoi(lines_env)) == 0 || (columns = atoi(columns_env)) == 0) {
+			if ((lines = call_tigetnum("lines")) < 0 || (columns = call_tigetnum("columns")) < 0)
+				return ERR_NO_SIZE_INFO;
+		}
+	}
+
+	/* Create or resize terminal window */
+	if (terminal_window == NULL) {
+		/* FIXME: maybe someday we can make the window outside of the window stack. */
+		if ((terminal_window = win_new(lines, columns, 0, 0, 0)) == NULL)
+			return ERR_ERRNO;
+		if ((old_data.data = malloc(sizeof(CharData) * INITIAL_ALLOC)) == NULL)
+			return ERR_ERRNO;
+		old_data.allocated = INITIAL_ALLOC;
+	} else {
+		if (!win_resize(terminal_window, lines, columns))
+			return ERR_ERRNO;
+	}
+
+	/* FIXME: can we find a way to save the current terminal settings (attrs etc)? */
+	/* Start cursor positioning mode. */
+	do_smcup();
+	/* Make sure the cursor is visible */
+	call_putp(cnorm);
+
+	/* Enable alternate character set if required by terminal. */
+	if ((enacs = get_ti_string("enacs")) != NULL) {
+		call_putp(enacs);
+		free(enacs);
+	}
+
+	/* Set the attributes of the terminal to a known value. */
+	term_set_attrs(0);
+
+	init_output_buffer();
+	/* FIXME: make sure that the encoding is really set! */
+	/* FIXME: nl_langinfo only works when setlocale has been called first. This should
+	   therefore be a requirement for calling this function */
+	init_output_iconv(nl_langinfo(CODESET));
 	return ERR_SUCCESS;
 }
 
@@ -493,7 +512,7 @@ void term_restore(void) {
 			attrs = 0;
 			fflush(stdout);
 		}
-		tcsetattr(STDOUT_FILENO, TCSADRAIN, &saved);
+		tcsetattr(terminal_fd, TCSADRAIN, &saved);
 		initialised = False;
 	}
 }
@@ -504,7 +523,7 @@ void term_restore(void) {
 static int safe_read_char(void) {
 	char c;
 	while (1) {
-		ssize_t retval = read(STDIN_FILENO, &c, 1);
+		ssize_t retval = read(terminal_fd, &c, 1);
 		if (retval < 0 && errno == EINTR)
 			continue;
 		else if (retval >= 1)
@@ -542,7 +561,7 @@ int term_get_keychar(int msec) {
 			timeout.tv_usec = (msec % 1000) * 1000;
 		}
 
-		retval = select(STDIN_FILENO + 1, &_inset, NULL, NULL, msec > 0 ? &timeout : NULL);
+		retval = select(terminal_fd + 1, &_inset, NULL, NULL, msec > 0 ? &timeout : NULL);
 
 		if (retval < 0) {
 			if (errno == EINTR)
@@ -630,7 +649,7 @@ void term_get_size(int *height, int *width) {
 Bool term_resize(void) {
 	struct winsize wsz;
 
-	if (ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz) < 0)
+	if (ioctl(terminal_fd, TIOCGWINSZ, &wsz) < 0)
 		return True;
 
 	lines = wsz.ws_row;
