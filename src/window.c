@@ -219,33 +219,18 @@ Bool win_resize(Window *win, int height, int width) {
 		memset(win->lines + height, 0, sizeof(LineData) * (win->height - height));
 	}
 
-	/* FIXME: we should use the clrtoeol function to do this for us, as it uses pretty much the same code! */
 	if (width < win->width) {
 		/* Chop lines to maximum width */
 		/* FIXME: should we also try to resize the lines (as in realloc)? */
+		int paint_x = win->paint_x, paint_y = win->paint_y;
+
 		for (i = 0; i < height; i++) {
-			if (win->lines[i].start > width) {
-				win->lines[i].length = 0;
-				win->lines[i].start = 0;
-			} else if (win->lines[i].start + win->lines[i].width > width) {
-				int sumwidth = win->lines[i].start, j;
-				for (j = 0; j < win->lines[i].length && sumwidth + GET_WIDTH(win->lines[i].data[j]) <= width; j++)
-					sumwidth += GET_WIDTH(win->lines[i].data[j]);
-
-				if (sumwidth < width) {
-					int spaces = width - sumwidth;
-					if (spaces < win->lines[i].length - j ||
-							ensureSpace(win->lines + i, spaces - win->lines[i].length + j)) {
-						for (; spaces > 0; spaces--)
-							win->lines[i].data[j++] = WIDTH_TO_META(1) | ' ' | win->default_attrs;
-						sumwidth = width;
-					}
-				}
-
-				win->lines[i].length = j;
-				win->lines[i].width = width - win->lines[i].start;
-			}
+			win_set_paint(win, i, width);
+			win_clrtoeol(win);
 		}
+
+		win->paint_x = paint_x;
+		win->paint_y = paint_y;
 	}
 
 	win->height = height;
@@ -253,37 +238,68 @@ Bool win_resize(Window *win, int height, int width) {
 	return True;
 }
 
+/** Change a Window's position.
+    @param win The Window to change the position of.
+    @param y The desired new vertical position of the Window in terminal lines.
+    @param x The desired new horizontal position of the Window in terminal lines.
+
+    This function will always succeed as it only updates the internal book keeping.
+*/
 void win_move(Window *win, int y, int x) {
 	win->y = y;
 	win->x = x;
 }
 
+/** Get a Window's width. */
 int win_get_width(Window *win) {
 	return win->width;
 }
 
+/** Get a Window's height. */
 int win_get_height(Window *win) {
 	return win->height;
 }
 
+/** Get a Window's horizontal position.
+
+    The retrieved position may be relative to another window. Use ::win_get_abs_x
+    to find the absolute position.
+*/
 int win_get_x(Window *win) {
 	return win->x;
 }
+
+/** Get a Window's vertical position.
+
+    The retrieved position may be relative to another window. Use ::win_get_abs_y
+    to find the absolute position.
+*/
 
 int win_get_y(Window *win) {
 	return win->y;
 }
 
+/** Get a Window's depth. */
 int win_get_depth(Window *win) {
 	return win->depth;
 }
 
+/** Get a Window's relative positioning information.
+    @param win The Window to get the relative positioning information for.
+    @param [out] parent The location to store the pointer to the Window relative to
+	    which the position is specified.
+    @return The relative positioning method.
+
+    To retrieve the separate parts of the relative positioning information, use
+    ::GETPARENT and ::GETCHILD.
+*/
 int win_get_relation(Window *win, Window **parent) {
 	if (parent != NULL)
 		*parent = win->parent;
 	return win->relation;
 }
 
+/** Get a Window's absolute horizontal position. */
 int win_get_abs_x(Window *win) {
 	int result;
 	switch (GETPARENT(win->relation)) {
@@ -309,6 +325,7 @@ int win_get_abs_x(Window *win) {
 	}
 }
 
+/** Get a Window's absolute vertical position. */
 int win_get_abs_y(Window *win) {
 	int result;
 	switch (GETPARENT(win->relation)) {
@@ -334,24 +351,41 @@ int win_get_abs_y(Window *win) {
 	}
 }
 
+/** Position the cursor relative to a Window.
+    @param win The Window to position the cursor in.
+    @param y The line relative to @p win to position the cursor at.
+    @param x The column relative to @p win to position the cursor at.
+
+    The cursor is only moved if the window is currently shown.
+*/
 void win_set_cursor(Window *win, int y, int x) {
 	if (win->shown)
-		term_set_cursor(win->y + y, win->x + x);
+		term_set_cursor(win_get_abs_y(win) + y, win_get_abs_x(win) + x);
 }
 
+/** Change the position where characters are written to the Window. */
 void win_set_paint(Window *win, int y, int x) {
 	win->paint_x = x < 0 ? 0 : x;
 	win->paint_y = y < 0 ? 0 : y;
 }
 
+/** Make a Window visible. */
 void win_show(Window *win) {
 	win->shown = True;
 }
 
+/** Make a Window invisible. */
 void win_hide(Window *win) {
 	win->shown = False;
 }
 
+/** Ensure that a LineData struct has at least a specified number of
+        bytes of unused space.
+	@param line The LineData struct to check.
+	@param n The required unused space in bytes.
+    @return A boolean indicating whether, after possibly reallocating, the
+        requested number of bytes is available.
+*/
 static Bool ensureSpace(LineData *line, size_t n) {
 	int newsize;
 	CharData *resized;
@@ -379,6 +413,16 @@ static Bool ensureSpace(LineData *line, size_t n) {
 	return True;
 }
 
+/** Add character data to a Window at the current painting position.
+    @param win The Window to add the characters to.
+    @param str The characters to add as CharData.
+    @param n The length of @p str.
+    @return A boolean indicating whether insertion succeeded (only fails on memory
+        allocation errors).
+
+    This is the most complex and most central function of the library. All character
+    drawing eventually ends up here.
+*/
 static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	int width = 0;
 	int extra_spaces = 0;
@@ -545,12 +589,25 @@ static Bool _win_add_chardata(Window *win, CharData *str, size_t n) {
 	return result;
 }
 
-static int _win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
+/** Add a string with explicitly specified size to a Window with specified attributes.
+    @param win The Window to add the string to.
+    @param str The string to add.
+    @param n The size of @p str.
+    @param attr The attributes to use.
+    @retval ERR_SUCCESS on succes
+    @retval ERR_NONPRINT if a control character was encountered.
+    @retval ERR_ERRNO otherwise.
+
+    The default attributes are combined with the specified attributes, with
+    @p attr used as the priority attributes. All other win_add* functions are
+    (indirectly) implemented using this function.
+*/
+int win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
 	size_t bytes_read, i;
 	CharData cd_buf[UTF8_MAX_BYTES + 1];
 	uint32_t c;
 	uint8_t char_info;
-	int retval = 0;
+	int retval = ERR_SUCCESS;
 	int width;
 
 	attr = term_combine_attrs(attr & ATTR_MASK, win->default_attrs);
@@ -577,35 +634,89 @@ static int _win_addnstr(Window *win, const char *str, size_t n, CharData attr) {
 			cd_buf[0] &= ~(ATTR_ACS | CHAR_MASK);
 			cd_buf[0] |= replacement & CHAR_MASK;
 		}
-		_win_add_chardata(win, cd_buf, bytes_read);
+		if (!_win_add_chardata(win, cd_buf, bytes_read))
+			return ERR_ERRNO;
 	}
 	return retval;
 }
 
+/** Add a nul-terminated string to a Window with specified attributes.
+    @param win The Window to add the string to.
+    @param str The nul-terminated string to add.
+    @param attr The attributes to use.
+    @return See ::win_addnstr.
 
-int win_addnstr(Window *win, const char *str, size_t n, CharData attr) { return _win_addnstr(win, str, n, attr); }
-int win_addstr(Window *win, const char *str, CharData attr) { return _win_addnstr(win, str, strlen(str), attr); }
-int win_addch(Window *win, char c, CharData attr) { return _win_addnstr(win, &c, 1, attr); }
+	See ::win_addnstr for further information.
+*/
+int win_addstr(Window *win, const char *str, CharData attr) { return win_addnstr(win, str, strlen(str), attr); }
 
+/** Add a single character to a Window with specified attributes.
+    @param win The Window to add the string to.
+    @param c The character to add.
+    @param attr The attributes to use.
+    @return See ::win_addnstr.
+
+	@p c must be an ASCII character. See ::win_addnstr for further information.
+*/
+int win_addch(Window *win, char c, CharData attr) { return win_addnstr(win, &c, 1, attr); }
+
+/** Add a string with explicitly specified size to a Window with specified attributes and repetition.
+    @param win The Window to add the string to.
+    @param str The string to add.
+    @param n The size of @p str.
+    @param attr The attributes to use.
+    @param rep The number of times to repeat @p str.
+    @return See ::win_addnstr.
+
+	All other win_add*rep functions are (indirectly) implemented using this
+    function. See ::win_addnstr for further information.
+*/
 int win_addnstrrep(Window *win, const char *str, size_t n, CharData attr, int rep) {
 	int i, ret;
 
 	for (i = 0; i < rep; i++) {
-		ret = _win_addnstr(win, str, n, attr);
+		ret = win_addnstr(win, str, n, attr);
 		if (ret != 0)
 			return ret;
 	}
 	return 0;
 }
 
+/** Add a nul-terminated string to a Window with specified attributes and repetition.
+    @param win The Window to add the string to.
+    @param str The nul-terminated string to add.
+    @param attr The attributes to use.
+    @param rep The number of times to repeat @p str.
+    @return See ::win_addnstr.
+
+    See ::win_addnstrrep for further information.
+*/
 int win_addstrrep(Window *win, const char *str, CharData attr, int rep) { return win_addnstrrep(win, str, strlen(str), attr, rep); }
+
+/** Add a character to a Window with specified attributes and repetition.
+    @param win The Window to add the string to.
+    @param c The character to add.
+    @param attr The attributes to use.
+    @param rep The number of times to repeat @p c.
+    @return See ::win_addnstr.
+
+    See ::win_addnstrrep for further information.
+*/
 int win_addchrep(Window *win, char c, CharData attr, int rep) { return win_addnstrrep(win, &c, 1, attr, rep); }
 
-Bool _win_refresh_term_line(struct Window *terminal, int line) {
+/** @internal
+    @brief Redraw a terminal line, based on all visible Window structs.
+    @param terminal The Window representing the cached terminal contents.
+    @param line The line to redraw.
+    @return A boolean indicating whether redrawing succeeded without memory errors.
+*/
+Bool _win_refresh_term_line(Window *terminal, int line) {
 	LineData *draw;
 	Window *ptr;
 	int y;
+	Bool result = True;
 
+	/* FIXME: check return value of called functions for memory allocation errors. */
 	terminal->paint_y = line;
 	terminal->lines[line].width = 0;
 	terminal->lines[line].length = 0;
@@ -624,10 +735,10 @@ Bool _win_refresh_term_line(struct Window *terminal, int line) {
 		if (ptr->default_attrs == 0)
 			terminal->paint_x += draw->start;
 		else
-			win_addchrep(terminal, ' ', ptr->default_attrs, draw->start);
-		_win_add_chardata(terminal, draw->data, draw->length);
+			result &= win_addchrep(terminal, ' ', ptr->default_attrs, draw->start) == 0;
+		result &= _win_add_chardata(terminal, draw->data, draw->length);
 		if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width)
-			win_addchrep(terminal, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width);
+			result &= win_addchrep(terminal, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width) == 0;
 	}
 
 	/* If a line does not start at position 0, just make it do so. This makes the whole repainting
@@ -635,14 +746,13 @@ Bool _win_refresh_term_line(struct Window *terminal, int line) {
 	if (terminal->lines[line].start != 0) {
 		CharData space = ' ' | WIDTH_TO_META(1);
 		terminal->paint_x = 0;
-		_win_add_chardata(terminal, &space, 1);
+		result &= _win_add_chardata(terminal, &space, 1);
 	}
 
-	return True;
+	return result;
 }
 
-//FIXME: should we take background into account, or should we let the app be bothered about
-//erasing with proper background color
+/** Clear current Window painting line to end. */
 void win_clrtoeol(Window *win) {
 	if (win->paint_y >= win->height)
 		return;
@@ -671,6 +781,17 @@ void win_clrtoeol(Window *win) {
 	}
 }
 
+#define ABORT_ON_FAIL(x) do { int retval; if ((retval = (x)) != 0) return retval; } while (0)
+
+/** Draw a box on a Window.
+    @param win The Window to draw on.
+    @param y The line of the Window to start drawing on.
+    @param x The column of the Window to start drawing on.
+    @param height The height of the box to draw.
+    @param width The width of the box to draw.
+    @param attr The attributes to use for drawing.
+    @return See ::win_addnstr.
+*/
 int win_box(Window *win, int y, int x, int height, int width, CharData attr) {
 	int i;
 
@@ -681,24 +802,23 @@ int win_box(Window *win, int y, int x, int height, int width, CharData attr) {
 		return -1;
 
 	win_set_paint(win, y, x);
-	win_addch(win, TERM_ULCORNER, attr | ATTR_ACS);
-	win_addchrep(win, TERM_HLINE, attr | ATTR_ACS, width - 2);
-	win_addch(win, TERM_URCORNER, attr | ATTR_ACS);
+	ABORT_ON_FAIL(win_addch(win, TERM_ULCORNER, attr | ATTR_ACS));
+	ABORT_ON_FAIL(win_addchrep(win, TERM_HLINE, attr | ATTR_ACS, width - 2));
+	ABORT_ON_FAIL(win_addch(win, TERM_URCORNER, attr | ATTR_ACS));
 	for (i = 1; i < height - 1; i++) {
 		win_set_paint(win, y + i, x);
-		win_addch(win, TERM_VLINE, attr | ATTR_ACS);
+		ABORT_ON_FAIL(win_addch(win, TERM_VLINE, attr | ATTR_ACS));
 		win_set_paint(win, y + i, x + width - 1);
-		win_addch(win, TERM_VLINE, attr | ATTR_ACS);
+		ABORT_ON_FAIL(win_addch(win, TERM_VLINE, attr | ATTR_ACS));
 	}
 	win_set_paint(win, y + height - 1, x);
-	win_addch(win, TERM_LLCORNER, attr | ATTR_ACS);
-	win_addchrep(win, TERM_HLINE, attr | ATTR_ACS, width - 2);
-	win_addch(win, TERM_LRCORNER, attr | ATTR_ACS);
-	//FIXME: quit on first unsuccessful addch
-	return 0;
+	ABORT_ON_FAIL(win_addch(win, TERM_LLCORNER, attr | ATTR_ACS));
+	ABORT_ON_FAIL(win_addchrep(win, TERM_HLINE, attr | ATTR_ACS, width - 2));
+	ABORT_ON_FAIL(win_addch(win, TERM_LRCORNER, attr | ATTR_ACS));
+	return ERR_SUCCESS;
 }
 
-
+/** Clear current Window painting line to end and all subsequent lines fully. */
 void win_clrtobot(Window *win) {
 	win_clrtoeol(win);
 	for (win->paint_y++; win->paint_y < win->height; win->paint_y++) {

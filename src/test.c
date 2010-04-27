@@ -25,7 +25,7 @@ void fatal(const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-void callback(CharData *c, int length) {
+void callback(const CharData *c, int length) {
 	int i;
 	term_set_attrs(ATTR_BLINK | ATTR_REVERSE);
 	for (i = 0; i < length; i++)
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 	printf("Waiting for enter to allow debug\n");
 	getchar();
 
-	ASSERT(term_init());
+	ASSERT(term_init(-1) == ERR_SUCCESS);
 	atexit(term_restore);
 	inited = True;
 

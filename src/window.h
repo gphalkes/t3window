@@ -8,11 +8,6 @@
 extern "C" {
 #endif
 
-/** Error value(s) returned from @c win_addXXX functions. */
-enum {
-	ERR_NONPRINT = -1
-};
-
 /** Define a parent anchor point for a relation (see WinAnchor). */
 #define PARENT(_x) ((_x) << 3)
 /** Define a child anchor point a relation (see WinAnchor). */
