@@ -20,6 +20,9 @@ extern "C" {
     The second 8 bits represent the minor version.
     The third 8 bits represent the major version.
 
+	At runtime, the value of T3WINDOW_VERSION can be retrieved by calling
+	::t3window_get_version.
+
     @internal
     The value 0 is an invalid value which should be replaced by the script
     that builds the release package.
@@ -210,6 +213,8 @@ int t3_term_strwidth(const char *str);
 T3Bool t3_term_can_draw(const char *str, size_t str_len);
 void t3_term_set_replacement_char(char c);
 T3Bool t3_term_putc(char c);
+
+long t3window_get_version(void);
 
 #ifdef USING_NAMESPACE_T3
 #include "terminal_namespace.h"

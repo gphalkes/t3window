@@ -1072,3 +1072,11 @@ T3CharData t3_term_get_ncv(void) {
 }
 
 /** @} */
+
+/** Get the value of T3WINDOW_VERSION corresponding to the library.
+    @ingroup t3window_other
+    @return The value of T3WINDOW_VERSION.
+*/
+long t3window_get_version(void) {
+	return T3WINDOW_VERSION;
+}
