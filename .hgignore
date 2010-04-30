@@ -5,7 +5,7 @@ unicode/generate_proptables
 unicode/generated
 src/.deps
 src/.objects
-src/libwindow.so
+src/libt3window.so
 src/test
 .backupfilter.hg
 unicode/.deps
