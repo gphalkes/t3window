@@ -1,0 +1,9 @@
+The Tilde Terminal Toolkit (T3) is a set of libraries for creating terminal
+programs. It was originally created for the Tilde terminal text editor as a
+replacement for the curses library. However, these libraries can also be used
+to create other terminal-based programs. The toolkit consists of the following
+libraries:
+
+libt3window: provides overlapping text windows in much the same way as the
+  X window system provides overlapping
+libt3key:

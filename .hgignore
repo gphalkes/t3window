@@ -10,3 +10,4 @@ src/test
 .backupfilter.hg
 unicode/.deps
 unicode/.objects
+doc/API
