@@ -91,7 +91,7 @@ static char *smcup, /**< Terminal control string: start cursor positioning mode.
 static T3CharData ncv; /**< Terminal info: Non-color video attributes (encoded in T3CharData). */
 static T3Bool bce; /**< Terminal info: screen erased with background color. */
 
-static Window *terminal_window; /**< Window struct representing the last drawn terminal state. */
+static T3Window *terminal_window; /**< T3Window struct representing the last drawn terminal state. */
 static LineData old_data; /**< LineData struct used in terminal update to save previous line state. */
 
 static int lines, /**< Size of terminal (lines). */
@@ -1007,7 +1007,7 @@ void t3_term_putp(const char *str) {
     on the terminal screen. This function is provided to calculate that value.
 */
 int t3_term_strwidth(const char *str) {
-	Window *win = t3_win_new(1, INT_MAX, 0, 0, 0);
+	T3Window *win = t3_win_new(1, INT_MAX, 0, 0, 0);
 	int result;
 
 	t3_win_set_paint(win, 0, 0);

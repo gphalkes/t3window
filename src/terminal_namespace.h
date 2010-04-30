@@ -1,0 +1,92 @@
+#ifndef T3_TERMINAL_NAMESPACE_H
+#define T3_TERMINAL_NAMESPACE_H
+
+#define ACS_BOARD T3_ACS_BOARD
+#define ACS_BTEE T3_ACS_BTEE
+#define ACS_CKBOARD T3_ACS_CKBOARD
+#define ACS_DARROW T3_ACS_DARROW
+#define ACS_HLINE T3_ACS_HLINE
+#define ACS_LARROW T3_ACS_LARROW
+#define ACS_LLCORNER T3_ACS_LLCORNER
+#define ACS_LRCORNER T3_ACS_LRCORNER
+#define ACS_LTEE T3_ACS_LTEE
+#define ACS_RARROW T3_ACS_RARROW
+#define ACS_RTEE T3_ACS_RTEE
+#define ACS_TTEE T3_ACS_TTEE
+#define ACS_UARROW T3_ACS_UARROW
+#define ACS_ULCORNER T3_ACS_ULCORNER
+#define ACS_URCORNER T3_ACS_URCORNER
+#define ACS_VLINE T3_ACS_VLINE
+#define ATTR_ACS T3_ATTR_ACS
+#define ATTR_BG_BLACK T3_ATTR_BG_BLACK
+#define ATTR_BG_BLUE T3_ATTR_BG_BLUE
+#define ATTR_BG_CYAN T3_ATTR_BG_CYAN
+#define ATTR_BG_DEFAULT T3_ATTR_BG_DEFAULT
+#define ATTR_BG_GREEN T3_ATTR_BG_GREEN
+#define ATTR_BG_MAGENTA T3_ATTR_BG_MAGENTA
+#define ATTR_BG_RED T3_ATTR_BG_RED
+#define ATTR_BG_UNSPEC T3_ATTR_BG_UNSPEC
+#define ATTR_BG_WHITE T3_ATTR_BG_WHITE
+#define ATTR_BG_YELLOW T3_ATTR_BG_YELLOW
+#define ATTR_BLINK T3_ATTR_BLINK
+#define ATTR_BOLD T3_ATTR_BOLD
+#define ATTR_COLOR_SHIFT T3_ATTR_COLOR_SHIFT
+#define ATTR_DIM T3_ATTR_DIM
+#define ATTR_FG_BLACK T3_ATTR_FG_BLACK
+#define ATTR_FG_BLUE T3_ATTR_FG_BLUE
+#define ATTR_FG_CYAN T3_ATTR_FG_CYAN
+#define ATTR_FG_DEFAULT T3_ATTR_FG_DEFAULT
+#define ATTR_FG_GREEN T3_ATTR_FG_GREEN
+#define ATTR_FG_MAGENTA T3_ATTR_FG_MAGENTA
+#define ATTR_FG_RED T3_ATTR_FG_RED
+#define ATTR_FG_UNSPEC T3_ATTR_FG_UNSPEC
+#define ATTR_FG_WHITE T3_ATTR_FG_WHITE
+#define ATTR_FG_YELLOW T3_ATTR_FG_YELLOW
+#define ATTR_MASK T3_ATTR_MASK
+#define ATTR_REVERSE T3_ATTR_REVERSE
+#define ATTR_SHIFT T3_ATTR_SHIFT
+#define ATTR_UNDERLINE T3_ATTR_UNDERLINE
+#define ATTR_USER T3_ATTR_USER
+#define AttrUserCallback T3AttrUserCallback
+#define Bool T3Bool
+#define CharData T3CharData
+#define CHARDATA_TO_WIDTH T3_CHARDATA_TO_WIDTH
+#define CHAR_MASK T3_CHAR_MASK
+
+#ifndef ERR_SUCCESS
+#define ERR_SUCCESS T3_ERR_SUCCESS
+#define ERR_ERRNO T3_ERR_ERRNO
+#define ERR_EOF T3_ERR_EOF
+#define ERR_UNKNOWN T3_ERR_UNKNOWN
+#define ERR_BAD_ARG T3_ERR_BAD_ARG
+#endif
+
+#define ERR_HARDCOPY_TERMINAL T3_ERR_HARDCOPY_TERMINAL
+#define ERR_NONPRINT T3_ERR_NONPRINT
+#define ERR_NO_SIZE_INFO T3_ERR_NO_SIZE_INFO
+#define ERR_NOT_A_TTY T3_ERR_NOT_A_TTY
+#define ERR_TERMINAL_TOO_LIMITED T3_ERR_TERMINAL_TOO_LIMITED
+#define ERR_TERMINFODB_NOT_FOUND T3_ERR_TERMINFODB_NOT_FOUND
+#define ERR_TIMEOUT T3_ERR_TIMEOUT
+#define term_acs_available t3_term_acs_available
+#define term_can_draw t3_term_can_draw
+#define term_combine_attrs t3_term_combine_attrs
+#define term_get_keychar t3_term_get_keychar
+#define term_get_size t3_term_get_size
+#define term_hide_cursor t3_term_hide_cursor
+#define term_init t3_term_init
+#define term_putc t3_term_putc
+#define term_putp t3_term_putp
+#define term_redraw t3_term_redraw
+#define term_resize t3_term_resize
+#define term_restore t3_term_restore
+#define term_set_attrs t3_term_set_attrs
+#define term_set_callback t3_term_set_callback
+#define term_set_cursor t3_term_set_cursor
+#define term_set_replacement_char t3_term_set_replacement_char
+#define term_set_user_callback t3_term_set_user_callback
+#define term_show_cursor t3_term_show_cursor
+#define term_strwidth t3_term_strwidth
+#define term_unget_keychar t3_term_unget_keychar
+#define term_update t3_term_update
+#endif

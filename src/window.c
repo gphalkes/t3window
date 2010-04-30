@@ -21,33 +21,33 @@
 */
 #define UTF8_MAX_BYTES 4
 
-static Window *head, /**< Head of depth sorted Window list. */
-	*tail; /**< Tail of depth sorted Window list. */
+static T3Window *head, /**< Head of depth sorted T3Window list. */
+	*tail; /**< Tail of depth sorted T3Window list. */
 
-static void _win_del(Window *win);
+static void _win_del(T3Window *win);
 static T3Bool ensureSpace(LineData *line, size_t n);
 
 /** @addtogroup t3window_win */
 /** @{ */
-/** Create a new Window.
+/** Create a new T3Window.
     @param height The desired height in terminal lines.
     @param width The desired width in terminal columns.
     @param y The vertical location of the window in terminal lines.
     @param x The horizontal location of the window in terminal columns.
 	@param depth The depth of the window in the stack of windows.
-	@return A pointer to a new Window struct or @c NULL on error.
+	@return A pointer to a new T3Window struct or @c NULL on error.
 
     The @p depth parameter determines the z-order of the windows. Windows
 	with lower depth will hide windows with higher depths.
 */
-Window *t3_win_new(int height, int width, int y, int x, int depth) {
-	Window *retval, *ptr;
+T3Window *t3_win_new(int height, int width, int y, int x, int depth) {
+	T3Window *retval, *ptr;
 	int i;
 
 	if (height <= 0 || width <= 0)
 		return NULL;
 
-	if ((retval = calloc(1, sizeof(Window))) == NULL)
+	if ((retval = calloc(1, sizeof(T3Window))) == NULL)
 		return NULL;
 
 	if ((retval->lines = calloc(1, sizeof(LineData) * height)) == NULL) {
@@ -103,34 +103,34 @@ Window *t3_win_new(int height, int width, int y, int x, int depth) {
 	return retval;
 }
 
-/** Create a new Window with relative position.
+/** Create a new T3Window with relative position.
     @param height The desired height in terminal lines.
     @param width The desired width in terminal columns.
     @param y The vertical location of the window in terminal lines.
     @param x The horizontal location of the window in terminal columns.
 	@param depth The depth of the window in the stack of windows.
     @param parent The window used as reference for relative positioning.
-    @param relation The relation between this window and @p parent (see WinAnchor).
-	@return A pointer to a new Window struct or @c NULL on error.
+    @param relation The relation between this window and @p parent (see WinT3_ANCHOR).
+	@return A pointer to a new T3Window struct or @c NULL on error.
 
     The @p depth parameter determines the z-order of the windows. Windows
 	with lower depth will hide windows with higher depths.
 */
-Window *t3_win_new_relative(int height, int width, int y, int x, int depth, Window *parent, int relation) {
-	Window *retval;
+T3Window *t3_win_new_relative(int height, int width, int y, int x, int depth, T3Window *parent, int relation) {
+	T3Window *retval;
 
-	if (parent == NULL && GETPARENT(relation) != ANCHOR_ABSOLUTE)
+	if (parent == NULL && T3_GETPARENT(relation) != T3_ANCHOR_ABSOLUTE)
 			return NULL;
 
-	if (GETPARENT(relation) != ANCHOR_TOPLEFT && GETPARENT(relation) != ANCHOR_TOPRIGHT &&
-			GETPARENT(relation) != ANCHOR_BOTTOMLEFT && GETPARENT(relation) != ANCHOR_BOTTOMRIGHT &&
-			GETPARENT(relation) != ANCHOR_ABSOLUTE) {
+	if (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT && T3_GETPARENT(relation) != T3_ANCHOR_TOPRIGHT &&
+			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT &&
+			T3_GETPARENT(relation) != T3_ANCHOR_ABSOLUTE) {
 		return NULL;
 	}
 
-	if (GETCHILD(relation) != ANCHOR_TOPLEFT && GETCHILD(relation) != ANCHOR_TOPRIGHT &&
-			GETCHILD(relation) != ANCHOR_BOTTOMLEFT && GETCHILD(relation) != ANCHOR_BOTTOMRIGHT &&
-			GETCHILD(relation) != ANCHOR_ABSOLUTE) {
+	if (T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT && T3_GETCHILD(relation) != T3_ANCHOR_TOPRIGHT &&
+			T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMRIGHT &&
+			T3_GETCHILD(relation) != T3_ANCHOR_ABSOLUTE) {
 		return NULL;
 	}
 
@@ -145,12 +145,12 @@ Window *t3_win_new_relative(int height, int width, int y, int x, int depth, Wind
 	return retval;
 }
 
-/** Free a Window struct.
+/** Free a T3Window struct.
 
-    This function only @c free's the memory associated with the Window. For
+    This function only @c free's the memory associated with the T3Window. For
     a full clean-up, call ::t3_win_del.
 */
-static void _win_del(Window *win) {
+static void _win_del(T3Window *win) {
 	int i;
 
 	if (win == NULL)
@@ -165,18 +165,18 @@ static void _win_del(Window *win) {
 }
 
 /** Set default attributes for a window.
-    @param win The Window to set the default attributes for.
+    @param win The T3Window to set the default attributes for.
     @param attr The attributes to set.
 
     This function can be used to set a default background for the entire window, as
     well as any other attributes.
 */
-void t3_win_set_default_attrs(Window *win, T3CharData attr) {
+void t3_win_set_default_attrs(T3Window *win, T3CharData attr) {
 	win->default_attrs = attr & T3_ATTR_MASK;
 }
 
-/** Discard a Window. */
-void t3_win_del(Window *win) {
+/** Discard a T3Window. */
+void t3_win_del(T3Window *win) {
 	if (win->next == NULL)
 		tail = win->prev;
 	else
@@ -189,15 +189,15 @@ void t3_win_del(Window *win) {
 	_win_del(win);
 }
 
-/** Change a Window's size.
-    @param win The Window to change the size of.
-    @param height The desired new height of the Window in terminal lines.
-    @param width The desired new width of the Window in terminal columns.
+/** Change a T3Window's size.
+    @param win The T3Window to change the size of.
+    @param height The desired new height of the T3Window in terminal lines.
+    @param width The desired new width of the T3Window in terminal columns.
     @return A boolean indicating succes, depending on the validity of the
         parameters and whether reallocation of the internal data
         structures succeeds.
 */
-T3Bool t3_win_resize(Window *win, int height, int width) {
+T3Bool t3_win_resize(T3Window *win, int height, int width) {
 	int i;
 
 	if (height <= 0 || width <= 0)
@@ -242,77 +242,77 @@ T3Bool t3_win_resize(Window *win, int height, int width) {
 	return True;
 }
 
-/** Change a Window's position.
-    @param win The Window to change the position of.
-    @param y The desired new vertical position of the Window in terminal lines.
-    @param x The desired new horizontal position of the Window in terminal lines.
+/** Change a T3Window's position.
+    @param win The T3Window to change the position of.
+    @param y The desired new vertical position of the T3Window in terminal lines.
+    @param x The desired new horizontal position of the T3Window in terminal lines.
 
     This function will always succeed as it only updates the internal book keeping.
 */
-void t3_win_move(Window *win, int y, int x) {
+void t3_win_move(T3Window *win, int y, int x) {
 	win->y = y;
 	win->x = x;
 }
 
-/** Get a Window's width. */
-int t3_win_get_width(Window *win) {
+/** Get a T3Window's width. */
+int t3_win_get_width(T3Window *win) {
 	return win->width;
 }
 
-/** Get a Window's height. */
-int t3_win_get_height(Window *win) {
+/** Get a T3Window's height. */
+int t3_win_get_height(T3Window *win) {
 	return win->height;
 }
 
-/** Get a Window's horizontal position.
+/** Get a T3Window's horizontal position.
 
     The retrieved position may be relative to another window. Use ::t3_win_get_abs_x
     to find the absolute position.
 */
-int t3_win_get_x(Window *win) {
+int t3_win_get_x(T3Window *win) {
 	return win->x;
 }
 
-/** Get a Window's vertical position.
+/** Get a T3Window's vertical position.
 
     The retrieved position may be relative to another window. Use ::t3_win_get_abs_y
     to find the absolute position.
 */
 
-int t3_win_get_y(Window *win) {
+int t3_win_get_y(T3Window *win) {
 	return win->y;
 }
 
-/** Get a Window's depth. */
-int t3_win_get_depth(Window *win) {
+/** Get a T3Window's depth. */
+int t3_win_get_depth(T3Window *win) {
 	return win->depth;
 }
 
-/** Get a Window's relative positioning information.
-    @param win The Window to get the relative positioning information for.
-    @param [out] parent The location to store the pointer to the Window relative to
+/** Get a T3Window's relative positioning information.
+    @param win The T3Window to get the relative positioning information for.
+    @param [out] parent The location to store the pointer to the T3Window relative to
 	    which the position is specified.
     @return The relative positioning method.
 
     To retrieve the separate parts of the relative positioning information, use
-    ::GETPARENT and ::GETCHILD.
+    ::T3_GETPARENT and ::T3_GETCHILD.
 */
-int t3_win_get_relation(Window *win, Window **parent) {
+int t3_win_get_relation(T3Window *win, T3Window **parent) {
 	if (parent != NULL)
 		*parent = win->parent;
 	return win->relation;
 }
 
-/** Get a Window's absolute horizontal position. */
-int t3_win_get_abs_x(Window *win) {
+/** Get a T3Window's absolute horizontal position. */
+int t3_win_get_abs_x(T3Window *win) {
 	int result;
-	switch (GETPARENT(win->relation)) {
-		case ANCHOR_TOPLEFT:
-		case ANCHOR_BOTTOMLEFT:
+	switch (T3_GETPARENT(win->relation)) {
+		case T3_ANCHOR_TOPLEFT:
+		case T3_ANCHOR_BOTTOMLEFT:
 			result = win->x + t3_win_get_abs_x(win->parent);
 			break;
-		case ANCHOR_TOPRIGHT:
-		case ANCHOR_BOTTOMRIGHT:
+		case T3_ANCHOR_TOPRIGHT:
+		case T3_ANCHOR_BOTTOMRIGHT:
 			result = t3_win_get_abs_x(win->parent) + win->parent->width + win->x;
 			break;
 		default:
@@ -320,25 +320,25 @@ int t3_win_get_abs_x(Window *win) {
 			break;
 	}
 
-	switch (GETCHILD(win->relation)) {
-		case ANCHOR_TOPRIGHT:
-		case ANCHOR_BOTTOMRIGHT:
+	switch (T3_GETCHILD(win->relation)) {
+		case T3_ANCHOR_TOPRIGHT:
+		case T3_ANCHOR_BOTTOMRIGHT:
 			return result - win->width;
 		default:
 			return result;
 	}
 }
 
-/** Get a Window's absolute vertical position. */
-int t3_win_get_abs_y(Window *win) {
+/** Get a T3Window's absolute vertical position. */
+int t3_win_get_abs_y(T3Window *win) {
 	int result;
-	switch (GETPARENT(win->relation)) {
-		case ANCHOR_TOPLEFT:
-		case ANCHOR_TOPRIGHT:
+	switch (T3_GETPARENT(win->relation)) {
+		case T3_ANCHOR_TOPLEFT:
+		case T3_ANCHOR_TOPRIGHT:
 			result = win->y + t3_win_get_abs_y(win->parent);
 			break;
-		case ANCHOR_BOTTOMLEFT:
-		case ANCHOR_BOTTOMRIGHT:
+		case T3_ANCHOR_BOTTOMLEFT:
+		case T3_ANCHOR_BOTTOMRIGHT:
 			result = t3_win_get_abs_y(win->parent) + win->parent->height + win->y;
 			break;
 		default:
@@ -346,40 +346,40 @@ int t3_win_get_abs_y(Window *win) {
 			break;
 	}
 
-	switch (GETCHILD(win->relation)) {
-		case ANCHOR_BOTTOMLEFT:
-		case ANCHOR_BOTTOMRIGHT:
+	switch (T3_GETCHILD(win->relation)) {
+		case T3_ANCHOR_BOTTOMLEFT:
+		case T3_ANCHOR_BOTTOMRIGHT:
 			return result - win->height;
 		default:
 			return result;
 	}
 }
 
-/** Position the cursor relative to a Window.
-    @param win The Window to position the cursor in.
+/** Position the cursor relative to a T3Window.
+    @param win The T3Window to position the cursor in.
     @param y The line relative to @p win to position the cursor at.
     @param x The column relative to @p win to position the cursor at.
 
     The cursor is only moved if the window is currently shown.
 */
-void t3_win_set_cursor(Window *win, int y, int x) {
+void t3_win_set_cursor(T3Window *win, int y, int x) {
 	if (win->shown)
 		t3_term_set_cursor(t3_win_get_abs_y(win) + y, t3_win_get_abs_x(win) + x);
 }
 
-/** Change the position where characters are written to the Window. */
-void t3_win_set_paint(Window *win, int y, int x) {
+/** Change the position where characters are written to the T3Window. */
+void t3_win_set_paint(T3Window *win, int y, int x) {
 	win->paint_x = x < 0 ? 0 : x;
 	win->paint_y = y < 0 ? 0 : y;
 }
 
-/** Make a Window visible. */
-void t3_win_show(Window *win) {
+/** Make a T3Window visible. */
+void t3_win_show(T3Window *win) {
 	win->shown = True;
 }
 
-/** Make a Window invisible. */
-void t3_win_hide(Window *win) {
+/** Make a T3Window invisible. */
+void t3_win_hide(T3Window *win) {
 	win->shown = False;
 }
 
@@ -417,8 +417,8 @@ static T3Bool ensureSpace(LineData *line, size_t n) {
 	return True;
 }
 
-/** Add character data to a Window at the current painting position.
-    @param win The Window to add the characters to.
+/** Add character data to a T3Window at the current painting position.
+    @param win The T3Window to add the characters to.
     @param str The characters to add as T3CharData.
     @param n The length of @p str.
     @return A boolean indicating whether insertion succeeded (only fails on memory
@@ -427,7 +427,7 @@ static T3Bool ensureSpace(LineData *line, size_t n) {
     This is the most complex and most central function of the library. All character
     drawing eventually ends up here.
 */
-static T3Bool _win_add_chardata(Window *win, T3CharData *str, size_t n) {
+static T3Bool _win_add_chardata(T3Window *win, T3CharData *str, size_t n) {
 	int width = 0;
 	int extra_spaces = 0;
 	int i, j;
@@ -593,8 +593,8 @@ static T3Bool _win_add_chardata(Window *win, T3CharData *str, size_t n) {
 	return result;
 }
 
-/** Add a string with explicitly specified size to a Window with specified attributes.
-    @param win The Window to add the string to.
+/** Add a string with explicitly specified size to a T3Window with specified attributes.
+    @param win The T3Window to add the string to.
     @param str The string to add.
     @param n The size of @p str.
     @param attr The attributes to use.
@@ -606,7 +606,7 @@ static T3Bool _win_add_chardata(Window *win, T3CharData *str, size_t n) {
     @p attr used as the priority attributes. All other t3_win_add* functions are
     (indirectly) implemented using this function.
 */
-int t3_win_addnstr(Window *win, const char *str, size_t n, T3CharData attr) {
+int t3_win_addnstr(T3Window *win, const char *str, size_t n, T3CharData attr) {
 	size_t bytes_read, i;
 	T3CharData cd_buf[UTF8_MAX_BYTES + 1];
 	uint32_t c;
@@ -644,28 +644,28 @@ int t3_win_addnstr(Window *win, const char *str, size_t n, T3CharData attr) {
 	return retval;
 }
 
-/** Add a nul-terminated string to a Window with specified attributes.
-    @param win The Window to add the string to.
+/** Add a nul-terminated string to a T3Window with specified attributes.
+    @param win The T3Window to add the string to.
     @param str The nul-terminated string to add.
     @param attr The attributes to use.
     @return See ::t3_win_addnstr.
 
 	See ::t3_win_addnstr for further information.
 */
-int t3_win_addstr(Window *win, const char *str, T3CharData attr) { return t3_win_addnstr(win, str, strlen(str), attr); }
+int t3_win_addstr(T3Window *win, const char *str, T3CharData attr) { return t3_win_addnstr(win, str, strlen(str), attr); }
 
-/** Add a single character to a Window with specified attributes.
-    @param win The Window to add the string to.
+/** Add a single character to a T3Window with specified attributes.
+    @param win The T3Window to add the string to.
     @param c The character to add.
     @param attr The attributes to use.
     @return See ::t3_win_addnstr.
 
 	@p c must be an ASCII character. See ::t3_win_addnstr for further information.
 */
-int t3_win_addch(Window *win, char c, T3CharData attr) { return t3_win_addnstr(win, &c, 1, attr); }
+int t3_win_addch(T3Window *win, char c, T3CharData attr) { return t3_win_addnstr(win, &c, 1, attr); }
 
-/** Add a string with explicitly specified size to a Window with specified attributes and repetition.
-    @param win The Window to add the string to.
+/** Add a string with explicitly specified size to a T3Window with specified attributes and repetition.
+    @param win The T3Window to add the string to.
     @param str The string to add.
     @param n The size of @p str.
     @param attr The attributes to use.
@@ -675,7 +675,7 @@ int t3_win_addch(Window *win, char c, T3CharData attr) { return t3_win_addnstr(w
 	All other t3_win_add*rep functions are (indirectly) implemented using this
     function. See ::t3_win_addnstr for further information.
 */
-int t3_win_addnstrrep(Window *win, const char *str, size_t n, T3CharData attr, int rep) {
+int t3_win_addnstrrep(T3Window *win, const char *str, size_t n, T3CharData attr, int rep) {
 	int i, ret;
 
 	for (i = 0; i < rep; i++) {
@@ -686,8 +686,8 @@ int t3_win_addnstrrep(Window *win, const char *str, size_t n, T3CharData attr, i
 	return 0;
 }
 
-/** Add a nul-terminated string to a Window with specified attributes and repetition.
-    @param win The Window to add the string to.
+/** Add a nul-terminated string to a T3Window with specified attributes and repetition.
+    @param win The T3Window to add the string to.
     @param str The nul-terminated string to add.
     @param attr The attributes to use.
     @param rep The number of times to repeat @p str.
@@ -695,10 +695,10 @@ int t3_win_addnstrrep(Window *win, const char *str, size_t n, T3CharData attr, i
 
     See ::t3_win_addnstrrep for further information.
 */
-int t3_win_addstrrep(Window *win, const char *str, T3CharData attr, int rep) { return t3_win_addnstrrep(win, str, strlen(str), attr, rep); }
+int t3_win_addstrrep(T3Window *win, const char *str, T3CharData attr, int rep) { return t3_win_addnstrrep(win, str, strlen(str), attr, rep); }
 
-/** Add a character to a Window with specified attributes and repetition.
-    @param win The Window to add the string to.
+/** Add a character to a T3Window with specified attributes and repetition.
+    @param win The T3Window to add the string to.
     @param c The character to add.
     @param attr The attributes to use.
     @param rep The number of times to repeat @p c.
@@ -706,17 +706,17 @@ int t3_win_addstrrep(Window *win, const char *str, T3CharData attr, int rep) { r
 
     See ::t3_win_addnstrrep for further information.
 */
-int t3_win_addchrep(Window *win, char c, T3CharData attr, int rep) { return t3_win_addnstrrep(win, &c, 1, attr, rep); }
+int t3_win_addchrep(T3Window *win, char c, T3CharData attr, int rep) { return t3_win_addnstrrep(win, &c, 1, attr, rep); }
 
 /** @internal
-    @brief Redraw a terminal line, based on all visible Window structs.
-    @param terminal The Window representing the cached terminal contents.
+    @brief Redraw a terminal line, based on all visible T3Window structs.
+    @param terminal The T3Window representing the cached terminal contents.
     @param line The line to redraw.
     @return A boolean indicating whether redrawing succeeded without memory errors.
 */
-T3Bool _win_refresh_term_line(Window *terminal, int line) {
+T3Bool _win_refresh_term_line(T3Window *terminal, int line) {
 	LineData *draw;
-	Window *ptr;
+	T3Window *ptr;
 	int y;
 	T3Bool result = True;
 
@@ -756,8 +756,8 @@ T3Bool _win_refresh_term_line(Window *terminal, int line) {
 	return result;
 }
 
-/** Clear current Window painting line to end. */
-void t3_win_clrtoeol(Window *win) {
+/** Clear current T3Window painting line to end. */
+void t3_win_clrtoeol(T3Window *win) {
 	if (win->paint_y >= win->height)
 		return;
 
@@ -787,16 +787,16 @@ void t3_win_clrtoeol(Window *win) {
 
 #define ABORT_ON_FAIL(x) do { int retval; if ((retval = (x)) != 0) return retval; } while (0)
 
-/** Draw a box on a Window.
-    @param win The Window to draw on.
-    @param y The line of the Window to start drawing on.
-    @param x The column of the Window to start drawing on.
+/** Draw a box on a T3Window.
+    @param win The T3Window to draw on.
+    @param y The line of the T3Window to start drawing on.
+    @param x The column of the T3Window to start drawing on.
     @param height The height of the box to draw.
     @param width The width of the box to draw.
     @param attr The attributes to use for drawing.
     @return See ::t3_win_addnstr.
 */
-int t3_win_box(Window *win, int y, int x, int height, int width, T3CharData attr) {
+int t3_win_box(T3Window *win, int y, int x, int height, int width, T3CharData attr) {
 	int i;
 
 	attr = t3_term_combine_attrs(attr, win->default_attrs);
@@ -822,8 +822,8 @@ int t3_win_box(Window *win, int y, int x, int height, int width, T3CharData attr
 	return T3_ERR_SUCCESS;
 }
 
-/** Clear current Window painting line to end and all subsequent lines fully. */
-void t3_win_clrtobot(Window *win) {
+/** Clear current T3Window painting line to end and all subsequent lines fully. */
+void t3_win_clrtobot(T3Window *win) {
 	t3_win_clrtoeol(win);
 	for (win->paint_y++; win->paint_y < win->height; win->paint_y++) {
 		win->lines[win->paint_y].length = 0;

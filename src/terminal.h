@@ -3,8 +3,8 @@
 
 /** @file */
 
-/** @defgroup t3window_term libt3window terminal manipulation functions. */
-/** @defgroup t3window_other libt3window contants and data types. */
+/** @defgroup t3window_term Terminal manipulation functions. */
+/** @defgroup t3window_other Contants and data types. */
 
 #ifdef __cplusplus
 extern "C" {

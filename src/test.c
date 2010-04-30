@@ -33,7 +33,7 @@ void callback(const T3CharData *c, int length) {
 }
 
 int main(int argc, char *argv[]) {
-	Window *low, *high;
+	T3Window *low, *high;
 
 	(void) argc;
 	(void) argv;
