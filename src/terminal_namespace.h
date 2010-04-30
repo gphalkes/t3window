@@ -52,6 +52,7 @@
 #define CharData T3CharData
 #define CHARDATA_TO_WIDTH T3_CHARDATA_TO_WIDTH
 #define CHAR_MASK T3_CHAR_MASK
+#define WINDOW_VERSION T3WINDOW_VERSION
 
 #ifndef ERR_SUCCESS
 #define ERR_SUCCESS T3_ERR_SUCCESS
@@ -89,4 +90,5 @@
 #define term_strwidth t3_term_strwidth
 #define term_unget_keychar t3_term_unget_keychar
 #define term_update t3_term_update
+#define window_get_version t3window_get_version
 #endif
