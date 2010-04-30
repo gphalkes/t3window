@@ -11,8 +11,21 @@ extern "C" {
 #endif
 
 #include <limits.h>
+
 /** @addtogroup t3window_other */
 /** @{ */
+/** The version of libt3window encoded as a single integer.
+
+    The least significant 8 bits represent the patch level.
+    The second 8 bits represent the minor version.
+    The third 8 bits represent the major version.
+
+    @internal
+    The value 0 is an invalid value which should be replaced by the script
+    that builds the release package.
+*/
+#define T3WINDOW_VERSION 0
+
 /** Boolean type that does not clash with C++ or C99 bool. */
 typedef enum {False, True} T3Bool;
 
