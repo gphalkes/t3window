@@ -1,3 +1,5 @@
+/** @file */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -18,14 +20,21 @@ static iconv_t output_iconv = (iconv_t) -1;
 
 static char *nfc_output;
 static size_t nfc_output_size;
-static char replacement_char = ' ';
+static char replacement_char = '?';
 
-Bool init_output_buffer(void) {
+/** @internal
+    @brief Initialize the output buffer used for accumulating output characters.
+*/
+T3Bool _t3_init_output_buffer(void) {
 	output_buffer_size = 160;
 	return (output_buffer = malloc(output_buffer_size)) != NULL;
 }
 
-Bool init_output_iconv(const char *encoding) {
+/** @internal
+    @brief Initialize the characterset conversion used for output.
+    @param encodig The encoding to convert to.
+*/
+T3Bool _t3_init_output_iconv(const char *encoding) {
 	if (output_iconv != (iconv_t) -1)
 		iconv_close(output_iconv);
 
@@ -37,11 +46,21 @@ Bool init_output_iconv(const char *encoding) {
 	return (output_iconv = iconv_open(encoding, "UTF-8")) != (iconv_t) -1;
 }
 
-Bool output_buffer_add(char c) {
+/** Add a charater to the output buffer.
+    @ingroup t3window_term
+    @param c The character to add.
+
+    The character passed as @p c is a single @c char, not a unicode codepoint. This function
+    should not be used outside the callback set with ::t3_term_set_user_callback.
+    @internal
+    Contrary to the previous comment for users of the library, this function is also
+    used from term_update.
+*/
+T3Bool t3_term_putc(char c) {
 	if (output_buffer_idx >= output_buffer_size) {
 		char *retval;
 
-		if (SIZE_MAX >> 1 > output_buffer_size)
+		if ((SIZE_MAX >> 1) > output_buffer_size)
 			output_buffer_size <<= 1;
 		retval = realloc(output_buffer, output_buffer_size);
 		if (retval == NULL)
@@ -52,7 +71,10 @@ Bool output_buffer_add(char c) {
 	return True;
 }
 
-void output_buffer_print(void) {
+/** @internal
+    @brief Print the characters in the output buffer.
+*/
+void _t3_output_buffer_print(void) {
 	size_t nfc_output_len;
 	if (output_buffer_idx == 0)
 		return;
@@ -122,6 +144,7 @@ void output_buffer_print(void) {
 }
 
 /** Determine if the terminal can draw a character.
+    @ingroup t3window_term
     @param str The UTF-8 string representing the character to be displayed.
     @param str_len The length of @a str.
     @return A @a DrawType indicating to what extent the terminal is able to draw
@@ -132,7 +155,7 @@ void output_buffer_print(void) {
     them. And even if the terminal supports combining characters they _may_ not
     be correctly rendered, depending on the combination of combining marks.
 */
-Bool term_can_draw(const char *str, size_t str_len) {
+T3Bool t3_term_can_draw(const char *str, size_t str_len) {
 	size_t idx, codepoint_len;
 	size_t nfc_output_len = tdu_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
 	uint32_t c;
@@ -182,6 +205,14 @@ Bool term_can_draw(const char *str, size_t str_len) {
 	}
 }
 
-void term_set_replacement_char(char c) {
+/** Set the replacement character used for undrawable characters.
+    @ingroup t3window_term
+    @param c The character to draw when an undrawable characters is encountered.
+
+    The default character is the question mark ('?'). The character must be an
+    ASCI character. For terminals capable of Unicode output the Replacement
+    Character is used (codepoint FFFD).
+*/
+void t3_term_set_replacement_char(char c) {
 	replacement_char = c;
 }

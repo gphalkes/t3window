@@ -3,13 +3,13 @@
 
 #include <stdio.h>
 
-FILE *_putp_file;
+FILE *_t3_putp_file;
 
-int call_setupterm(void);
-char *call_tigetstr(const char *name);
-int call_tigetnum(const char *name);
-int call_tigetflag(const char *name);
-void call_putp(const char *string);
-char *call_tparm(char *string, int nr_of_args, ...);
+int _t3_setupterm(void);
+char *_t3_tigetstr(const char *name);
+int _t3_tigetnum(const char *name);
+int _t3_tigetflag(const char *name);
+void _t3_putp(const char *string);
+char *_t3_tparm(char *string, int nr_of_args, ...);
 
 #endif

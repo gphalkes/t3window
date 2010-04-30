@@ -17,7 +17,7 @@ void fatal(const char *fmt, ...) {
 	va_list args;
 
 	if (inited)
-		term_restore();
+		t3_term_restore();
 
 	va_start(args, fmt);
 	vfprintf(stderr, fmt, args);
@@ -25,11 +25,11 @@ void fatal(const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-void callback(const CharData *c, int length) {
+void callback(const T3CharData *c, int length) {
 	int i;
-	term_set_attrs(ATTR_BLINK | ATTR_REVERSE);
+	t3_term_set_attrs(T3_ATTR_BLINK | T3_ATTR_REVERSE);
 	for (i = 0; i < length; i++)
-		putchar(c[i] & CHAR_MASK);
+		putchar(c[i] & T3_CHAR_MASK);
 }
 
 int main(int argc, char *argv[]) {
@@ -42,66 +42,66 @@ int main(int argc, char *argv[]) {
 	printf("Waiting for enter to allow debug\n");
 	getchar();
 
-	ASSERT(term_init(-1) == ERR_SUCCESS);
-	atexit(term_restore);
+	ASSERT(t3_term_init(-1) == T3_ERR_SUCCESS);
+	atexit(t3_term_restore);
 	inited = True;
 
-	ASSERT(low = win_new(10, 10, 0, 5, 10));
-	ASSERT(high = win_new(10, 10, 5, 10, 0));
-	win_show(low);
-	term_update();
+	ASSERT(low = t3_win_new(10, 10, 0, 5, 10));
+	ASSERT(high = t3_win_new(10, 10, 5, 10, 0));
+	t3_win_show(low);
+	t3_term_update();
 	getchar();
 
-	win_set_paint(low, 0, 0);
-	win_addstr(low, "0123456789-", 0);
-	win_set_paint(low, 6, 0);
-	win_addstr(low, "abＱc̃defghijk", 0);
-	term_update();
+	t3_win_set_paint(low, 0, 0);
+	t3_win_addstr(low, "0123456789-", 0);
+	t3_win_set_paint(low, 6, 0);
+	t3_win_addstr(low, "abＱc̃defghijk", 0);
+	t3_term_update();
 	getchar();
 
-	term_show_cursor();
-	win_set_cursor(low, 0, 0);
-/* 	win_show(high);
-	term_update();
+	t3_term_show_cursor();
+	t3_win_set_cursor(low, 0, 0);
+/* 	t3_win_show(high);
+	t3_term_update();
 	getchar();
  */
-	win_set_paint(high, 0, 0);
-	win_addstr(high, "ABCDEFGHIJK", 0);
-/* 	term_update();
+	t3_win_set_paint(high, 0, 0);
+	t3_win_addstr(high, "ABCDEFGHIJK", 0);
+/* 	t3_term_update();
 	getchar();
  */
-	win_set_paint(high, 1, 0);
-	win_addstr(high, "9876543210+", ATTR_REVERSE | ATTR_FG_RED);
-	win_set_paint(high, 2, 0);
-	win_addstr(high, "wutvlkmjqx", ATTR_ACS);
+	t3_win_set_paint(high, 1, 0);
+	t3_win_addstr(high, "9876543210+", T3_ATTR_REVERSE | T3_ATTR_FG_RED);
+	t3_win_set_paint(high, 2, 0);
+	t3_win_addstr(high, "wutvlkmjqx", T3_ATTR_ACS);
 
-	term_set_user_callback(callback);
-	win_set_paint(high, 3, 0);
-	win_addstr(high, "f", ATTR_USER1);
-/* 	term_update();
+	t3_term_set_user_callback(callback);
+	t3_win_set_paint(high, 3, 0);
+	t3_win_addstr(high, "f", T3_ATTR_USER);
+/* 	t3_term_update();
 	getchar();
 
-	win_hide(high);
-	term_update();
+	t3_win_hide(high);
+	t3_term_update();
 	getchar();
  */
-	win_move(high, 5, 0);
-	win_resize(high, 10, 8);
-	win_show(high);
-	term_update();
+	t3_win_move(high, 5, 0);
+	t3_win_resize(high, 10, 8);
+	t3_win_show(high);
+	t3_term_update();
 	getchar();
 
-	win_hide(high);
-	term_update();
+	t3_win_hide(high);
+	t3_term_update();
 	getchar();
 
-	win_box(low, 0, 0, 10, 10, ATTR_REVERSE);
-	term_update();
+	t3_win_box(low, 0, 0, 10, 10, T3_ATTR_REVERSE);
+	t3_term_update();
 	getchar();
 
-	win_hide(low);
-	win_show(high);
-	term_update();
+	t3_win_hide(low);
+	t3_win_show(high);
+	t3_term_update();
 	getchar();
 
 	return 0;

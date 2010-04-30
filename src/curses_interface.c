@@ -1,3 +1,5 @@
+/** @file */
+
 #include <curses.h>
 #include <term.h>
 #include <stdarg.h>
@@ -6,38 +8,38 @@
 
 #include "curses_interface.h"
 
-FILE *_putp_file;
+FILE *_t3_putp_file; /**< @c FILE struct corresponding to the terminal. Used for tputs in ::_t3_putp. */
 
-int call_setupterm(void) {
+int _t3_setupterm(void) {
 	int error;
 	if (setupterm(NULL, 1, &error) != OK)
 		return error + 2;
 	return 0;
 }
 
-char *call_tigetstr(const char *name) {
+char *_t3_tigetstr(const char *name) {
 	return tigetstr(name);
 }
 
-int call_tigetnum(const char *name) {
+int _t3_tigetnum(const char *name) {
 	return tigetnum(name);
 }
 
-int call_tigetflag(const char *name) {
+int _t3_tigetflag(const char *name) {
 	return tigetflag(name);
 }
 
 static int writechar(int c) {
-	return fputc(c, _putp_file);
+	return fputc(c, _t3_putp_file);
 }
 
-void call_putp(const char *string) {
+void _t3_putp(const char *string) {
 	if (string == NULL)
 		return;
 	tputs(string, 1, writechar);
 }
 
-char *call_tparm(char *string, int nr_of_args, ...) {
+char *_t3_tparm(char *string, int nr_of_args, ...) {
 	int args[9], i;
 	va_list arglist;
 

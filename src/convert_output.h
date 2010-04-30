@@ -1,11 +1,10 @@
-#ifndef CONVERT_OUTPUT_H
-#define CONVERT_OUTPUT_H
+#ifndef T3_CONVERT_OUTPUT_H
+#define T3_CONVERT_OUTPUT_H
 
 #include "terminal.h"
 
-Bool init_output_buffer(void);
-Bool init_output_iconv(const char *encoding);
-Bool output_buffer_add(char c);
-void output_buffer_print(void);
+T3Bool _t3_init_output_buffer(void);
+T3Bool _t3_init_output_iconv(const char *encoding);
+void _t3_output_buffer_print(void);
 
 #endif

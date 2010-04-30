@@ -1,131 +1,206 @@
-#ifndef TERMINAL_H
-#define TERMINAL_H
+#ifndef T3_TERMINAL_H
+#define T3_TERMINAL_H
 
 /** @file */
+
+/** @defgroup t3window_term libt3window terminal manipulation functions. */
+/** @defgroup t3window_other libt3window contants and data types. */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <limits.h>
-
+/** @addtogroup t3window_other */
+/** @{ */
 /** Boolean type that does not clash with C++ or C99 bool. */
-typedef enum {False, True} Bool;
+typedef enum {False, True} T3Bool;
 
-/** @typedef CharData
+/** @typedef T3CharData
     @brief Type to hold data about a single @c char, with attributes used for terminal display.
 */
 #if INT_MAX < 2147483647L
-typedef long CharData;
+typedef long T3CharData;
 #else
-typedef int CharData;
+typedef int T3CharData;
 #endif
 
 /** User callback type.
-    The user callback is passed a pointer to the CharData that is marked with ATTR_USER1,
-    and the length of the string (in CharData units, not display cells!).
+    The user callback is passed a pointer to the T3CharData that is marked with
+    ::T3_ATTR_USER, and the length of the string (in T3CharData units, not display cells!).
 */
-typedef void (*TermUserCallback)(const CharData *c, int length);
+typedef void (*T3AttrUserCallback)(const T3CharData *c, int length);
 
-#define _ATTR_SHIFT (CHAR_BIT + 2)
+/** Bit number of the least significant attribute bit.
 
-#define ATTR_UNDERLINE (1 << _ATTR_SHIFT)
-#define ATTR_BOLD (1 << (_ATTR_SHIFT + 1))
-#define ATTR_REVERSE (1 << (_ATTR_SHIFT + 2))
-#define ATTR_BLINK (1 << (_ATTR_SHIFT + 3))
-#define ATTR_DIM (1 << (_ATTR_SHIFT + 4))
-#define ATTR_ACS (1<< (_ATTR_SHIFT + 5))
-#define ATTR_USER1 (1 << (_ATTR_SHIFT + 6))
+    By shifting a ::T3CharData value to the right by T3_ATTR_SHIFT, the attributes
+    will be in the least significant bits. This will leave ::T3_ATTR_USER in the
+    least significant bit. This allows using the attribute bits as a number instead
+    of a bitmask.
+*/
+#define T3_ATTR_SHIFT (CHAR_BIT + 2)
+/** Bit number of the least significant color attribute bit. */
+#define T3_ATTR_COLOR_SHIFT (T3_ATTR_SHIFT + 8)
+/** Get the width in character cells encoded in a ::T3CharData value. */
+#define T3_CHARDATA_TO_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
 
-#define _ATTR_COLOR_SHIFT (_ATTR_SHIFT + 8)
+/** Bitmask to leave only the attributes in a ::T3CharData value. */
+#define T3_ATTR_MASK (~((1 << T3_ATTR_SHIFT) - 1))
+/** Bitmask to leave only the character in a ::T3CharData value. */
+#define T3_CHAR_MASK ((1 << CHAR_BIT) - 1)
 
-#define ATTR_MASK (~((1 << _ATTR_SHIFT) - 1))
-#define ATTR_USER_MASK (ATTR_USER1)
-#define CHAR_MASK ((1 << CHAR_BIT) - 1)
+/** @name Attributes */
+/*@{*/
+/** Use callback for drawing the characters.
 
-#define ATTR_FG_UNSPEC 0
-#define ATTR_FG_BLACK (1 << _ATTR_COLOR_SHIFT)
-#define ATTR_FG_RED (2 << _ATTR_COLOR_SHIFT)
-#define ATTR_FG_GREEN (3 << _ATTR_COLOR_SHIFT)
-#define ATTR_FG_YELLOW (4 << _ATTR_COLOR_SHIFT)
-#define ATTR_FG_BLUE (5 << _ATTR_COLOR_SHIFT)
-#define ATTR_FG_MAGENTA (6 << _ATTR_COLOR_SHIFT)
-#define ATTR_FG_CYAN (7 << _ATTR_COLOR_SHIFT)
-#define ATTR_FG_WHITE (8 << _ATTR_COLOR_SHIFT)
-#define ATTR_FG_DEFAULT (9 << _ATTR_COLOR_SHIFT)
+    When T3_ATTR_USER is set all other attribute bits are ignored. These can be used by
+    the callback to determine the drawing style. The callback is set with ::t3_term_set_callback.
+	Note that the callback is responsible for outputing the characters as well (using ::t3_term_putc).
+*/
+#define T3_ATTR_USER (1 << T3_ATTR_SHIFT)
+/** Draw characters with underlining. */
+#define T3_ATTR_UNDERLINE (1 << (T3_ATTR_SHIFT + 1))
+/** Draw characters with bold face/bright appearance. */
+#define T3_ATTR_BOLD (1 << (T3_ATTR_SHIFT + 2))
+/** Draw characters with reverse video. */
+#define T3_ATTR_REVERSE (1 << (T3_ATTR_SHIFT + 3))
+/** Draw characters blinking. */
+#define T3_ATTR_BLINK (1 << (T3_ATTR_SHIFT + 4))
+/** Draw characters with dim appearance. */
+#define T3_ATTR_DIM (1 << (T3_ATTR_SHIFT + 5))
+/** Draw characters with alternate character set (for line drawing etc.). */
+#define T3_ATTR_ACS (1<< (T3_ATTR_SHIFT + 6))
 
-#define ATTR_BG_UNSPEC 0
-#define ATTR_BG_BLACK (1 << (_ATTR_COLOR_SHIFT + 4))
-#define ATTR_BG_RED (2 << (_ATTR_COLOR_SHIFT + 4))
-#define ATTR_BG_GREEN (3 << (_ATTR_COLOR_SHIFT + 4))
-#define ATTR_BG_YELLOW (4 << (_ATTR_COLOR_SHIFT + 4))
-#define ATTR_BG_BLUE (5 << (_ATTR_COLOR_SHIFT + 4))
-#define ATTR_BG_MAGENTA (6 << (_ATTR_COLOR_SHIFT + 4))
-#define ATTR_BG_CYAN (7 << (_ATTR_COLOR_SHIFT + 4))
-#define ATTR_BG_WHITE (8 << (_ATTR_COLOR_SHIFT + 4))
-#define ATTR_BG_DEFAULT (9 << (_ATTR_COLOR_SHIFT + 4))
+/** Foreground color unspecified. */
+#define T3_ATTR_FG_UNSPEC 0
+/** Foreground color black. */
+#define T3_ATTR_FG_BLACK (1 << T3_ATTR_COLOR_SHIFT)
+/** Foreground color red. */
+#define T3_ATTR_FG_RED (2 << T3_ATTR_COLOR_SHIFT)
+/** Foreground color green. */
+#define T3_ATTR_FG_GREEN (3 << T3_ATTR_COLOR_SHIFT)
+/** Foreground color yellow. */
+#define T3_ATTR_FG_YELLOW (4 << T3_ATTR_COLOR_SHIFT)
+/** Foreground color blue. */
+#define T3_ATTR_FG_BLUE (5 << T3_ATTR_COLOR_SHIFT)
+/** Foreground color magenta. */
+#define T3_ATTR_FG_MAGENTA (6 << T3_ATTR_COLOR_SHIFT)
+/** Foreground color cyan. */
+#define T3_ATTR_FG_CYAN (7 << T3_ATTR_COLOR_SHIFT)
+/** Foreground color white. */
+#define T3_ATTR_FG_WHITE (8 << T3_ATTR_COLOR_SHIFT)
+/** Foreground color default. */
+#define T3_ATTR_FG_DEFAULT (9 << T3_ATTR_COLOR_SHIFT)
+
+/** Background color unspecified. */
+#define T3_ATTR_BG_UNSPEC 0
+/** Background color black. */
+#define T3_ATTR_BG_BLACK (1 << (T3_ATTR_COLOR_SHIFT + 4))
+/** Background color red. */
+#define T3_ATTR_BG_RED (2 << (T3_ATTR_COLOR_SHIFT + 4))
+/** Background color green. */
+#define T3_ATTR_BG_GREEN (3 << (T3_ATTR_COLOR_SHIFT + 4))
+/** Background color yellow. */
+#define T3_ATTR_BG_YELLOW (4 << (T3_ATTR_COLOR_SHIFT + 4))
+/** Background color blue. */
+#define T3_ATTR_BG_BLUE (5 << (T3_ATTR_COLOR_SHIFT + 4))
+/** Background color magenta. */
+#define T3_ATTR_BG_MAGENTA (6 << (T3_ATTR_COLOR_SHIFT + 4))
+/** Background color cyan. */
+#define T3_ATTR_BG_CYAN (7 << (T3_ATTR_COLOR_SHIFT + 4))
+/** Background color white. */
+#define T3_ATTR_BG_WHITE (8 << (T3_ATTR_COLOR_SHIFT + 4))
+/** Background color default. */
+#define T3_ATTR_BG_DEFAULT (9 << (T3_ATTR_COLOR_SHIFT + 4))
+/*@}*/
 
 /** Alternate character set symbolic constants. */
 enum TermAcsConstants {
-	TERM_TTEE = 'w', /**< Tee pointing down. */
-	TERM_RTEE = 'u', /**< Tee pointing left. */
-	TERM_LTEE = 't', /**< Tee pointing right. */
-	TERM_BTEE = 'v', /**< Tee pointing up. */
-	TERM_ULCORNER = 'l', /**< Upper left corner. */
-	TERM_URCORNER = 'k', /**< Upper right corner. */
-	TERM_LLCORNER = 'm', /**< Lower left corner. */
-	TERM_LRCORNER = 'j', /**< Lower right corner. */
-	TERM_HLINE = 'q', /**< Horizontal line. */
-	TERM_VLINE = 'x', /**< Vertical line. */
-	TERM_UARROW = '-', /**< Arrow pointing up. */
-	TERM_DARROW = '.', /**< Arrow pointing down. */
-	TERM_LARROW = ',', /**< Arrow pointing left. */
-	TERM_RARROW = '+', /**< Arrow pointing right. */
-	TERM_BOARD = 'h', /**< Board of squares. */
-	TERM_CKBOARD = 'a' /**< Checker board pattern (stipple). */
+	T3_ACS_TTEE = 'w', /**< Tee pointing down. */
+	T3_ACS_RTEE = 'u', /**< Tee pointing left. */
+	T3_ACS_LTEE = 't', /**< Tee pointing right. */
+	T3_ACS_BTEE = 'v', /**< Tee pointing up. */
+	T3_ACS_ULCORNER = 'l', /**< Upper left corner. */
+	T3_ACS_URCORNER = 'k', /**< Upper right corner. */
+	T3_ACS_LLCORNER = 'm', /**< Lower left corner. */
+	T3_ACS_LRCORNER = 'j', /**< Lower right corner. */
+	T3_ACS_HLINE = 'q', /**< Horizontal line. */
+	T3_ACS_VLINE = 'x', /**< Vertical line. */
+	T3_ACS_UARROW = '-', /**< Arrow pointing up. */
+	T3_ACS_DARROW = '.', /**< Arrow pointing down. */
+	T3_ACS_LARROW = ',', /**< Arrow pointing left. */
+	T3_ACS_RARROW = '+', /**< Arrow pointing right. */
+	T3_ACS_BOARD = 'h', /**< Board of squares. */
+	T3_ACS_CKBOARD = 'a' /**< Checker board pattern (stipple). */
 };
 
-/** Error return values for ::term_init and ::term_get_keychar. */
-enum TermError {
-	ERR_SUCCESS,
-	/* Use large negative value, such that we don't have to number each and
-	   every value. */
-	ERR_TERMINFODB_NOT_FOUND = -128,
-	ERR_HARDCOPY_TERMINAL,
-	ERR_NOT_A_TTY,
-	ERR_ERRNO,
-	ERR_TIMEOUT,
-	ERR_EOF,
-	ERR_UNKNOWN,
-	ERR_TERMINAL_TOO_LIMITED,
-	ERR_NO_SIZE_INFO,
-	ERR_BAD_ARG,
-	ERR_NONPRINT
-};
+/** @name Error codes (T3 generic) */
+/*@{*/
+#ifndef T3_ERR_SUCCESS
+/** Error code: success */
+#define T3_ERR_SUCCESS 0
+/** Error code: see @c errno. */
+/* Use large negative value, such that we don't have to number each and
+   every value. */
+#define T3_ERR_ERRNO (-128)
+/** Error code: end of file reached. */
+#define T3_ERR_EOF (-127)
+/** Error code: unkown error. */
+#define T3_ERR_UNKNOWN (-126)
+/** Error code: bad argument. */
+#define T3_ERR_BAD_ARG (-125)
+#endif
+/*@}*/
 
-int term_init(int fd);
-void term_restore(void);
-int term_get_keychar(int msec);
-void term_set_cursor(int y, int x);
-void term_hide_cursor(void);
-void term_show_cursor(void);
-void term_get_size(int *height, int *width);
-Bool term_resize(void);
-void term_update(void);
-void term_redraw(void);
-void term_set_attrs(CharData new_attrs);
-void term_set_user_callback(TermUserCallback callback);
-int term_get_keychar(int msec);
-int term_unget_keychar(int c);
-void term_putp(const char *str);
-Bool term_acs_available(int idx);
+/** @name Error codes (libt3window specific) */
+/*@{*/
+/** Error code: no information found for the terminal in the terminfo database. */
+#define T3_ERR_TERMINFODB_NOT_FOUND (-64)
+/** Error code: the file descriptor is a hard-copy terminal. */
+#define T3_ERR_HARDCOPY_TERMINAL (-63)
+/** Error code: the file descriptor is not a terminal. */
+#define T3_ERR_NOT_A_TTY (-62)
+/** Error code: a timeout occured. */
+#define T3_ERR_TIMEOUT (-61)
+/** Error code: terminal provides too limited possibilities for the library to function. */
+#define T3_ERR_TERMINAL_TOO_LIMITED (-60)
+/** Error code: could not retrieve information about the size of the terminal window. */
+#define T3_ERR_NO_SIZE_INFO (-59)
+/** Error code: input contains non-printable characters. */
+#define T3_ERR_NONPRINT (-58)
+/*@}*/
 
-CharData term_combine_attrs(CharData a, CharData b);
+/** @} */
 
-int term_strwidth(const char *str);
+int t3_term_init(int fd);
+void t3_term_restore(void);
+int t3_term_get_keychar(int msec);
+void t3_term_set_cursor(int y, int x);
+void t3_term_hide_cursor(void);
+void t3_term_show_cursor(void);
+void t3_term_get_size(int *height, int *width);
+T3Bool t3_term_resize(void);
+void t3_term_update(void);
+void t3_term_redraw(void);
+void t3_term_set_attrs(T3CharData new_attrs);
+void t3_term_set_user_callback(T3AttrUserCallback callback);
+int t3_term_get_keychar(int msec);
+int t3_term_unget_keychar(int c);
+void t3_term_putp(const char *str);
+T3Bool t3_term_acs_available(int idx);
 
-Bool term_can_draw(const char *str, size_t str_len);
-void term_set_replacement_char(char c);
+T3CharData t3_term_combine_attrs(T3CharData a, T3CharData b);
+
+int t3_term_strwidth(const char *str);
+
+/** These are implemented in convert_output.c */
+T3Bool t3_term_can_draw(const char *str, size_t str_len);
+void t3_term_set_replacement_char(char c);
+T3Bool t3_term_putc(char c);
+
+#ifdef USING_NAMESPACE_T3
+#include "terminal_namespace.h"
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

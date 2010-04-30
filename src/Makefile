@@ -26,7 +26,10 @@ CFILES.test:= test.c
 LDFLAGS.test:= -L.
 LDLIBS.test:=-lwindow
 
-TARGETS:= libwindow.so #test
+LD_LIBRARY_PATH:=unicode
+export LD_LIBRARY_PATH
+
+TARGETS:= libwindow.so test terminal_namespace.h window_namespace.h
 #===========================================================================
 .PHONY: all clean
 
@@ -80,3 +83,9 @@ clean:
 -include $(DEPENDENCIES)
 #===========================================================================
 test: libwindow.so
+
+%_namespace.h: %.h
+	GUARD=`echo $@ | tr [[:lower:]]. [[:upper:]]_`; { \
+		echo "#ifndef $$GUARD\n#define $$GUARD" ; \
+		egrep -o '\<[tT]3[a-zA-Z0-9_]+' $< | sort | uniq | sed -r 's/([tT]3_?(.*))/#define \2 \1/' ; \
+		} > $@
