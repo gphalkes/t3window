@@ -714,7 +714,7 @@ int t3_win_addchrep(t3_window_t *win, char c, t3_chardata_t attr, int rep) { ret
     @param line The line to redraw.
     @return A boolean indicating whether redrawing succeeded without memory errors.
 */
-t3_bool _win_refresh_term_line(t3_window_t *terminal, int line) {
+t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	line_data_t *draw;
 	t3_window_t *ptr;
 	int y;

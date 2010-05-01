@@ -894,7 +894,7 @@ void t3_term_update(void) {
 	for (i = 0; i < lines; i++) {
 		int new_idx, old_idx = terminal_window->lines[i].length, width = 0;
 		SWAP_LINES(old_data, terminal_window->lines[i]);
-		_win_refresh_term_line(terminal_window, i);
+		_t3_win_refresh_term_line(terminal_window, i);
 
 		new_idx = terminal_window->lines[i].length;
 

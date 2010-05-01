@@ -37,7 +37,7 @@ struct t3_window_t {
 	t3_window_t *prev;
 };
 
-t3_bool _win_refresh_term_line(struct t3_window_t *terminal, int line);
+t3_bool _t3_win_refresh_term_line(struct t3_window_t *terminal, int line);
 int _t3_term_get_default_acs(int idx);
 
 #endif
