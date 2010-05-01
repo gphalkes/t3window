@@ -13,31 +13,31 @@
 #define INITIAL_ALLOC 80
 
 typedef struct {
-	T3CharData *data; /* Data bytes. */
-	int start; /* Offset of data bytes in screen cells from the edge of the T3Window. */
+	t3_chardata_t *data; /* Data bytes. */
+	int start; /* Offset of data bytes in screen cells from the edge of the t3_window_t. */
 	int width; /* Width in cells of the the data. */
-	int length; /* Length in T3CharData units of the data. */
-	int allocated; /* Allocated number of T3CharData units. */
+	int length; /* Length in t3_chardata_t units of the data. */
+	int allocated; /* Allocated number of t3_chardata_t units. */
 } LineData;
 
-struct T3Window {
-	int x, y; /* X and Y coordinates of the T3Window. These may be relative to parent, depending on relation. */
+struct t3_window_t {
+	int x, y; /* X and Y coordinates of the t3_window_t. These may be relative to parent, depending on relation. */
 	int paint_x, paint_y; /* Drawing cursor */
-	int width, height; /* Height and width of the T3Window */
+	int width, height; /* Height and width of the t3_window_t */
 	int depth; /* Depth in stack. Higher values are deeper and thus obscured by Windows with lower depth. */
-	int relation; /* Relation of this T3Window to parent. See window.h for values. */
-	T3CharData default_attrs; /* Default attributes to be combined with drawing attributes.
+	int relation; /* Relation of this t3_window_t to parent. See window.h for values. */
+	t3_chardata_t default_attrs; /* Default attributes to be combined with drawing attributes.
 	                           Mostly useful for background specification. */
-	T3Bool shown; /* Indicates whether this T3Window is visible. */
-	LineData *lines; /* The contents of the T3Window. */
-	T3Window *parent; /* T3Window for relative placment. */
+	t3_bool shown; /* Indicates whether this t3_window_t is visible. */
+	LineData *lines; /* The contents of the t3_window_t. */
+	t3_window_t *parent; /* t3_window_t for relative placment. */
 
 	/* Pointers for linking into depth sorted list. */
-	T3Window *next;
-	T3Window *prev;
+	t3_window_t *next;
+	t3_window_t *prev;
 };
 
-T3Bool _win_refresh_term_line(struct T3Window *terminal, int line);
+t3_bool _win_refresh_term_line(struct t3_window_t *terminal, int line);
 int _t3_term_get_default_acs(int idx);
 
 #endif

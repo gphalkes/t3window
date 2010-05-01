@@ -4,7 +4,7 @@
 /** @file */
 
 /** @defgroup t3window_term Terminal manipulation functions. */
-/** @defgroup t3window_other Contants and data types. */
+/** @defgroup t3window_other Contants, data types and miscellaneous functions. */
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,42 +14,47 @@ extern "C" {
 
 /** @addtogroup t3window_other */
 /** @{ */
+/** @name Version information */
+/*@{*/
 /** The version of libt3window encoded as a single integer.
 
     The least significant 8 bits represent the patch level.
     The second 8 bits represent the minor version.
     The third 8 bits represent the major version.
 
-	At runtime, the value of T3WINDOW_VERSION can be retrieved by calling
-	::t3window_get_version.
+	At runtime, the value of T3_WINDOW_VERSION can be retrieved by calling
+	::t3_window_get_version.
 
     @internal
     The value 0 is an invalid value which should be replaced by the script
     that builds the release package.
 */
-#define T3WINDOW_VERSION 0
+#define T3_WINDOW_VERSION 0
+
+long t3_window_get_version(void);
+/*@}*/
 
 /** Boolean type that does not clash with C++ or C99 bool. */
-typedef enum {False, True} T3Bool;
+typedef enum {False, True} t3_bool;
 
-/** @typedef T3CharData
+/** @typedef t3_chardata_t
     @brief Type to hold data about a single @c char, with attributes used for terminal display.
 */
 #if INT_MAX < 2147483647L
-typedef long T3CharData;
+typedef long t3_chardata_t;
 #else
-typedef int T3CharData;
+typedef int t3_chardata_t;
 #endif
 
 /** User callback type.
-    The user callback is passed a pointer to the T3CharData that is marked with
-    ::T3_ATTR_USER, and the length of the string (in T3CharData units, not display cells!).
+    The user callback is passed a pointer to the t3_chardata_t that is marked with
+    ::T3_ATTR_USER, and the length of the string (in t3_chardata_t units, not display cells!).
 */
-typedef void (*T3AttrUserCallback)(const T3CharData *c, int length);
+typedef void (*t3_attr_user_callback_t)(const t3_chardata_t *c, int length);
 
 /** Bit number of the least significant attribute bit.
 
-    By shifting a ::T3CharData value to the right by T3_ATTR_SHIFT, the attributes
+    By shifting a ::t3_chardata_t value to the right by T3_ATTR_SHIFT, the attributes
     will be in the least significant bits. This will leave ::T3_ATTR_USER in the
     least significant bit. This allows using the attribute bits as a number instead
     of a bitmask.
@@ -57,12 +62,12 @@ typedef void (*T3AttrUserCallback)(const T3CharData *c, int length);
 #define T3_ATTR_SHIFT (CHAR_BIT + 2)
 /** Bit number of the least significant color attribute bit. */
 #define T3_ATTR_COLOR_SHIFT (T3_ATTR_SHIFT + 8)
-/** Get the width in character cells encoded in a ::T3CharData value. */
+/** Get the width in character cells encoded in a ::t3_chardata_t value. */
 #define T3_CHARDATA_TO_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
 
-/** Bitmask to leave only the attributes in a ::T3CharData value. */
+/** Bitmask to leave only the attributes in a ::t3_chardata_t value. */
 #define T3_ATTR_MASK (~((1 << T3_ATTR_SHIFT) - 1))
-/** Bitmask to leave only the character in a ::T3CharData value. */
+/** Bitmask to leave only the character in a ::t3_chardata_t value. */
 #define T3_CHAR_MASK ((1 << CHAR_BIT) - 1)
 
 /** @name Attributes */
@@ -195,30 +200,24 @@ void t3_term_set_cursor(int y, int x);
 void t3_term_hide_cursor(void);
 void t3_term_show_cursor(void);
 void t3_term_get_size(int *height, int *width);
-T3Bool t3_term_resize(void);
+t3_bool t3_term_resize(void);
 void t3_term_update(void);
 void t3_term_redraw(void);
-void t3_term_set_attrs(T3CharData new_attrs);
-void t3_term_set_user_callback(T3AttrUserCallback callback);
+void t3_term_set_attrs(t3_chardata_t new_attrs);
+void t3_term_set_user_callback(t3_attr_user_callback_t callback);
 int t3_term_get_keychar(int msec);
 int t3_term_unget_keychar(int c);
 void t3_term_putp(const char *str);
-T3Bool t3_term_acs_available(int idx);
+t3_bool t3_term_acs_available(int idx);
 
-T3CharData t3_term_combine_attrs(T3CharData a, T3CharData b);
+t3_chardata_t t3_term_combine_attrs(t3_chardata_t a, t3_chardata_t b);
 
 int t3_term_strwidth(const char *str);
 
 /** These are implemented in convert_output.c */
-T3Bool t3_term_can_draw(const char *str, size_t str_len);
+t3_bool t3_term_can_draw(const char *str, size_t str_len);
 void t3_term_set_replacement_char(char c);
-T3Bool t3_term_putc(char c);
-
-long t3window_get_version(void);
-
-#ifdef USING_NAMESPACE_T3
-#include "terminal_namespace.h"
-#endif
+t3_bool t3_term_putc(char c);
 
 #ifdef __cplusplus
 } /* extern "C" */

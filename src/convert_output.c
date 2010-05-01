@@ -25,7 +25,7 @@ static char replacement_char = '?';
 /** @internal
     @brief Initialize the output buffer used for accumulating output characters.
 */
-T3Bool _t3_init_output_buffer(void) {
+t3_bool _t3_init_output_buffer(void) {
 	output_buffer_size = 160;
 	return (output_buffer = malloc(output_buffer_size)) != NULL;
 }
@@ -34,7 +34,7 @@ T3Bool _t3_init_output_buffer(void) {
     @brief Initialize the characterset conversion used for output.
     @param encodig The encoding to convert to.
 */
-T3Bool _t3_init_output_iconv(const char *encoding) {
+t3_bool _t3_init_output_iconv(const char *encoding) {
 	if (output_iconv != (iconv_t) -1)
 		iconv_close(output_iconv);
 
@@ -56,7 +56,7 @@ T3Bool _t3_init_output_iconv(const char *encoding) {
     Contrary to the previous comment for users of the library, this function is also
     used from term_update.
 */
-T3Bool t3_term_putc(char c) {
+t3_bool t3_term_putc(char c) {
 	if (output_buffer_idx >= output_buffer_size) {
 		char *retval;
 
@@ -155,7 +155,7 @@ void _t3_output_buffer_print(void) {
     them. And even if the terminal supports combining characters they _may_ not
     be correctly rendered, depending on the combination of combining marks.
 */
-T3Bool t3_term_can_draw(const char *str, size_t str_len) {
+t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 	size_t idx, codepoint_len;
 	size_t nfc_output_len = tdu_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
 	uint32_t c;

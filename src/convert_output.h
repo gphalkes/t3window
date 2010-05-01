@@ -3,8 +3,8 @@
 
 #include "terminal.h"
 
-T3Bool _t3_init_output_buffer(void);
-T3Bool _t3_init_output_iconv(const char *encoding);
+t3_bool _t3_init_output_buffer(void);
+t3_bool _t3_init_output_iconv(const char *encoding);
 void _t3_output_buffer_print(void);
 
 #endif

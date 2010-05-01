@@ -36,43 +36,39 @@ enum WinAnchor {
 /** An opaque struct representing a window which can be shown on the terminal.
     @ingroup t3window_other
 */
-typedef struct T3Window T3Window;
+typedef struct t3_window_t t3_window_t;
 
-T3Window *t3_win_new(int height, int width, int y, int x, int depth);
-T3Window *t3_win_new_relative(int height, int width, int y, int x, int depth, T3Window *parent, int relation);
-void t3_win_del(T3Window *win);
+t3_window_t *t3_win_new(int height, int width, int y, int x, int depth);
+t3_window_t *t3_win_new_relative(int height, int width, int y, int x, int depth, t3_window_t *parent, int relation);
+void t3_win_del(t3_window_t *win);
 
-void t3_win_set_default_attrs(T3Window *win, T3CharData attr);
+void t3_win_set_default_attrs(t3_window_t *win, t3_chardata_t attr);
 
-T3Bool t3_win_resize(T3Window *win, int height, int width);
-void t3_win_move(T3Window *win, int y, int x);
-int t3_win_get_width(T3Window *win);
-int t3_win_get_height(T3Window *win);
-int t3_win_get_x(T3Window *win);
-int t3_win_get_y(T3Window *win);
-int t3_win_get_depth(T3Window *win);
-int t3_win_get_relation(T3Window *win, T3Window **parent);
-void t3_win_set_cursor(T3Window *win, int y, int x);
-void t3_win_set_paint(T3Window *win, int y, int x);
-void t3_win_show(T3Window *win);
-void t3_win_hide(T3Window *win);
+t3_bool t3_win_resize(t3_window_t *win, int height, int width);
+void t3_win_move(t3_window_t *win, int y, int x);
+int t3_win_get_width(t3_window_t *win);
+int t3_win_get_height(t3_window_t *win);
+int t3_win_get_x(t3_window_t *win);
+int t3_win_get_y(t3_window_t *win);
+int t3_win_get_depth(t3_window_t *win);
+int t3_win_get_relation(t3_window_t *win, t3_window_t **parent);
+void t3_win_set_cursor(t3_window_t *win, int y, int x);
+void t3_win_set_paint(t3_window_t *win, int y, int x);
+void t3_win_show(t3_window_t *win);
+void t3_win_hide(t3_window_t *win);
 
-int t3_win_addnstr(T3Window *win, const char *str, size_t n, T3CharData attr);
-int t3_win_addstr(T3Window *win, const char *str, T3CharData attr);
-int t3_win_addch(T3Window *win, char c, T3CharData attr);
+int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_chardata_t attr);
+int t3_win_addstr(t3_window_t *win, const char *str, t3_chardata_t attr);
+int t3_win_addch(t3_window_t *win, char c, t3_chardata_t attr);
 
-int t3_win_addnstrrep(T3Window *win, const char *str, size_t n, T3CharData attr, int rep);
-int t3_win_addstrrep(T3Window *win, const char *str, T3CharData attr, int rep);
-int t3_win_addchrep(T3Window *win, char c, T3CharData attr, int rep);
+int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_chardata_t attr, int rep);
+int t3_win_addstrrep(t3_window_t *win, const char *str, t3_chardata_t attr, int rep);
+int t3_win_addchrep(t3_window_t *win, char c, t3_chardata_t attr, int rep);
 
-int t3_win_box(T3Window *win, int y, int x, int height, int width, T3CharData attr);
+int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_chardata_t attr);
 
-void t3_win_clrtoeol(T3Window *win);
-void t3_win_clrtobot(T3Window *win);
-
-#ifdef USING_NAMESPACE_T3
-#include "window_namespace.h"
-#endif
+void t3_win_clrtoeol(t3_window_t *win);
+void t3_win_clrtobot(t3_window_t *win);
 
 #ifdef __cplusplus
 } /* extern "C" */

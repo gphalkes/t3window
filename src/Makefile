@@ -24,7 +24,7 @@ LDLIBS.libt3window.so:= -lncurses -ltdunicode
 
 CFILES.test:= test.c
 LDFLAGS.test:= -L.
-LDLIBS.test:=-lwindow
+LDLIBS.test:=-lt3window
 
 LD_LIBRARY_PATH:=unicode
 export LD_LIBRARY_PATH
@@ -82,4 +82,4 @@ clean:
 
 -include $(DEPENDENCIES)
 #===========================================================================
-test: libwindow.so
+test: libt3window.so

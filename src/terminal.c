@@ -53,7 +53,7 @@ TODO list:
 #define SWAP_LINES(a, b) do { LineData save; save = (a); (a) = (b); (b) = save; } while (0)
 
 static struct termios saved; /**< Terminal state as saved in ::t3_term_init */
-static T3Bool initialised, /**< Boolean indicating whether the terminal has been initialised. */
+static t3_bool initialised, /**< Boolean indicating whether the terminal has been initialised. */
 	seqs_initialised; /**< Boolean indicating whether the terminal control sequences have been initialised. */
 static fd_set inset; /**< File-descriptor set used for select in ::t3_term_get_keychar. */
 
@@ -88,28 +88,28 @@ static char *smcup, /**< Terminal control string: start cursor positioning mode.
 	*setf, /**< Terminal control string: set foreground color. */
 	*setb, /**< Terminal control string: set background color. */
 	*el; /**< Terminal control string: clear to end of line. */
-static T3CharData ncv; /**< Terminal info: Non-color video attributes (encoded in T3CharData). */
-static T3Bool bce; /**< Terminal info: screen erased with background color. */
+static t3_chardata_t ncv; /**< Terminal info: Non-color video attributes (encoded in t3_chardata_t). */
+static t3_bool bce; /**< Terminal info: screen erased with background color. */
 
-static T3Window *terminal_window; /**< T3Window struct representing the last drawn terminal state. */
+static t3_window_t *terminal_window; /**< t3_window_t struct representing the last drawn terminal state. */
 static LineData old_data; /**< LineData struct used in terminal update to save previous line state. */
 
 static int lines, /**< Size of terminal (lines). */
 	columns, /**< Size of terminal (columns). */
 	cursor_y, /**< Cursor position (y coordinate). */
 	cursor_x; /**< Cursor position (x coordinate). */
-static T3Bool show_cursor = True; /**< Boolean indicating whether the cursor is visible currently. */
+static t3_bool show_cursor = True; /**< Boolean indicating whether the cursor is visible currently. */
 
 /** Conversion table between color attributes and ANSI colors. */
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7, 9 };
 /** Conversion table between color attributes and non-ANSI colors. */
 static int attr_to_alt_color[10] = { 0, 0, 4, 2, 6, 1, 5, 3, 7, 0 };
-static T3CharData attrs = 0, /**< Last used set of attributes. */
+static t3_chardata_t attrs = 0, /**< Last used set of attributes. */
 	ansi_attrs = 0, /**< Bit mask indicating which attributes should be drawn as ANSI colors. */
 	/** Attributes for which the only way to turn of the attribute is to reset all attributes. */
 	reset_required_mask = T3_ATTR_BOLD | T3_ATTR_REVERSE | T3_ATTR_BLINK | T3_ATTR_DIM;
 /** Callback for T3_ATTR_USER1. */
-static T3AttrUserCallback user_callback = NULL;
+static t3_attr_user_callback_t user_callback = NULL;
 
 /** Alternate character set conversion table from TERM_* values to terminal ACS characters. */
 static char alternate_chars[256],
@@ -251,7 +251,7 @@ static void do_rmcup(void) {
     such that fewer characters need to be sent to the terminal than by using @c sgr.
 */
 static void detect_ansi(void) {
-	T3CharData non_existant = 0;
+	t3_chardata_t non_existant = 0;
 
 	if (op != NULL && (streq(op, "\033[39;49m") || streq(op, "\033[49;39m"))) {
 		if (setaf != NULL && streq(setaf, "\033[3%p1%dm") &&
@@ -468,7 +468,7 @@ int t3_term_init(int fd) {
 		/* FIXME: maybe someday we can make the window outside of the window stack. */
 		if ((terminal_window = t3_win_new(lines, columns, 0, 0, 0)) == NULL)
 			return T3_ERR_ERRNO;
-		if ((old_data.data = malloc(sizeof(T3CharData) * INITIAL_ALLOC)) == NULL)
+		if ((old_data.data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL)
 			return T3_ERR_ERRNO;
 		old_data.allocated = INITIAL_ALLOC;
 	} else {
@@ -658,7 +658,7 @@ void t3_term_get_size(int *height, int *width) {
 	After calling ::t3_term_resize, ::t3_term_get_size can be called to retrieve
     the new terminal size. Should be called after a @c SIGWINCH.
 */
-T3Bool t3_term_resize(void) {
+t3_bool t3_term_resize(void) {
 	struct winsize wsz;
 
 	if (ioctl(terminal_fd, TIOCGWINSZ, &wsz) < 0)
@@ -688,12 +688,12 @@ T3Bool t3_term_resize(void) {
     Note that this function may reset all attributes if an attribute was previously set for
     which no independent reset is available.
 */
-static void set_attrs_non_ansi(T3CharData new_attrs) {
-	T3CharData attrs_basic_non_ansi = attrs & BASIC_ATTRS & ~ansi_attrs;
-	T3CharData new_attrs_basic_non_ansi = new_attrs & BASIC_ATTRS & ~ansi_attrs;
+static void set_attrs_non_ansi(t3_chardata_t new_attrs) {
+	t3_chardata_t attrs_basic_non_ansi = attrs & BASIC_ATTRS & ~ansi_attrs;
+	t3_chardata_t new_attrs_basic_non_ansi = new_attrs & BASIC_ATTRS & ~ansi_attrs;
 
 	if (attrs_basic_non_ansi != new_attrs_basic_non_ansi) {
-		T3CharData changed;
+		t3_chardata_t changed;
 		if (attrs_basic_non_ansi & ~new_attrs & reset_required_mask) {
 			if (sgr != NULL) {
 				_t3_putp(_t3_tparm(sgr, 9,
@@ -781,9 +781,9 @@ static void set_attrs_non_ansi(T3CharData new_attrs) {
     @internal
     The state of ::attrs is updated to reflect the new state.
 */
-void t3_term_set_attrs(T3CharData new_attrs) {
+void t3_term_set_attrs(t3_chardata_t new_attrs) {
 	char mode_string[30]; /* Max is (if I counted correctly) 24. Use 30 for if I miscounted. */
-	T3CharData changed_attrs;
+	t3_chardata_t changed_attrs;
 	const char *sep = "[";
 
 	/* Flush any characters accumulated in the output buffer before switching attributes. */
@@ -865,7 +865,7 @@ void t3_term_set_attrs(T3CharData new_attrs) {
 /** Set callback for drawing characters with ::T3_ATTR_USER1 attribute.
     @param callback The function to call for drawing.
 */
-void t3_term_set_user_callback(T3AttrUserCallback callback) {
+void t3_term_set_user_callback(t3_attr_user_callback_t callback) {
 	user_callback = callback;
 }
 
@@ -878,7 +878,7 @@ void t3_term_set_user_callback(T3AttrUserCallback callback) {
 */
 void t3_term_update(void) {
 	int i, j;
-	T3CharData new_attrs;
+	t3_chardata_t new_attrs;
 
 	if (show_cursor) {
 		_t3_putp(sc);
@@ -1007,7 +1007,7 @@ void t3_term_putp(const char *str) {
     on the terminal screen. This function is provided to calculate that value.
 */
 int t3_term_strwidth(const char *str) {
-	T3Window *win = t3_win_new(1, INT_MAX, 0, 0, 0);
+	t3_window_t *win = t3_win_new(1, INT_MAX, 0, 0, 0);
 	int result;
 
 	t3_win_set_paint(win, 0, 0);
@@ -1025,7 +1025,7 @@ int t3_term_strwidth(const char *str) {
     Characters for which an alternate character is generally available are documented in
     terminfo(5), but most are encoded in TermAcsConstants.
 */
-T3Bool t3_term_acs_available(int idx) {
+t3_bool t3_term_acs_available(int idx) {
 	if (idx < 0 || idx > 255)
 		return False;
 	return alternate_chars[idx] != 0;
@@ -1050,9 +1050,9 @@ int _t3_term_get_default_acs(int idx) {
     This function combines @p a and @p b, with the color attributes from @p a overriding
 	the color attributes from @p b if both specify colors.
 */
-T3CharData t3_term_combine_attrs(T3CharData a, T3CharData b) {
+t3_chardata_t t3_term_combine_attrs(t3_chardata_t a, t3_chardata_t b) {
 	/* FIXME: take ncv into account */
-	T3CharData result = b | (a & ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS));
+	t3_chardata_t result = b | (a & ~(FG_COLOR_ATTRS | BG_COLOR_ATTRS));
 	if ((a & FG_COLOR_ATTRS) != 0)
 		result = ((result & ~(FG_COLOR_ATTRS)) | (a & FG_COLOR_ATTRS)) & ~ncv;
 	if ((a & BG_COLOR_ATTRS) != 0)
@@ -1067,16 +1067,27 @@ T3CharData t3_term_combine_attrs(T3CharData a, T3CharData b) {
     Non-color video attributes are attributes that can not be combined with the color
     attributes. It is unspecified what will happen when the are combined.
 */
-T3CharData t3_term_get_ncv(void) {
+t3_chardata_t t3_term_get_ncv(void) {
 	return ncv;
 }
 
 /** @} */
 
-/** Get the value of T3WINDOW_VERSION corresponding to the library.
+/** Get the value of ::T3_WINDOW_VERSION corresponding to the actual used library.
     @ingroup t3window_other
-    @return The value of T3WINDOW_VERSION.
+    @return The value of ::T3_WINDOW_VERSION.
+
+    This function can be useful to determine at runtime what version of the library
+    was linked to the program. Although currently there are no known uses for this
+    information, future library additions may prompt library users to want to operate
+    differently depending on the available features.
+
+    @internal
+    Although it doesn't make a lot of sense to put this function in either this
+    file or in window.c, there is a good reason to put it in here: because
+    window.h includes terminal.h, this function (and the macro) will always
+    be available, regardless of which files the user includes.
 */
-long t3window_get_version(void) {
-	return T3WINDOW_VERSION;
+long t3_window_get_version(void) {
+	return T3_WINDOW_VERSION;
 }
