@@ -31,6 +31,10 @@ extern "C" {
 */
 #define T3_WINDOW_VERSION 0
 
+/* Although it doesn't make a lot of sense to put this function in either this
+   file or in window.h, there is a good reason to put it in here: because
+   window.h includes terminal.h, this function (and the macro) will always
+   be available, regardless of which files the user includes. */
 long t3_window_get_version(void);
 /*@}*/
 
@@ -189,6 +193,8 @@ enum {
 #define T3_ERR_NO_SIZE_INFO (-59)
 /** Error code: input contains non-printable characters. */
 #define T3_ERR_NONPRINT (-58)
+
+const char *t3_window_strerror(int error);
 /*@}*/
 
 /** @} */

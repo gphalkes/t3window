@@ -1072,22 +1072,3 @@ t3_chardata_t t3_term_get_ncv(void) {
 }
 
 /** @} */
-
-/** Get the value of ::T3_WINDOW_VERSION corresponding to the actual used library.
-    @ingroup t3window_other
-    @return The value of ::T3_WINDOW_VERSION.
-
-    This function can be useful to determine at runtime what version of the library
-    was linked to the program. Although currently there are no known uses for this
-    information, future library additions may prompt library users to want to operate
-    differently depending on the available features.
-
-    @internal
-    Although it doesn't make a lot of sense to put this function in either this
-    file or in window.c, there is a good reason to put it in here: because
-    window.h includes terminal.h, this function (and the macro) will always
-    be available, regardless of which files the user includes.
-*/
-long t3_window_get_version(void) {
-	return T3_WINDOW_VERSION;
-}

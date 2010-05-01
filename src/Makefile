@@ -17,9 +17,10 @@ endif
 CFLAGS+=-I. -I.objects -fPIC
 
 
-CFILES.libt3window.so:= window.c terminal.c curses_interface.c convert_output.c
+CFILES.libt3window.so:= window.c terminal.c curses_interface.c convert_output.c misc.c
 LDFLAGS.libt3window.so:= -shared -Lunicode
 CFLAGS.window:= -D_XOPEN_SOURCE
+CFLAGS.misc:= -DUSE_GETTEXT
 LDLIBS.libt3window.so:= -lncurses -ltdunicode
 
 CFILES.test:= test.c
