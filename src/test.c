@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
 
 	ASSERT(t3_term_init(-1) == T3_ERR_SUCCESS);
 	atexit(t3_term_restore);
-	inited = True;
+	inited = t3_true;
 
 	ASSERT(low = t3_win_new(10, 10, 0, 5, 10));
 	ASSERT(high = t3_win_new(10, 10, 5, 10, 0));

@@ -70,7 +70,7 @@ t3_window_t *t3_win_new(int height, int width, int y, int x, int depth) {
 	retval->width = width;
 	retval->height = height;
 	retval->depth = depth;
-	retval->shown = False;
+	retval->shown = t3_false;
 	retval->default_attrs = 0;
 
 	if (head == NULL) {
@@ -201,19 +201,19 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 	int i;
 
 	if (height <= 0 || width <= 0)
-		return False;
+		return t3_false;
 
 	if (height > win->height) {
 		void *result;
 		if ((result = realloc(win->lines, height * sizeof(line_data_t))) == NULL)
-			return False;
+			return t3_false;
 		win->lines = result;
 		memset(win->lines + win->height, 0, sizeof(line_data_t) * (height - win->height));
 		for (i = win->height; i < height; i++) {
 			if ((win->lines[i].data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL) {
 				for (i = win->height; i < height && win->lines[i].data != NULL; i++)
 					free(win->lines[i].data);
-				return False;
+				return t3_false;
 			}
 			win->lines[i].allocated = INITIAL_ALLOC;
 		}
@@ -239,7 +239,7 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 
 	win->height = height;
 	win->width = width;
-	return True;
+	return t3_true;
 }
 
 /** Change a t3_window_t's position.
@@ -375,12 +375,12 @@ void t3_win_set_paint(t3_window_t *win, int y, int x) {
 
 /** Make a t3_window_t visible. */
 void t3_win_show(t3_window_t *win) {
-	win->shown = True;
+	win->shown = t3_true;
 }
 
 /** Make a t3_window_t invisible. */
 void t3_win_hide(t3_window_t *win) {
-	win->shown = False;
+	win->shown = t3_false;
 }
 
 /** Ensure that a line_data_t struct has at least a specified number of
@@ -396,10 +396,10 @@ static t3_bool ensureSpace(line_data_t *line, size_t n) {
 
 	/* FIXME: ensure that n + line->length will fit in int */
 	if (n > INT_MAX)
-		return False;
+		return t3_false;
 
 	if ((unsigned) line->allocated > line->length + n)
-		return True;
+		return t3_true;
 
 	newsize = line->allocated;
 
@@ -411,10 +411,10 @@ static t3_bool ensureSpace(line_data_t *line, size_t n) {
 	} while ((unsigned) newsize - line->length < n);
 
 	if ((resized = realloc(line->data, sizeof(t3_chardata_t) * newsize)) == NULL)
-		return False;
+		return t3_false;
 	line->data = resized;
 	line->allocated = newsize;
-	return True;
+	return t3_true;
 }
 
 /** Add character data to a t3_window_t at the current painting position.
@@ -432,13 +432,13 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 	int extra_spaces = 0;
 	int i, j;
 	size_t k;
-	t3_bool result = True;
+	t3_bool result = t3_true;
 	t3_chardata_t space = ' ' | win->default_attrs;
 
 	if (win->paint_y >= win->height)
-		return True;
+		return t3_true;
 	if (win->paint_x >= win->width)
-		return True;
+		return t3_true;
 
 	for (k = 0; k < n; k++) {
 		if (win->paint_x + width + T3_CHARDATA_TO_WIDTH(str[k]) > win->width)
@@ -458,10 +458,10 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		if (win->lines[win->paint_y].length == 0 ||
 				win->paint_x <= win->lines[win->paint_y].start ||
 				win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width + 1)
-			return True;
+			return t3_true;
 
 		if (!ensureSpace(win->lines + win->paint_y, n))
-			return False;
+			return t3_false;
 
 		pos_width = win->lines[win->paint_y].start;
 
@@ -476,7 +476,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		/* Check whether we are being asked to add a zero-width character in the middle
 		   of a double-width character. If so, ignore. */
 		if (pos_width > win->paint_x)
-			return True;
+			return t3_true;
 
 		/* Skip to the next non-zero-width character. */
 		if (i < win->lines[win->paint_y].length)
@@ -488,7 +488,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 	} else if (win->lines[win->paint_y].length == 0) {
 		/* Empty line. */
 		if (!ensureSpace(win->lines + win->paint_y, n))
-			return False;
+			return t3_false;
 		win->lines[win->paint_y].start = win->paint_x;
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
 		win->lines[win->paint_y].length += n;
@@ -498,7 +498,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		int diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
 
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
-			return False;
+			return t3_false;
 		for (i = diff; i > 0; i--)
 			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] = WIDTH_TO_META(1) | ' ' | win->default_attrs;
 		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n * sizeof(t3_chardata_t));
@@ -509,7 +509,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		int diff = win->lines[win->paint_y].start - (win->paint_x + width);
 
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
-			return False;
+			return t3_false;
 		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(t3_chardata_t) * win->lines[win->paint_y].length);
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
 		for (i = diff; i > 0; i--)
@@ -565,7 +565,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		/* Move the existing characters out of the way. */
 		sdiff = n + end_spaces + start_spaces - (end_replace - start_replace);
 		if (sdiff > 0 && !ensureSpace(win->lines + win->paint_y, sdiff))
-			return False;
+			return t3_false;
 
 		memmove(win->lines[win->paint_y].data + end_replace + sdiff, win->lines[win->paint_y].data + end_replace,
 			sizeof(t3_chardata_t) * (win->lines[win->paint_y].length - end_replace));
@@ -718,7 +718,7 @@ t3_bool _win_refresh_term_line(t3_window_t *terminal, int line) {
 	line_data_t *draw;
 	t3_window_t *ptr;
 	int y;
-	t3_bool result = True;
+	t3_bool result = t3_true;
 
 	/* FIXME: check return value of called functions for memory allocation errors. */
 	terminal->paint_y = line;

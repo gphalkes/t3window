@@ -98,7 +98,7 @@ static int lines, /**< Size of terminal (lines). */
 	columns, /**< Size of terminal (columns). */
 	cursor_y, /**< Cursor position (y coordinate). */
 	cursor_x; /**< Cursor position (x coordinate). */
-static t3_bool show_cursor = True; /**< Boolean indicating whether the cursor is visible currently. */
+static t3_bool show_cursor = t3_true; /**< Boolean indicating whether the cursor is visible currently. */
 
 /** Conversion table between color attributes and ANSI colors. */
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7, 9 };
@@ -420,7 +420,7 @@ int t3_term_init(int fd) {
 
 		bce = _t3_tigetflag("bce");
 		if ((el = get_ti_string("el")) == NULL)
-			bce = True;
+			bce = t3_true;
 
 		if ((sc = get_ti_string("sc")) != NULL && (rc = get_ti_string("rc")) == NULL)
 			sc = NULL;
@@ -447,7 +447,7 @@ int t3_term_init(int fd) {
 		if (ncv_int & (1<<5)) ncv |= T3_ATTR_BOLD;
 		if (ncv_int & (1<<8)) ncv |= T3_ATTR_ACS;
 
-		seqs_initialised = True;
+		seqs_initialised = t3_true;
 	}
 
 	/* Get terminal size. First try ioctl, then environment, then terminfo. */
@@ -496,7 +496,7 @@ int t3_term_init(int fd) {
 	/* FIXME: nl_langinfo only works when setlocale has been called first. This should
 	   therefore be a requirement for calling this function */
 	_t3_init_output_iconv(nl_langinfo(CODESET));
-	initialised = True;
+	initialised = t3_true;
 	return T3_ERR_SUCCESS;
 }
 
@@ -517,7 +517,7 @@ void t3_term_restore(void) {
 			fflush(stdout);
 		}
 		tcsetattr(terminal_fd, TCSADRAIN, &saved);
-		initialised = False;
+		initialised = t3_false;
 	}
 }
 
@@ -619,7 +619,7 @@ void t3_term_set_cursor(int y, int x) {
 void t3_term_hide_cursor(void) {
 	if (show_cursor) {
 		if (civis != NULL) {
-			show_cursor = False;
+			show_cursor = t3_false;
 			_t3_putp(civis);
 			fflush(stdout);
 		} else {
@@ -632,7 +632,7 @@ void t3_term_hide_cursor(void) {
 /** Show the cursor. */
 void t3_term_show_cursor(void) {
 	if (!show_cursor) {
-		show_cursor = True;
+		show_cursor = t3_true;
 		do_cup(cursor_y, cursor_x);
 		_t3_putp(cnorm);
 		fflush(stdout);
@@ -662,7 +662,7 @@ t3_bool t3_term_resize(void) {
 	struct winsize wsz;
 
 	if (ioctl(terminal_fd, TIOCGWINSZ, &wsz) < 0)
-		return True;
+		return t3_true;
 
 	lines = wsz.ws_row;
 	columns = wsz.ws_col;
@@ -1020,14 +1020,14 @@ int t3_term_strwidth(const char *str) {
 
 /** Check if a character is available in the alternate character set (internal use mostly).
     @param idx The character to check.
-    @return ::True if the character is available in the alternate character set.
+    @return ::t3_true if the character is available in the alternate character set.
 
     Characters for which an alternate character is generally available are documented in
     terminfo(5), but most are encoded in TermAcsConstants.
 */
 t3_bool t3_term_acs_available(int idx) {
 	if (idx < 0 || idx > 255)
-		return False;
+		return t3_false;
 	return alternate_chars[idx] != 0;
 }
 

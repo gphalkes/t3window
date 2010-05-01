@@ -40,7 +40,7 @@ t3_bool _t3_init_output_iconv(const char *encoding) {
 
 	if (strcmp(encoding, "UTF-8") == 0) {
 		output_iconv = (iconv_t) -1;
-		return True;
+		return t3_true;
 	}
 
 	return (output_iconv = iconv_open(encoding, "UTF-8")) != (iconv_t) -1;
@@ -64,11 +64,11 @@ t3_bool t3_term_putc(char c) {
 			output_buffer_size <<= 1;
 		retval = realloc(output_buffer, output_buffer_size);
 		if (retval == NULL)
-			return False;
+			return t3_false;
 		output_buffer = retval;
 	}
 	output_buffer[output_buffer_idx++] = c;
-	return True;
+	return t3_true;
 }
 
 /** @internal
@@ -166,9 +166,9 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = tdu_getuc(nfc_output + idx, &codepoint_len);
 			if (tdu_get_info(c) & TDU_COMBINING_BIT)
-				return False;
+				return t3_false;
 		}
-		return True;
+		return t3_true;
 	} else {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr = conversion_output,
 			*conversion_input_ptr = nfc_output;
@@ -185,7 +185,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 						conversion_output_ptr = conversion_output;
 						output_len = CONV_BUFFER_LEN;
 						iconv(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
-						return False;
+						return t3_false;
 					case E2BIG:
 						/* Not enough space in output buffer. Restart conversion with remaining chars. */
 						conversion_output_ptr = conversion_output;
@@ -201,7 +201,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		conversion_output_ptr = conversion_output;
 		output_len = CONV_BUFFER_LEN;
 		iconv(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
-		return True;
+		return t3_true;
 	}
 }
 

@@ -35,7 +35,7 @@ long t3_window_get_version(void);
 /*@}*/
 
 /** Boolean type that does not clash with C++ or C99 bool. */
-typedef enum {False, True} t3_bool;
+typedef enum {t3_false, t3_true} t3_bool;
 
 /** @typedef t3_chardata_t
     @brief Type to hold data about a single @c char, with attributes used for terminal display.
