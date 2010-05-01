@@ -18,7 +18,7 @@ typedef struct {
 	int width; /* Width in cells of the the data. */
 	int length; /* Length in t3_chardata_t units of the data. */
 	int allocated; /* Allocated number of t3_chardata_t units. */
-} LineData;
+} line_data_t;
 
 struct t3_window_t {
 	int x, y; /* X and Y coordinates of the t3_window_t. These may be relative to parent, depending on relation. */
@@ -29,7 +29,7 @@ struct t3_window_t {
 	t3_chardata_t default_attrs; /* Default attributes to be combined with drawing attributes.
 	                           Mostly useful for background specification. */
 	t3_bool shown; /* Indicates whether this t3_window_t is visible. */
-	LineData *lines; /* The contents of the t3_window_t. */
+	line_data_t *lines; /* The contents of the t3_window_t. */
 	t3_window_t *parent; /* t3_window_t for relative placment. */
 
 	/* Pointers for linking into depth sorted list. */

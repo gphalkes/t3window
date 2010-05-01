@@ -25,7 +25,7 @@ static t3_window_t *head, /**< Head of depth sorted t3_window_t list. */
 	*tail; /**< Tail of depth sorted t3_window_t list. */
 
 static void _win_del(t3_window_t *win);
-static t3_bool ensureSpace(LineData *line, size_t n);
+static t3_bool ensureSpace(line_data_t *line, size_t n);
 
 /** @addtogroup t3window_win */
 /** @{ */
@@ -50,7 +50,7 @@ t3_window_t *t3_win_new(int height, int width, int y, int x, int depth) {
 	if ((retval = calloc(1, sizeof(t3_window_t))) == NULL)
 		return NULL;
 
-	if ((retval->lines = calloc(1, sizeof(LineData) * height)) == NULL) {
+	if ((retval->lines = calloc(1, sizeof(line_data_t) * height)) == NULL) {
 		_win_del(retval);
 		return NULL;
 	}
@@ -205,10 +205,10 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 
 	if (height > win->height) {
 		void *result;
-		if ((result = realloc(win->lines, height * sizeof(LineData))) == NULL)
+		if ((result = realloc(win->lines, height * sizeof(line_data_t))) == NULL)
 			return False;
 		win->lines = result;
-		memset(win->lines + win->height, 0, sizeof(LineData) * (height - win->height));
+		memset(win->lines + win->height, 0, sizeof(line_data_t) * (height - win->height));
 		for (i = win->height; i < height; i++) {
 			if ((win->lines[i].data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL) {
 				for (i = win->height; i < height && win->lines[i].data != NULL; i++)
@@ -220,7 +220,7 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 	} else if (height < win->height) {
 		for (i = height; i < win->height; i++)
 			free(win->lines[i].data);
-		memset(win->lines + height, 0, sizeof(LineData) * (win->height - height));
+		memset(win->lines + height, 0, sizeof(line_data_t) * (win->height - height));
 	}
 
 	if (width < win->width) {
@@ -383,14 +383,14 @@ void t3_win_hide(t3_window_t *win) {
 	win->shown = False;
 }
 
-/** Ensure that a LineData struct has at least a specified number of
+/** Ensure that a line_data_t struct has at least a specified number of
         bytes of unused space.
-	@param line The LineData struct to check.
+	@param line The line_data_t struct to check.
 	@param n The required unused space in bytes.
     @return A boolean indicating whether, after possibly reallocating, the
         requested number of bytes is available.
 */
-static t3_bool ensureSpace(LineData *line, size_t n) {
+static t3_bool ensureSpace(line_data_t *line, size_t n) {
 	int newsize;
 	t3_chardata_t *resized;
 
@@ -715,7 +715,7 @@ int t3_win_addchrep(t3_window_t *win, char c, t3_chardata_t attr, int rep) { ret
     @return A boolean indicating whether redrawing succeeded without memory errors.
 */
 t3_bool _win_refresh_term_line(t3_window_t *terminal, int line) {
-	LineData *draw;
+	line_data_t *draw;
 	t3_window_t *ptr;
 	int y;
 	t3_bool result = True;

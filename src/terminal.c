@@ -49,8 +49,8 @@ TODO list:
 #define ADD_ANSI_SEP() do { strcat(mode_string, sep); sep = ";"; } while(0)
 
 /** @internal
-    @brief Swap two LineData structures. Used in ::t3_term_update. */
-#define SWAP_LINES(a, b) do { LineData save; save = (a); (a) = (b); (b) = save; } while (0)
+    @brief Swap two line_data_t structures. Used in ::t3_term_update. */
+#define SWAP_LINES(a, b) do { line_data_t save; save = (a); (a) = (b); (b) = save; } while (0)
 
 static struct termios saved; /**< Terminal state as saved in ::t3_term_init */
 static t3_bool initialised, /**< Boolean indicating whether the terminal has been initialised. */
@@ -92,7 +92,7 @@ static t3_chardata_t ncv; /**< Terminal info: Non-color video attributes (encode
 static t3_bool bce; /**< Terminal info: screen erased with background color. */
 
 static t3_window_t *terminal_window; /**< t3_window_t struct representing the last drawn terminal state. */
-static LineData old_data; /**< LineData struct used in terminal update to save previous line state. */
+static line_data_t old_data; /**< line_data_t struct used in terminal update to save previous line state. */
 
 static int lines, /**< Size of terminal (lines). */
 	columns, /**< Size of terminal (columns). */
