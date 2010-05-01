@@ -318,6 +318,12 @@ static void detect_ansi(void) {
     passed. However, if a previous call to ::t3_term_init has set the terminal
     to another value, using -1 as the file descriptor will use the previous
     value passed unless the previous call resulted in ::T3_ERR_NOT_A_TTY.
+
+    The terminal is initialized to raw mode such that echo is disabled
+    (characters typed are not shown), control characters are passed to the
+    program (i.e. ctrl-c will result in a character rather than a TERM signal)
+    and generally all characters typed are passed to the program immediately
+    and with a minimum of pre-processing.
 */
 int t3_term_init(int fd) {
 	struct winsize wsz;
@@ -340,20 +346,6 @@ int t3_term_init(int fd) {
 		   initialized statically. */
 		_t3_putp_file = stdout;
 	}
-
-	if (tcgetattr(terminal_fd, &saved) < 0)
-		return T3_ERR_ERRNO;
-
-	new_params = saved;
-	new_params.c_iflag &= ~(IXON | IXOFF | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
-	new_params.c_lflag &= ~(ISIG | ICANON | ECHO);
-	new_params.c_oflag &= ~OPOST;
-	new_params.c_cflag &= ~(CSIZE | PARENB);
-	new_params.c_cflag |= CS8;
-	new_params.c_cc[VMIN] = 1;
-
-	if (tcsetattr(terminal_fd, TCSADRAIN, &new_params) < 0)
-		return T3_ERR_ERRNO;
 
 	FD_ZERO(&inset);
 	FD_SET(terminal_fd, &inset);
@@ -476,11 +468,26 @@ int t3_term_init(int fd) {
 			return T3_ERR_ERRNO;
 	}
 
+	if (tcgetattr(terminal_fd, &saved) < 0)
+		return T3_ERR_ERRNO;
+
+	new_params = saved;
+	new_params.c_iflag &= ~(IXON | IXOFF | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
+	new_params.c_lflag &= ~(ISIG | ICANON | ECHO);
+	new_params.c_oflag &= ~OPOST;
+	new_params.c_cflag &= ~(CSIZE | PARENB);
+	new_params.c_cflag |= CS8;
+	new_params.c_cc[VMIN] = 1;
+
+	if (tcsetattr(terminal_fd, TCSADRAIN, &new_params) < 0)
+		return T3_ERR_ERRNO;
+
 	/* FIXME: can we find a way to save the current terminal settings (attrs etc)? */
 	/* Start cursor positioning mode. */
 	do_smcup();
 	/* Make sure the cursor is visible */
 	_t3_putp(cnorm);
+	do_cup(cursor_y, cursor_x);
 
 	/* Enable alternate character set if required by terminal. */
 	if ((enacs = get_ti_string("enacs")) != NULL) {
@@ -601,6 +608,7 @@ int t3_term_unget_keychar(int c) {
     @param x The terminal column to move the cursor to.
 
     If the cursor is invisible the new position is recorded, but not actually moved yet.
+    Moving the cursor takes effect immediately.
 */
 void t3_term_set_cursor(int y, int x) {
 	cursor_y = y;
@@ -614,7 +622,8 @@ void t3_term_set_cursor(int y, int x) {
 /** Hide the cursor.
 
     Instructs the terminal to make the cursor invisible. If the terminal does not provide
-    the required functionality, the cursor is moved to the bottom right corner.
+    the required functionality, the cursor is moved to the bottom right corner. Hiding
+    the cursor takes effect immediately.
 */
 void t3_term_hide_cursor(void) {
 	if (show_cursor) {
@@ -629,7 +638,10 @@ void t3_term_hide_cursor(void) {
 	}
 }
 
-/** Show the cursor. */
+/** Show the cursor.
+
+    Showing the cursor takes effect immediately.
+*/
 void t3_term_show_cursor(void) {
 	if (!show_cursor) {
 		show_cursor = t3_true;

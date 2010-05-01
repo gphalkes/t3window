@@ -35,7 +35,8 @@ static t3_bool ensureSpace(line_data_t *line, size_t n);
     @param y The vertical location of the window in terminal lines.
     @param x The horizontal location of the window in terminal columns.
 	@param depth The depth of the window in the stack of windows.
-	@return A pointer to a new t3_window_t struct or @c NULL on error.
+	@return A pointer to a new t3_window_t struct or @c NULL if not enough
+	    memory could be allocated.
 
     The @p depth parameter determines the z-order of the windows. Windows
 	with lower depth will hide windows with higher depths.
@@ -111,7 +112,8 @@ t3_window_t *t3_win_new(int height, int width, int y, int x, int depth) {
 	@param depth The depth of the window in the stack of windows.
     @param parent The window used as reference for relative positioning.
     @param relation The relation between this window and @p parent (see WinT3_ANCHOR).
-	@return A pointer to a new t3_window_t struct or @c NULL on error.
+	@return A pointer to a new t3_window_t struct or @c NULL if not enough
+	    memory could be allocated.
 
     The @p depth parameter determines the z-order of the windows. Windows
 	with lower depth will hide windows with higher depths.

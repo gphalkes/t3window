@@ -93,7 +93,7 @@ typedef void (*t3_attr_user_callback_t)(const t3_chardata_t *c, int length);
 #define T3_ATTR_BLINK ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 4)))
 /** Draw characters with dim appearance. */
 #define T3_ATTR_DIM ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 5)))
-/** Draw characters with alternate character set (for line drawing etc.). */
+/** Draw characters with alternate character set (for line drawing etc). */
 #define T3_ATTR_ACS ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 6)))
 
 /** Foreground color unspecified. */
