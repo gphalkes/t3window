@@ -22,7 +22,7 @@ extern "C" {
 /** Anchor points for defining relations between the positions of two windows.
 
     The anchor points can be used to define the relative positioning of two
-    windows. For example, using PARENT(ANCHOR_TOPRIGHT) | CHILD(ANCHOR_TOPLEFT)
+    windows. For example, using T3_PARENT(T3_ANCHOR_TOPRIGHT) | T3_CHILD(T3_ANCHOR_TOPLEFT)
 	allows positioning of one window left of another.
 */
 enum WinAnchor {

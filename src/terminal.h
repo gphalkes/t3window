@@ -66,9 +66,9 @@ typedef void (*t3_attr_user_callback_t)(const t3_chardata_t *c, int length);
 #define T3_CHARDATA_TO_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
 
 /** Bitmask to leave only the attributes in a ::t3_chardata_t value. */
-#define T3_ATTR_MASK (~((1 << T3_ATTR_SHIFT) - 1))
+#define T3_ATTR_MASK ((t3_chardata_t) (~((1L << T3_ATTR_SHIFT) - 1)))
 /** Bitmask to leave only the character in a ::t3_chardata_t value. */
-#define T3_CHAR_MASK ((1 << CHAR_BIT) - 1)
+#define T3_CHAR_MASK ((t3_chardata_t) ((1L << CHAR_BIT) - 1))
 
 /** @name Attributes */
 /*@{*/
@@ -78,65 +78,65 @@ typedef void (*t3_attr_user_callback_t)(const t3_chardata_t *c, int length);
     the callback to determine the drawing style. The callback is set with ::t3_term_set_callback.
 	Note that the callback is responsible for outputing the characters as well (using ::t3_term_putc).
 */
-#define T3_ATTR_USER (1 << T3_ATTR_SHIFT)
+#define T3_ATTR_USER ((t3_chardata_t) (1L << T3_ATTR_SHIFT))
 /** Draw characters with underlining. */
-#define T3_ATTR_UNDERLINE (1 << (T3_ATTR_SHIFT + 1))
+#define T3_ATTR_UNDERLINE ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 1)))
 /** Draw characters with bold face/bright appearance. */
-#define T3_ATTR_BOLD (1 << (T3_ATTR_SHIFT + 2))
+#define T3_ATTR_BOLD ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 2)))
 /** Draw characters with reverse video. */
-#define T3_ATTR_REVERSE (1 << (T3_ATTR_SHIFT + 3))
+#define T3_ATTR_REVERSE ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 3)))
 /** Draw characters blinking. */
-#define T3_ATTR_BLINK (1 << (T3_ATTR_SHIFT + 4))
+#define T3_ATTR_BLINK ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 4)))
 /** Draw characters with dim appearance. */
-#define T3_ATTR_DIM (1 << (T3_ATTR_SHIFT + 5))
+#define T3_ATTR_DIM ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 5)))
 /** Draw characters with alternate character set (for line drawing etc.). */
-#define T3_ATTR_ACS (1<< (T3_ATTR_SHIFT + 6))
+#define T3_ATTR_ACS ((t3_chardata_t) (1L << (T3_ATTR_SHIFT + 6)))
 
 /** Foreground color unspecified. */
-#define T3_ATTR_FG_UNSPEC 0
+#define T3_ATTR_FG_UNSPEC ((t3_chardata_t) 0L)
 /** Foreground color black. */
-#define T3_ATTR_FG_BLACK (1 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_BLACK ((t3_chardata_t) (1L << T3_ATTR_COLOR_SHIFT))
 /** Foreground color red. */
-#define T3_ATTR_FG_RED (2 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_RED ((t3_chardata_t) (2L << T3_ATTR_COLOR_SHIFT))
 /** Foreground color green. */
-#define T3_ATTR_FG_GREEN (3 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_GREEN ((t3_chardata_t) (3L << T3_ATTR_COLOR_SHIFT))
 /** Foreground color yellow. */
-#define T3_ATTR_FG_YELLOW (4 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_YELLOW ((t3_chardata_t) (4L << T3_ATTR_COLOR_SHIFT))
 /** Foreground color blue. */
-#define T3_ATTR_FG_BLUE (5 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_BLUE ((t3_chardata_t) (5L << T3_ATTR_COLOR_SHIFT))
 /** Foreground color magenta. */
-#define T3_ATTR_FG_MAGENTA (6 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_MAGENTA ((t3_chardata_t) (6L << T3_ATTR_COLOR_SHIFT))
 /** Foreground color cyan. */
-#define T3_ATTR_FG_CYAN (7 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_CYAN ((t3_chardata_t) (7L << T3_ATTR_COLOR_SHIFT))
 /** Foreground color white. */
-#define T3_ATTR_FG_WHITE (8 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_WHITE ((t3_chardata_t) (8L << T3_ATTR_COLOR_SHIFT))
 /** Foreground color default. */
-#define T3_ATTR_FG_DEFAULT (9 << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG_DEFAULT ((t3_chardata_t) (9L << T3_ATTR_COLOR_SHIFT))
 
 /** Background color unspecified. */
-#define T3_ATTR_BG_UNSPEC 0
+#define T3_ATTR_BG_UNSPEC ((t3_chardata_t) 0L)
 /** Background color black. */
-#define T3_ATTR_BG_BLACK (1 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_BLACK ((t3_chardata_t) (1L << (T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color red. */
-#define T3_ATTR_BG_RED (2 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_RED ((t3_chardata_t) (2L << (T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color green. */
-#define T3_ATTR_BG_GREEN (3 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_GREEN ((t3_chardata_t) (3L << (T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color yellow. */
-#define T3_ATTR_BG_YELLOW (4 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_YELLOW ((t3_chardata_t) (4L << (T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color blue. */
-#define T3_ATTR_BG_BLUE (5 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_BLUE ((t3_chardata_t) (5L << (T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color magenta. */
-#define T3_ATTR_BG_MAGENTA (6 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_MAGENTA ((t3_chardata_t) (6L << (T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color cyan. */
-#define T3_ATTR_BG_CYAN (7 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_CYAN ((t3_chardata_t) (7L << (T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color white. */
-#define T3_ATTR_BG_WHITE (8 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_WHITE ((t3_chardata_t) (8L << (T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color default. */
-#define T3_ATTR_BG_DEFAULT (9 << (T3_ATTR_COLOR_SHIFT + 4))
+#define T3_ATTR_BG_DEFAULT ((t3_chardata_t) (9L << (T3_ATTR_COLOR_SHIFT + 4)))
 /*@}*/
 
 /** Alternate character set symbolic constants. */
-enum TermAcsConstants {
+enum {
 	T3_ACS_TTEE = 'w', /**< Tee pointing down. */
 	T3_ACS_RTEE = 'u', /**< Tee pointing left. */
 	T3_ACS_LTEE = 't', /**< Tee pointing right. */

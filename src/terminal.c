@@ -1023,7 +1023,7 @@ int t3_term_strwidth(const char *str) {
     @return ::t3_true if the character is available in the alternate character set.
 
     Characters for which an alternate character is generally available are documented in
-    terminfo(5), but most are encoded in TermAcsConstants.
+    terminfo(5), but most are encoded in T3_ACS_* constants.
 */
 t3_bool t3_term_acs_available(int idx) {
 	if (idx < 0 || idx > 255)
