@@ -8,7 +8,7 @@
 #include "window.h"
 #include "internal.h"
 
-#include "unicode/tdunicode.h"
+#include "unicode/unicode.h"
 
 /* TODO list:
 - T3_ATTR_ACS should only be allowed on chars below 128 etc. Otherwise interpretation
@@ -620,11 +620,11 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_chardata_t at
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
 		bytes_read = n;
-		c = tdu_getuc(str, &bytes_read);
+		c = t3_getuc(str, &bytes_read);
 
-		char_info = tdu_get_info(c);
-		width = TDU_INFO_TO_WIDTH(char_info);
-		if ((char_info & (TDU_GRAPH_BIT | TDU_SPACE_BIT)) == 0 || width < 0) {
+		char_info = t3_get_codepoint_info(c);
+		width = T3_INFO_TO_WIDTH(char_info);
+		if ((char_info & (T3_GRAPH_BIT | T3_SPACE_BIT)) == 0 || width < 0) {
 			retval = T3_ERR_NONPRINT;
 			continue;
 		}

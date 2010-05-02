@@ -21,7 +21,7 @@ CFILES.libt3window.so:= window.c terminal.c curses_interface.c convert_output.c 
 LDFLAGS.libt3window.so:= -shared -Lunicode
 CFLAGS.window:= -D_XOPEN_SOURCE
 CFLAGS.misc:= -DUSE_GETTEXT
-LDLIBS.libt3window.so:= -lncurses -ltdunicode
+LDLIBS.libt3window.so:= -lncurses -lt3unicode
 
 CFILES.test:= test.c
 LDFLAGS.test:= -L.

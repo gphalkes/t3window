@@ -10,7 +10,7 @@
 #include "terminal.h"
 #include "window.h"
 #include "internal.h"
-#include "unicode/tdunicode.h"
+#include "unicode/unicode.h"
 
 #define CONV_BUFFER_LEN (160)
 
@@ -79,7 +79,7 @@ void _t3_output_buffer_print(void) {
 	if (output_buffer_idx == 0)
 		return;
 	//FIXME: check return value!
-	nfc_output_len = tdu_to_nfc(output_buffer, output_buffer_idx, &nfc_output, &nfc_output_size);
+	nfc_output_len = t3_to_nfc(output_buffer, output_buffer_idx, &nfc_output, &nfc_output_size);
 
 	if (output_iconv == (iconv_t) -1) {
 		//FIXME: filter out combining characters if the terminal is known not to support them! (gnome-terminal)
@@ -104,11 +104,11 @@ void _t3_output_buffer_print(void) {
 						if (output_len < CONV_BUFFER_LEN)
 							fwrite(conversion_output, 1, CONV_BUFFER_LEN - output_len, stdout);
 
-						c = tdu_getuc(conversion_input_ptr, &char_len);
+						c = t3_getuc(conversion_input_ptr, &char_len);
 						conversion_input_ptr += char_len;
 						input_len -= char_len;
 
-						for (width = TDU_INFO_TO_WIDTH(tdu_get_info(c)); width > 0; width--)
+						for (width = T3_INFO_TO_WIDTH(t3_get_codepoint_info(c)); width > 0; width--)
 							putchar(replacement_char);
 
 						break;
@@ -157,15 +157,15 @@ void _t3_output_buffer_print(void) {
 */
 t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 	size_t idx, codepoint_len;
-	size_t nfc_output_len = tdu_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
+	size_t nfc_output_len = t3_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
 	uint32_t c;
 
 	if (output_iconv == (iconv_t) -1) {
 		//FIXME: make this dependent on the detected terminal capabilities
 		for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
-			c = tdu_getuc(nfc_output + idx, &codepoint_len);
-			if (tdu_get_info(c) & TDU_COMBINING_BIT)
+			c = t3_getuc(nfc_output + idx, &codepoint_len);
+			if (t3_get_codepoint_info(c) & T3_COMBINING_BIT)
 				return t3_false;
 		}
 		return t3_true;
