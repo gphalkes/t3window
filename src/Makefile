@@ -14,23 +14,24 @@ ifeq ($(VERSION),debug)
 else
 	CFLAGS:=-Wall -W $(ANSIFLAGS) -O2
 endif
-CFLAGS+=-I. -I.objects -fPIC
+CFLAGS+=-I. -DT3_WINDOW_BUILD_DSO
 
 
-CFILES.libt3window.so:= window.c terminal.c curses_interface.c convert_output.c misc.c
-LDFLAGS.libt3window.so:= -shared -Lunicode
+CFILES.libt3window.la:= window.c terminal.c curses_interface.c convert_output.c misc.c
+LDFLAGS.libt3window.la:= -shared -Lunicode
 CFLAGS.window:= -D_XOPEN_SOURCE
 CFLAGS.misc:= -DUSE_GETTEXT
-LDLIBS.libt3window.so:= -lncurses -lt3unicode
+LDLIBS.libt3window.la:= -lncurses -lt3unicode
+CFLAGS.convert_output:= -Iunicode
 
 CFILES.test:= test.c
-LDFLAGS.test:= -L.
+LDFLAGS.test:= -L.libs
 LDLIBS.test:=-lt3window
 
 LD_LIBRARY_PATH:=unicode
 export LD_LIBRARY_PATH
 
-TARGETS:= libt3window.so test
+TARGETS:= libt3window.la test
 #===========================================================================
 .PHONY: all clean
 
@@ -42,31 +43,33 @@ LFILES:= $(foreach PART, $(TARGETS), $(LFILES.$(PART)))
 SOURCES:= $(CFILES) $(GFILES) $(LFILES)
 
 # force use of our pattern rule for lex files
-$(foreach FILE, $(LFILES), $(eval $(patsubst %.l, .objects/%.o, $(FILE)): $(patsubst %.l, .objects/%.c,$(FILE))))
+$(foreach FILE, $(LFILES), $(eval $(patsubst %.l, .objects/%.lo, $(FILE)): $(patsubst %.l, .objects/%.c,$(FILE))))
 
-OBJECTS:=$(CFILES:.c=.o) $(LFILES:.l=.o) $(GFILES:.g=.o)
+OBJECTS:=$(CFILES:.c=.lo) $(LFILES:.l=.lo) $(GFILES:.g=.lo)
 $(foreach PART, $(TARGETS), $(eval OBJECTS.$(PART):= \
-	$$(patsubst %.c, .objects/%.o, $$(CFILES.$(PART))) \
-	$$(patsubst %.g, .objects/%.o, $$(GFILES.$(PART))) \
-	$$(patsubst %.l, .objects/%.o, $$(LFILES.$(PART)))))
+	$$(patsubst %.c, .objects/%.lo, $$(CFILES.$(PART))) \
+	$$(patsubst %.g, .objects/%.lo, $$(GFILES.$(PART))) \
+	$$(patsubst %.l, .objects/%.lo, $$(LFILES.$(PART)))))
 DEPENDENCIES:= $(patsubst %, .deps/%, $(SOURCES))
 
 $(foreach PART, $(TARGETS), $(eval $(PART): $$(OBJECTS.$(PART)) ; \
-	$$(CC) $$(CFLAGS) $$(CFLAGS.$(PART)) $$(LDFLAGS) $$(LDFLAGS.$(PART)) \
-		-o $$@ $$^ $$(LDLIBS) $$(LDLIBS.$(PART))))
+	libtool --mode=link $$(CC) $$(CFLAGS) $$(CFLAGS.$(PART)) $$(LDFLAGS) $$(LDFLAGS.$(PART)) \
+		-o $$@ $$^ $$(LDLIBS) $$(LDLIBS.$(PART)) -rpath /usr/lib))
 # Add dependency rules for grammar files. Header files generated from grammar
 # files are needed by the lexical analyser and other files
-$(foreach FILE, $(GFILES), $(if $(DEPS.$(FILE)), $(eval $(patsubst %.c, %.o, $(patsubst %.l, %.c, $(patsubst %, .objects/%, $(DEPS.$(FILE))))): $(patsubst %.g, .objects/%.h, $(FILE)))))
+$(foreach FILE, $(GFILES), $(if $(DEPS.$(FILE)), $(eval $(patsubst %.c, %.lo, $(patsubst %.l, %.c, $(patsubst %, .objects/%, $(DEPS.$(FILE))))): $(patsubst %.g, .objects/%.h, $(FILE)))))
 
-.objects/%.o: %.c
+.objects/%.lo: %.c
 	@[ -d .deps/`dirname '$<'` ] || mkdir -p .deps/`dirname '$<'`
 	@[ -d .objects/`dirname '$<'` ] || mkdir -p .objects/`dirname '$<'`
-	$(CC) -MMD -MP -MF .deps/$< $(CFLAGS) $(CFLAGS.$*) -c $< -o $@
+	libtool --mode=compile $(CC) -MMD -MP -MF .deps/$< $(CFLAGS) $(CFLAGS.$*) -c $< -o $@
+	@sed -i -r 's/\.o\>/\.lo/g' .deps/$<
 
-.objects/%.o: .objects/%.c
+.objects/%.lo: .objects/%.c
 	@[ -d .deps/`dirname '$<'` ] || mkdir -p .deps/`dirname '$<'`
 	@[ -d .objects/`dirname '$<'` ] || mkdir -p .objects/`dirname '$<'`
-	$(CC) -MMD -MP -MF .deps/$< $(CFLAGS) $(CFLAGS.$*) -c $< -o $@
+	libtool --mode=compile $(CC) -MMD -MP -MF .deps/$< $(CFLAGS) $(CFLAGS.$*) -c $< -o $@
+	@sed -i -r 's/\.o\>/\.lo/g' .deps/$<
 
 .objects/%.c .objects/%.h: %.g
 	@[ -d .deps/`dirname '$<'` ] || mkdir -p .deps/`dirname '$<'`
@@ -83,4 +86,4 @@ clean:
 
 -include $(DEPENDENCIES)
 #===========================================================================
-test: libt3window.so
+test: .libs/libt3window.so

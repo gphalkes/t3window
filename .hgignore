@@ -1,10 +1,14 @@
 syntax: glob
+src/window_errors.h
+src/window_api.h
+src/libt3window.la
 src/unicode
 unicode/verify_proptables
 unicode/generate_proptables
 unicode/generated
 src/.deps
 src/.objects
+src/.libs
 src/libt3window.so
 src/test
 .backupfilter.hg

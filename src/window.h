@@ -38,37 +38,37 @@ enum WinAnchor {
 */
 typedef struct t3_window_t t3_window_t;
 
-t3_window_t *t3_win_new(int height, int width, int y, int x, int depth);
-t3_window_t *t3_win_new_relative(int height, int width, int y, int x, int depth, t3_window_t *parent, int relation);
-void t3_win_del(t3_window_t *win);
+T3_WINDOW_API t3_window_t *t3_win_new(int height, int width, int y, int x, int depth);
+T3_WINDOW_API t3_window_t *t3_win_new_relative(int height, int width, int y, int x, int depth, t3_window_t *parent, int relation);
+T3_WINDOW_API void t3_win_del(t3_window_t *win);
 
-void t3_win_set_default_attrs(t3_window_t *win, t3_chardata_t attr);
+T3_WINDOW_API void t3_win_set_default_attrs(t3_window_t *win, t3_chardata_t attr);
 
-t3_bool t3_win_resize(t3_window_t *win, int height, int width);
-void t3_win_move(t3_window_t *win, int y, int x);
-int t3_win_get_width(t3_window_t *win);
-int t3_win_get_height(t3_window_t *win);
-int t3_win_get_x(t3_window_t *win);
-int t3_win_get_y(t3_window_t *win);
-int t3_win_get_depth(t3_window_t *win);
-int t3_win_get_relation(t3_window_t *win, t3_window_t **parent);
-void t3_win_set_cursor(t3_window_t *win, int y, int x);
-void t3_win_set_paint(t3_window_t *win, int y, int x);
-void t3_win_show(t3_window_t *win);
-void t3_win_hide(t3_window_t *win);
+T3_WINDOW_API t3_bool t3_win_resize(t3_window_t *win, int height, int width);
+T3_WINDOW_API void t3_win_move(t3_window_t *win, int y, int x);
+T3_WINDOW_API int t3_win_get_width(t3_window_t *win);
+T3_WINDOW_API int t3_win_get_height(t3_window_t *win);
+T3_WINDOW_API int t3_win_get_x(t3_window_t *win);
+T3_WINDOW_API int t3_win_get_y(t3_window_t *win);
+T3_WINDOW_API int t3_win_get_depth(t3_window_t *win);
+T3_WINDOW_API int t3_win_get_relation(t3_window_t *win, t3_window_t **parent);
+T3_WINDOW_API void t3_win_set_cursor(t3_window_t *win, int y, int x);
+T3_WINDOW_API void t3_win_set_paint(t3_window_t *win, int y, int x);
+T3_WINDOW_API void t3_win_show(t3_window_t *win);
+T3_WINDOW_API void t3_win_hide(t3_window_t *win);
 
-int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_chardata_t attr);
-int t3_win_addstr(t3_window_t *win, const char *str, t3_chardata_t attr);
-int t3_win_addch(t3_window_t *win, char c, t3_chardata_t attr);
+T3_WINDOW_API int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_chardata_t attr);
+T3_WINDOW_API int t3_win_addstr(t3_window_t *win, const char *str, t3_chardata_t attr);
+T3_WINDOW_API int t3_win_addch(t3_window_t *win, char c, t3_chardata_t attr);
 
-int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_chardata_t attr, int rep);
-int t3_win_addstrrep(t3_window_t *win, const char *str, t3_chardata_t attr, int rep);
-int t3_win_addchrep(t3_window_t *win, char c, t3_chardata_t attr, int rep);
+T3_WINDOW_API int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_chardata_t attr, int rep);
+T3_WINDOW_API int t3_win_addstrrep(t3_window_t *win, const char *str, t3_chardata_t attr, int rep);
+T3_WINDOW_API int t3_win_addchrep(t3_window_t *win, char c, t3_chardata_t attr, int rep);
 
-int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_chardata_t attr);
+T3_WINDOW_API int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_chardata_t attr);
 
-void t3_win_clrtoeol(t3_window_t *win);
-void t3_win_clrtobot(t3_window_t *win);
+T3_WINDOW_API void t3_win_clrtoeol(t3_window_t *win);
+T3_WINDOW_API void t3_win_clrtobot(t3_window_t *win);
 
 #ifdef __cplusplus
 } /* extern "C" */

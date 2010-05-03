@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 #include <limits.h>
+#include "window_api.h"
 
 /** @addtogroup t3window_other */
 /** @{ */
@@ -35,7 +36,7 @@ extern "C" {
    file or in window.h, there is a good reason to put it in here: because
    window.h includes terminal.h, this function (and the macro) will always
    be available, regardless of which files the user includes. */
-long t3_window_get_version(void);
+T3_WINDOW_API long t3_window_get_version(void);
 /*@}*/
 
 /** Boolean type that does not clash with C++ or C99 bool. */
@@ -159,23 +160,7 @@ enum {
 	T3_ACS_CKBOARD = 'a' /**< Checker board pattern (stipple). */
 };
 
-/** @name Error codes (T3 generic) */
-/*@{*/
-#ifndef T3_ERR_SUCCESS
-/** Error code: success */
-#define T3_ERR_SUCCESS 0
-/** Error code: see @c errno. */
-/* Use large negative value, such that we don't have to number each and
-   every value. */
-#define T3_ERR_ERRNO (-128)
-/** Error code: end of file reached. */
-#define T3_ERR_EOF (-127)
-/** Error code: unkown error. */
-#define T3_ERR_UNKNOWN (-126)
-/** Error code: bad argument. */
-#define T3_ERR_BAD_ARG (-125)
-#endif
-/*@}*/
+#include "window_errors.h"
 
 /** @name Error codes (libt3window specific) */
 /*@{*/
@@ -194,36 +179,36 @@ enum {
 /** Error code: input contains non-printable characters. */
 #define T3_ERR_NONPRINT (-58)
 
-const char *t3_window_strerror(int error);
+T3_WINDOW_API const char *t3_window_strerror(int error);
 /*@}*/
 
 /** @} */
 
-int t3_term_init(int fd);
-void t3_term_restore(void);
-int t3_term_get_keychar(int msec);
-void t3_term_set_cursor(int y, int x);
-void t3_term_hide_cursor(void);
-void t3_term_show_cursor(void);
-void t3_term_get_size(int *height, int *width);
-t3_bool t3_term_resize(void);
-void t3_term_update(void);
-void t3_term_redraw(void);
-void t3_term_set_attrs(t3_chardata_t new_attrs);
-void t3_term_set_user_callback(t3_attr_user_callback_t callback);
-int t3_term_get_keychar(int msec);
-int t3_term_unget_keychar(int c);
-void t3_term_putp(const char *str);
-t3_bool t3_term_acs_available(int idx);
+T3_WINDOW_API int t3_term_init(int fd);
+T3_WINDOW_API void t3_term_restore(void);
+T3_WINDOW_API int t3_term_get_keychar(int msec);
+T3_WINDOW_API void t3_term_set_cursor(int y, int x);
+T3_WINDOW_API void t3_term_hide_cursor(void);
+T3_WINDOW_API void t3_term_show_cursor(void);
+T3_WINDOW_API void t3_term_get_size(int *height, int *width);
+T3_WINDOW_API t3_bool t3_term_resize(void);
+T3_WINDOW_API void t3_term_update(void);
+T3_WINDOW_API void t3_term_redraw(void);
+T3_WINDOW_API void t3_term_set_attrs(t3_chardata_t new_attrs);
+T3_WINDOW_API void t3_term_set_user_callback(t3_attr_user_callback_t callback);
+T3_WINDOW_API int t3_term_get_keychar(int msec);
+T3_WINDOW_API int t3_term_unget_keychar(int c);
+T3_WINDOW_API void t3_term_putp(const char *str);
+T3_WINDOW_API t3_bool t3_term_acs_available(int idx);
 
-t3_chardata_t t3_term_combine_attrs(t3_chardata_t a, t3_chardata_t b);
+T3_WINDOW_API t3_chardata_t t3_term_combine_attrs(t3_chardata_t a, t3_chardata_t b);
 
-int t3_term_strwidth(const char *str);
+T3_WINDOW_API int t3_term_strwidth(const char *str);
 
 /** These are implemented in convert_output.c */
-t3_bool t3_term_can_draw(const char *str, size_t str_len);
-void t3_term_set_replacement_char(char c);
-t3_bool t3_term_putc(char c);
+T3_WINDOW_API t3_bool t3_term_can_draw(const char *str, size_t str_len);
+T3_WINDOW_API void t3_term_set_replacement_char(char c);
+T3_WINDOW_API t3_bool t3_term_putc(char c);
 
 #ifdef __cplusplus
 } /* extern "C" */

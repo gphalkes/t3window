@@ -2,14 +2,15 @@
 #define CURSES_INTERFACE_H
 
 #include <stdio.h>
+#include "window_api.h"
 
-FILE *_t3_putp_file;
+T3_WINDOW_LOCAL FILE *_t3_putp_file;
 
-int _t3_setupterm(void);
-char *_t3_tigetstr(const char *name);
-int _t3_tigetnum(const char *name);
-int _t3_tigetflag(const char *name);
-void _t3_putp(const char *string);
-char *_t3_tparm(char *string, int nr_of_args, ...);
+T3_WINDOW_LOCAL int _t3_setupterm(void);
+T3_WINDOW_LOCAL char *_t3_tigetstr(const char *name);
+T3_WINDOW_LOCAL int _t3_tigetnum(const char *name);
+T3_WINDOW_LOCAL int _t3_tigetflag(const char *name);
+T3_WINDOW_LOCAL void _t3_putp(const char *string);
+T3_WINDOW_LOCAL char *_t3_tparm(char *string, int nr_of_args, ...);
 
 #endif

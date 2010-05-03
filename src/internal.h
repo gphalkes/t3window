@@ -1,6 +1,8 @@
 #ifndef T3_INTERNAL_H
 #define T3_INTERNAL_H
 
+#include "window_api.h"
+
 #define WIDTH_TO_META(_w) (((_w) & 3) << CHAR_BIT)
 
 #define WIDTH_MASK (3 << CHAR_BIT)
@@ -37,7 +39,7 @@ struct t3_window_t {
 	t3_window_t *prev;
 };
 
-t3_bool _t3_win_refresh_term_line(struct t3_window_t *terminal, int line);
-int _t3_term_get_default_acs(int idx);
+T3_WINDOW_LOCAL t3_bool _t3_win_refresh_term_line(struct t3_window_t *terminal, int line);
+T3_WINDOW_LOCAL int _t3_term_get_default_acs(int idx);
 
 #endif
