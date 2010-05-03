@@ -7,10 +7,9 @@
 #include <iconv.h>
 #include <errno.h>
 
-#include "terminal.h"
 #include "window.h"
 #include "internal.h"
-#include "unicode/unicode.h"
+#include "unicode.h"
 
 #define CONV_BUFFER_LEN (160)
 

@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <t3/terminal.h>
 #include <t3/window.h>
 
 int main(int argc, char *argv[]) {

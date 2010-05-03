@@ -12,7 +12,6 @@
 #include <limits.h>
 #include <langinfo.h>
 
-#include "terminal.h"
 #include "window.h"
 #include "internal.h"
 #include "convert_output.h"
