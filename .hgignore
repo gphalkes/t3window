@@ -15,3 +15,5 @@ src/test
 unicode/.deps
 unicode/.objects
 doc/API
+doc/doxygen.conf
+doc/DoxygenLayout.xml
