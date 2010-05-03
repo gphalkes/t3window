@@ -3,12 +3,16 @@
   only specifies something which cannot be combined with color, the color should
   be removed.
 - UTF-8 detection/CJK detection
-- more attribute painting stuff
 - zero-width characters at start of line?
 - program alternatives
 - add mode in which updates to cursor aren't flushed until the next
   term_refresh or similar special function. The point is to limit the number of
   flushes so as to optimize the output
+- 256 color mode for xterm (and others). Coding this in the ATTR values is
+  going to be somewhat difficult, because there aren't sufficient bits it the
+  CharData type left. Perhaps we should change the user mode to have a number
+  of user modes such that the program can do this itself. However, this is not
+  a very generic solution.
 
 First test string from mined:
 C3 A5 D9 84 D8 A7 E0 B8 A9 E0 B8 A9 E5 88 88 E5 A2 A2
