@@ -35,5 +35,7 @@ TARGETS:= libt3window.la test
 #================================================#
 include ../../makesys/rules.mk
 #================================================#
+T3NAME:=window
+include ../../t3shared/rules.mk
 
 test: | libt3window.la
