@@ -9,7 +9,7 @@
 
 #include "terminal.h"
 
-/** Get the value of ::T3_WINDOW_VERSION corresponding to the actual used library.
+/** Get the value of ::T3_WINDOW_VERSION corresponding to the actually used library.
     @ingroup t3window_other
     @return The value of ::T3_WINDOW_VERSION.
 
@@ -39,6 +39,8 @@ const char *t3_window_strerror(int error) {
 			return _("Unknown error");
 		case T3_ERR_BAD_ARG:
 			return _("Bad argument passed to function");
+		case T3_ERR_OUT_OF_MEMORY:
+			return _("Out of memory");
 		case T3_ERR_TERMINFODB_NOT_FOUND:
 			return _("No information found in terminfo database for terminal");
 		case T3_ERR_HARDCOPY_TERMINAL:
