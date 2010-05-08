@@ -11,7 +11,7 @@
 #include "unicode/unicode.h"
 
 /* TODO list:
-- T3_ATTR_ACS should only be allowed on chars below 128 etc. Otherwise interpretation
+- _T3_ATTR_ACS should only be allowed on chars below 128 etc. Otherwise interpretation
   of width info may be weird.
 - make t3_win_clrtobol
 */
@@ -173,8 +173,8 @@ static void _win_del(t3_window_t *win) {
     This function can be used to set a default background for the entire window, as
     well as any other attributes.
 */
-void t3_win_set_default_attrs(t3_window_t *win, t3_chardata_t attr) {
-	win->default_attrs = attr & T3_ATTR_MASK;
+void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr) {
+	win->default_attrs = attr;
 }
 
 /** Discard a t3_window_t. */
@@ -419,7 +419,8 @@ static t3_bool ensureSpace(line_data_t *line, size_t n) {
 	return t3_true;
 }
 
-/** Add character data to a t3_window_t at the current painting position.
+/** @internal
+    @brief Add character data to a t3_window_t at the current painting position.
     @param win The t3_window_t to add the characters to.
     @param str The characters to add as t3_chardata_t.
     @param n The length of @p str.
@@ -435,7 +436,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 	int i, j;
 	size_t k;
 	t3_bool result = t3_true;
-	t3_chardata_t space = ' ' | win->default_attrs;
+	t3_chardata_t space = ' ' | _t3_term_attr_to_chardata(win->default_attrs);
 
 	if (win->paint_y >= win->height)
 		return t3_true;
@@ -443,9 +444,9 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		return t3_true;
 
 	for (k = 0; k < n; k++) {
-		if (win->paint_x + width + T3_CHARDATA_TO_WIDTH(str[k]) > win->width)
+		if (win->paint_x + width + _T3_CHARDATA_TO_WIDTH(str[k]) > win->width)
 			break;
-		width += T3_CHARDATA_TO_WIDTH(str[k]);
+		width += _T3_CHARDATA_TO_WIDTH(str[k]);
 	}
 
 	if (k < n)
@@ -470,7 +471,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
 		for (i = 0; i < win->lines[win->paint_y].length; i++) {
-			pos_width += T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
+			pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
 			if (pos_width >= win->paint_x)
 				break;
 		}
@@ -482,7 +483,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 
 		/* Skip to the next non-zero-width character. */
 		if (i < win->lines[win->paint_y].length)
-			for (i++; i < win->lines[win->paint_y].length && T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
+			for (i++; i < win->lines[win->paint_y].length && _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
 
 		memmove(win->lines[win->paint_y].data + i + n, win->lines[win->paint_y].data + i, sizeof(t3_chardata_t) * (win->lines[win->paint_y].length - i));
 		memcpy(win->lines[win->paint_y].data + i, str, n * sizeof(t3_chardata_t));
@@ -502,7 +503,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		if (!ensureSpace(win->lines + win->paint_y, n + diff))
 			return t3_false;
 		for (i = diff; i > 0; i--)
-			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] = WIDTH_TO_META(1) | ' ' | win->default_attrs;
+			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] = WIDTH_TO_META(1) | ' ' | _t3_term_attr_to_chardata(win->default_attrs);
 		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n * sizeof(t3_chardata_t));
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
@@ -515,7 +516,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(t3_chardata_t) * win->lines[win->paint_y].length);
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
 		for (i = diff; i > 0; i--)
-			win->lines[win->paint_y].data[n++] = WIDTH_TO_META(1) | ' ' | win->default_attrs;
+			win->lines[win->paint_y].data[n++] = WIDTH_TO_META(1) | ' ' | _t3_term_attr_to_chardata(win->default_attrs);
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
 		win->lines[win->paint_y].start = win->paint_x;
@@ -527,20 +528,20 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
-		for (i = 0; i < win->lines[win->paint_y].length && pos_width + T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
-			pos_width += T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
+		for (i = 0; i < win->lines[win->paint_y].length && pos_width + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
+			pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
 		start_replace = i;
 
 		/* If the character only partially overlaps, we replace the first part with
 		   spaces with the attributes of the old character. */
-		start_space_meta = (win->lines[win->paint_y].data[start_replace] & T3_ATTR_MASK) | WIDTH_TO_META(1);
+		start_space_meta = (win->lines[win->paint_y].data[start_replace] & _T3_ATTR_MASK) | WIDTH_TO_META(1);
 		start_spaces = win->paint_x >= win->lines[win->paint_y].start ? win->paint_x - pos_width : 0;
 
 		/* Now we need to find which other character(s) overlap. However, the current
 		   string may overlap with a double width character but only for a single
 		   position. In that case we will replace the trailing portion of the character
 		   with spaces with the old character's attributes. */
-		pos_width += T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[start_replace]);
+		pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[start_replace]);
 
 		i++;
 
@@ -551,18 +552,18 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 			end_space_meta = start_space_meta;
 		} else {
 			for (; i < win->lines[win->paint_y].length && pos_width < win->paint_x + width; i++)
-				pos_width += T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
+				pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
 
-			end_space_meta = (win->lines[win->paint_y].data[i - 1] & T3_ATTR_MASK) | WIDTH_TO_META(1);
+			end_space_meta = (win->lines[win->paint_y].data[i - 1] & _T3_ATTR_MASK) | WIDTH_TO_META(1);
 		}
 
 		/* Skip any zero-width characters. */
-		for (; i < win->lines[win->paint_y].length && T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
+		for (; i < win->lines[win->paint_y].length && _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
 		end_replace = i;
 
 		end_spaces = pos_width > win->paint_x + width ? pos_width - win->paint_x - width : 0;
 
-		for (j = i; j < win->lines[win->paint_y].length && T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[j]) == 0; j++) {}
+		for (j = i; j < win->lines[win->paint_y].length && _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[j]) == 0; j++) {}
 
 		/* Move the existing characters out of the way. */
 		sdiff = n + end_spaces + start_spaces - (end_replace - start_replace);
@@ -608,7 +609,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
     @p attr used as the priority attributes. All other t3_win_add* functions are
     (indirectly) implemented using this function.
 */
-int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_chardata_t attr) {
+int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) {
 	size_t bytes_read, i;
 	t3_chardata_t cd_buf[UTF8_MAX_BYTES + 1];
 	uint32_t c;
@@ -616,7 +617,8 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_chardata_t at
 	int retval = T3_ERR_SUCCESS;
 	int width;
 
-	attr = t3_term_combine_attrs(attr & T3_ATTR_MASK, win->default_attrs);
+	attr = t3_term_combine_attrs(attr, win->default_attrs);
+	attr = _t3_term_attr_to_chardata(attr) & _T3_ATTR_MASK;
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
 		bytes_read = n;
@@ -634,11 +636,11 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_chardata_t at
 			cd_buf[i] = (unsigned char) str[i];
 
 		if (bytes_read > 1) {
-			cd_buf[0] &= ~T3_ATTR_ACS;
-		} else if ((cd_buf[0] & T3_ATTR_ACS) && !t3_term_acs_available(cd_buf[0] & T3_CHAR_MASK)) {
-			int replacement = _t3_term_get_default_acs(cd_buf[0] & T3_CHAR_MASK);
-			cd_buf[0] &= ~(T3_ATTR_ACS | T3_CHAR_MASK);
-			cd_buf[0] |= replacement & T3_CHAR_MASK;
+			cd_buf[0] &= ~_T3_ATTR_ACS;
+		} else if ((cd_buf[0] & _T3_ATTR_ACS) && !t3_term_acs_available(cd_buf[0] & _T3_CHAR_MASK)) {
+			int replacement = _t3_term_get_default_acs(cd_buf[0] & _T3_CHAR_MASK);
+			cd_buf[0] &= ~(_T3_ATTR_ACS | _T3_CHAR_MASK);
+			cd_buf[0] |= replacement & _T3_CHAR_MASK;
 		}
 		if (!_win_add_chardata(win, cd_buf, bytes_read))
 			return T3_ERR_ERRNO;
@@ -654,7 +656,7 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_chardata_t at
 
 	See ::t3_win_addnstr for further information.
 */
-int t3_win_addstr(t3_window_t *win, const char *str, t3_chardata_t attr) { return t3_win_addnstr(win, str, strlen(str), attr); }
+int t3_win_addstr(t3_window_t *win, const char *str, t3_attr_t attr) { return t3_win_addnstr(win, str, strlen(str), attr); }
 
 /** Add a single character to a t3_window_t with specified attributes.
     @param win The t3_window_t to add the string to.
@@ -664,7 +666,7 @@ int t3_win_addstr(t3_window_t *win, const char *str, t3_chardata_t attr) { retur
 
 	@p c must be an ASCII character. See ::t3_win_addnstr for further information.
 */
-int t3_win_addch(t3_window_t *win, char c, t3_chardata_t attr) { return t3_win_addnstr(win, &c, 1, attr); }
+int t3_win_addch(t3_window_t *win, char c, t3_attr_t attr) { return t3_win_addnstr(win, &c, 1, attr); }
 
 /** Add a string with explicitly specified size to a t3_window_t with specified attributes and repetition.
     @param win The t3_window_t to add the string to.
@@ -677,7 +679,7 @@ int t3_win_addch(t3_window_t *win, char c, t3_chardata_t attr) { return t3_win_a
 	All other t3_win_add*rep functions are (indirectly) implemented using this
     function. See ::t3_win_addnstr for further information.
 */
-int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_chardata_t attr, int rep) {
+int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_attr_t attr, int rep) {
 	int i, ret;
 
 	for (i = 0; i < rep; i++) {
@@ -697,7 +699,7 @@ int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_chardata_t
 
     See ::t3_win_addnstrrep for further information.
 */
-int t3_win_addstrrep(t3_window_t *win, const char *str, t3_chardata_t attr, int rep) { return t3_win_addnstrrep(win, str, strlen(str), attr, rep); }
+int t3_win_addstrrep(t3_window_t *win, const char *str, t3_attr_t attr, int rep) { return t3_win_addnstrrep(win, str, strlen(str), attr, rep); }
 
 /** Add a character to a t3_window_t with specified attributes and repetition.
     @param win The t3_window_t to add the string to.
@@ -708,7 +710,7 @@ int t3_win_addstrrep(t3_window_t *win, const char *str, t3_chardata_t attr, int 
 
     See ::t3_win_addnstrrep for further information.
 */
-int t3_win_addchrep(t3_window_t *win, char c, t3_chardata_t attr, int rep) { return t3_win_addnstrrep(win, &c, 1, attr, rep); }
+int t3_win_addchrep(t3_window_t *win, char c, t3_attr_t attr, int rep) { return t3_win_addnstrrep(win, &c, 1, attr, rep); }
 
 /** @internal
     @brief Redraw a terminal line, based on all visible t3_window_t structs.
@@ -769,8 +771,8 @@ void t3_win_clrtoeol(t3_window_t *win) {
 		win->lines[win->paint_y].start = 0;
 	} else if (win->paint_x < win->lines[win->paint_y].start + win->lines[win->paint_y].width) {
 		int sumwidth = win->lines[win->paint_y].start, i;
-		for (i = 0; i < win->lines[win->paint_y].length && sumwidth + T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
-			sumwidth += T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
+		for (i = 0; i < win->lines[win->paint_y].length && sumwidth + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
+			sumwidth += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
 
 		if (sumwidth < win->paint_x) {
 			int spaces = win->paint_x - sumwidth;

@@ -24,11 +24,15 @@ void fatal(const char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-void callback(const t3_chardata_t *c, int length) {
+void callback(const char *str, int length, int width, t3_attr_t attr) {
 	int i;
+
+	(void) width;
+	(void) attr;
+
 	t3_term_set_attrs(T3_ATTR_BLINK | T3_ATTR_REVERSE);
 	for (i = 0; i < length; i++)
-		putchar(c[i] & T3_CHAR_MASK);
+		t3_term_putc(str[i]);
 }
 
 int main(int argc, char *argv[]) {
