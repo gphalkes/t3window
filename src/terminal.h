@@ -44,12 +44,31 @@ typedef enum {t3_false, t3_true} t3_bool;
 
 /** @typedef t3_attr_t
     @brief Type to hold attributes used for terminal display.
+
+    The value of a ::t3_attr_t should be a bitwise or of T3_ATTR_* attribute values. When the
+    terminal only supports setting colors by color pair, the ::T3_ATTR_FG macro can be used to
+    specify the color pair to activate.
 */
 #if INT_MAX < 2147483647L
 typedef long t3_attr_t;
 #else
 typedef int t3_attr_t;
 #endif
+
+/** Data structure to store information about the capabilities of the terminal. */
+typedef struct {
+	t3_attr_t highlights; /**< The supported attributes other then color attributes. This is a bitmask of T3_ATTR_* flags. */
+	int colors; /**< The maximum number of supported colors, or 0 if color is not supported. */
+	int pairs; /**< The maximum number of color pairs that are supported by this terminal, or 0 if color is not supported. */
+	int cap_flags; /**< A bitmask of T3_TERM_CAP flags indicating capabilities of the terminal. */
+} t3_term_caps_t;
+
+/** Terminal capability flag: terminal can set foreground. */
+#define T3_TERM_CAP_FG (1 << 0)
+/** Terminal capability flag: terminal can set foreground. */
+#define T3_TERM_CAP_BG (1 << 1)
+/** Terminal capability flag: terminal uses color pairs for setting color. */
+#define T3_TERM_CAP_CP (1 << 2)
 
 /** User callback type.
     The user callback is passed a pointer to the characters that are is marked with
@@ -205,6 +224,18 @@ T3_WINDOW_API t3_attr_t t3_term_get_supported_attrs(void);
 T3_WINDOW_API t3_bool t3_term_can_draw(const char *str, size_t str_len);
 T3_WINDOW_API void t3_term_set_replacement_char(char c);
 T3_WINDOW_API t3_bool t3_term_putc(char c);
+T3_WINDOW_API void t3_term_disable_ansi_optimization(void);
+
+/** Get terminal capabilities.
+    @param caps The location to store the capabilites.
+    @addtogroup t3window_term
+
+    This function can be used to obtain the supported video attributes and other information about
+    the capabilities of the terminal.
+*/
+#define t3_term_get_caps(caps) t3_term_get_caps_internal((caps), T3_WINDOW_VERSION)
+T3_WINDOW_API void t3_term_get_caps_internal(t3_term_caps_t *caps, size_t caps_size);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

@@ -86,9 +86,11 @@ static char *smcup, /**< Terminal control string: start cursor positioning mode.
 	*dim, /**< Terminal control string: start dim. */
 	*setf, /**< Terminal control string: set foreground color. */
 	*setb, /**< Terminal control string: set background color. */
-	*el; /**< Terminal control string: clear to end of line. */
+	*el, /**< Terminal control string: clear to end of line. */
+	*scp; /**< Terminal control string: set color pair. */
 static t3_chardata_t ncv; /**< Terminal info: Non-color video attributes (encoded in t3_chardata_t). */
 static t3_bool bce; /**< Terminal info: screen erased with background color. */
+static int colors, pairs;
 
 static t3_window_t *terminal_window; /**< t3_window_t struct representing the last drawn terminal state. */
 static line_data_t old_data; /**< line_data_t struct used in terminal update to save previous line state. */
@@ -391,12 +393,24 @@ int t3_term_init(int fd) {
 		if (smacs != NULL && ((rmacs = get_ti_string("rmacs")) == NULL || streq(rmul, "\033[m")))
 			reset_required_mask |= T3_ATTR_ACS;
 
-		/* FIXME: use scp if neither setaf/setf is available */
 		if ((setaf = get_ti_string("setaf")) == NULL)
 			setf = get_ti_string("setf");
 
 		if ((setab = get_ti_string("setab")) == NULL)
 			setb = get_ti_string("setb");
+
+		if (setaf == NULL && setf == NULL && setab == NULL && setb == NULL) {
+			if ((scp = get_ti_string("scp")) != NULL) {
+				colors = _t3_tigetnum("colors");
+				pairs = _t3_tigetnum("colors");
+			}
+		} else {
+			colors = _t3_tigetnum("colors");
+			pairs = _t3_tigetnum("colors");
+		}
+
+		if (colors < 0) colors = 0;
+		if (pairs < 0) pairs = 0;
 
 		op = get_ti_string("op");
 
@@ -509,6 +523,11 @@ int t3_term_init(int fd) {
 	_t3_init_output_iconv(nl_langinfo(CODESET));
 	initialised = t3_true;
 	return T3_ERR_SUCCESS;
+}
+
+/** Disable the ANSI terminal control sequence optimization. */
+void t3_term_disable_ansi_optimization(void) {
+	ansi_attrs = 0;
 }
 
 /** Restore terminal state (de-initialize). */
@@ -752,7 +771,6 @@ static void set_attrs_non_ansi(t3_chardata_t new_attrs) {
 		}
 	}
 
-
 	/* If colors are set using ANSI sequences, we are done here. */
 	if ((~ansi_attrs & (_T3_ATTR_FG_MASK | _T3_ATTR_BG_MASK)) == 0)
 		return;
@@ -765,29 +783,34 @@ static void set_attrs_non_ansi(t3_chardata_t new_attrs) {
 	if ((new_attrs & _T3_ATTR_BG_MASK) == _T3_ATTR_BG_DEFAULT)
 		new_attrs &= ~(_T3_ATTR_BG_MASK);
 
-	/* Set default color through op string */
-	if (((attrs & _T3_ATTR_FG_MASK) != (new_attrs & _T3_ATTR_FG_MASK) && (new_attrs & _T3_ATTR_FG_MASK) == 0) ||
-			((attrs & _T3_ATTR_BG_MASK) != (new_attrs & _T3_ATTR_BG_MASK) && (new_attrs & _T3_ATTR_BG_MASK) == 0)) {
-		if (op != NULL) {
-			_t3_putp(op);
-			attrs = new_attrs & ~(_T3_ATTR_FG_MASK | _T3_ATTR_BG_MASK);
+	if (scp == NULL) {
+		/* Set default color through op string */
+		if (((attrs & _T3_ATTR_FG_MASK) != (new_attrs & _T3_ATTR_FG_MASK) && (new_attrs & _T3_ATTR_FG_MASK) == 0) ||
+				((attrs & _T3_ATTR_BG_MASK) != (new_attrs & _T3_ATTR_BG_MASK) && (new_attrs & _T3_ATTR_BG_MASK) == 0)) {
+			if (op != NULL) {
+				_t3_putp(op);
+				attrs = new_attrs & ~(_T3_ATTR_FG_MASK | _T3_ATTR_BG_MASK);
+			}
 		}
-	}
 
-	/* FIXME: for alternatives this may not work! specifically this won't
-	   work if only color pairs are supported, rather than random combinations. */
-	if ((attrs & _T3_ATTR_FG_MASK) != (new_attrs & _T3_ATTR_FG_MASK)) {
-		if (setaf != NULL)
-			_t3_putp(_t3_tparm(setaf, 1, attr_to_color[(new_attrs >> _T3_ATTR_COLOR_SHIFT) & 0xf]));
-		else if (setf != NULL)
-			_t3_putp(_t3_tparm(setf, 1, attr_to_alt_color[(new_attrs >> _T3_ATTR_COLOR_SHIFT) & 0xf]));
-	}
+		if ((attrs & _T3_ATTR_FG_MASK) != (new_attrs & _T3_ATTR_FG_MASK)) {
+			if (setaf != NULL)
+				_t3_putp(_t3_tparm(setaf, 1, attr_to_color[(new_attrs >> _T3_ATTR_COLOR_SHIFT) & 0xf]));
+			else if (setf != NULL)
+				_t3_putp(_t3_tparm(setf, 1, attr_to_alt_color[(new_attrs >> _T3_ATTR_COLOR_SHIFT) & 0xf]));
+		}
 
-	if ((attrs & _T3_ATTR_BG_MASK) != (new_attrs & _T3_ATTR_BG_MASK)) {
-		if (setab != NULL)
-			_t3_putp(_t3_tparm(setab, 1, attr_to_color[(new_attrs >> (_T3_ATTR_COLOR_SHIFT + 4)) & 0xf]));
-		else if (setb != NULL)
-			_t3_putp(_t3_tparm(setb, 1, attr_to_alt_color[(new_attrs >> (_T3_ATTR_COLOR_SHIFT + 4)) & 0xf]));
+		if ((attrs & _T3_ATTR_BG_MASK) != (new_attrs & _T3_ATTR_BG_MASK)) {
+			if (setab != NULL)
+				_t3_putp(_t3_tparm(setab, 1, attr_to_color[(new_attrs >> (_T3_ATTR_COLOR_SHIFT + 4)) & 0xf]));
+			else if (setb != NULL)
+				_t3_putp(_t3_tparm(setb, 1, attr_to_alt_color[(new_attrs >> (_T3_ATTR_COLOR_SHIFT + 4)) & 0xf]));
+		}
+	} else {
+		if ((new_attrs & _T3_ATTR_FG_MASK) == 0)
+			_t3_putp(op);
+		else
+			_t3_putp(_t3_tparm(scp, 1, (new_attrs >> _T3_ATTR_COLOR_SHIFT) & 0xf));
 	}
 }
 
@@ -1103,25 +1126,36 @@ t3_attr_t t3_term_get_ncv(void) {
 	return ncv;
 }
 
-/** Get the set of supported video attributes.
-    @return Attributes bits from the T3_ATTR_* set indicating which attributes are
-        supported by the terminal.
+/** Get the terminal capabilities.
+    @param caps The location to store the capabilites.
+    @param version The version of the library used when compiling (should be ::T3_WINDOW_VERSION).
 
-    Color can be tested for by testing for ::T3_ATTR_FG_MASK and ::T3_ATTR_BG_MASK.
+    Note: do not call this function directly, but use ::t3_term_get_caps which automatically uses
+    ::T3_WINDOW_VERSION as the second argument.
+
+    This function can be used to obtain the supported video attributes and other information about
+    the capabilities of the terminal. To allow different ABI versions to live together, the version
+    number of the library used when compiling the call to this function must be passed.
 */
-t3_attr_t t3_term_get_supported_attrs(void) {
-	t3_attr_t supported_attrs = 0;
+void t3_term_get_caps_interal(t3_term_caps_t *caps, int version) {
+	(void) version;
 
-	if (smul != NULL) supported_attrs |= T3_ATTR_UNDERLINE;
-	if (bold != NULL) supported_attrs |= T3_ATTR_BOLD;
-	if (rev != NULL) supported_attrs |= T3_ATTR_REVERSE;
-	if (blink != NULL) supported_attrs |= T3_ATTR_BLINK;
-	if (dim != NULL) supported_attrs |= T3_ATTR_DIM;
-	if (smacs != NULL) supported_attrs |= T3_ATTR_ACS;
+	caps->highlights = 0;
 
-	if (setaf != NULL || setf != NULL) supported_attrs |= T3_ATTR_FG_MASK;
-	if (setab != NULL || setb != NULL) supported_attrs |= T3_ATTR_BG_MASK;
-	return supported_attrs;
+	if (smul != NULL) caps->highlights |= T3_ATTR_UNDERLINE;
+	if (bold != NULL) caps->highlights |= T3_ATTR_BOLD;
+	if (rev != NULL) caps->highlights |= T3_ATTR_REVERSE;
+	if (blink != NULL) caps->highlights |= T3_ATTR_BLINK;
+	if (dim != NULL) caps->highlights |= T3_ATTR_DIM;
+	if (smacs != NULL) caps->highlights |= T3_ATTR_ACS;
+
+	caps->colors = colors;
+	caps->pairs = pairs;
+
+	caps->cap_flags = 0;
+	if (setaf != NULL || setf != NULL) caps->cap_flags |= T3_TERM_CAP_FG;
+	if (setab != NULL || setb != NULL) caps->cap_flags |= T3_TERM_CAP_BG;
+	if (scp != NULL) caps->cap_flags |= T3_TERM_CAP_CP;
 }
 
 /** @internal
@@ -1155,4 +1189,3 @@ static t3_attr_t chardata_to_attr(t3_chardata_t chardata) {
 }
 
 /** @} */
-

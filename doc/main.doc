@@ -24,4 +24,8 @@ around each window.
 
 @include example.c
 
+@note
+This program does not check whether the terminal supports the ::T3_ATTR_REVERSE
+attribute. The terminal capabilities should be checked through ::t3_term_get_caps.
+
 */
