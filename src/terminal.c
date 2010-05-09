@@ -44,7 +44,7 @@ TODO list:
 #define streq(a,b) (strcmp((a), (b)) == 0)
 
 /** @internal
-    @brief Add a separator for creating ANSI strings in ::_t3_term_set_attrs. */
+    @brief Add a separator for creating ANSI strings in ::set_attrs. */
 #define ADD_ANSI_SEP() do { strcat(mode_string, sep); sep = ";"; } while(0)
 
 /** @internal
@@ -89,8 +89,6 @@ static char *smcup, /**< Terminal control string: start cursor positioning mode.
 	*el; /**< Terminal control string: clear to end of line. */
 static t3_chardata_t ncv; /**< Terminal info: Non-color video attributes (encoded in t3_chardata_t). */
 static t3_bool bce; /**< Terminal info: screen erased with background color. */
-
-static t3_chardata_t supported_attrs; /**< Supported attributes. */
 
 static t3_window_t *terminal_window; /**< t3_window_t struct representing the last drawn terminal state. */
 static line_data_t old_data; /**< line_data_t struct used in terminal update to save previous line state. */
@@ -160,7 +158,8 @@ static void set_alternate_chars_defaults(char *table) {
 	table['x'] = '|';
 }
 
-static void _t3_term_set_attrs(t3_chardata_t new_attrs);
+static void set_attrs(t3_chardata_t new_attrs);
+static t3_attr_t chardata_to_attr(t3_chardata_t chardata);
 
 /** Get a terminfo string.
     @param name The name of the requested terminfo string.
@@ -254,7 +253,7 @@ static void do_rmcup(void) {
     such that fewer characters need to be sent to the terminal than by using @c sgr.
 */
 static void detect_ansi(void) {
-	t3_chardata_t non_existant = 0;
+	t3_chardata_t non_existent = 0;
 
 	if (op != NULL && (streq(op, "\033[39;49m") || streq(op, "\033[49;39m"))) {
 		if (setaf != NULL && streq(setaf, "\033[3%p1%dm") &&
@@ -277,32 +276,32 @@ static void detect_ansi(void) {
 		if (streq(rev, "\033[7m"))
 			ansi_attrs |= _T3_ATTR_REVERSE;
 	} else {
-		non_existant |= _T3_ATTR_REVERSE;
+		non_existent |= _T3_ATTR_REVERSE;
 	}
 
 	if (bold != NULL) {
 		if (streq(bold, "\033[1m"))
 			ansi_attrs |= _T3_ATTR_BOLD;
 	} else {
-		non_existant |= _T3_ATTR_BOLD;
+		non_existent |= _T3_ATTR_BOLD;
 	}
 
 	if (dim != NULL) {
 		if (streq(dim, "\033[2m"))
 			ansi_attrs |= _T3_ATTR_DIM;
 	} else {
-		non_existant |= _T3_ATTR_DIM;
+		non_existent |= _T3_ATTR_DIM;
 	}
 
 	if (blink != NULL) {
 		if (streq(blink, "\033[5m"))
 			ansi_attrs |= _T3_ATTR_BLINK;
 	} else {
-		non_existant |= _T3_ATTR_BLINK;
+		non_existent |= _T3_ATTR_BLINK;
 	}
 
 	/* Only accept as ANSI if all attributes accept ACS are either non specified or ANSI. */
-	if (((non_existant | ansi_attrs) & (_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK)) !=
+	if (((non_existent | ansi_attrs) & (_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK)) !=
 			(_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK))
 		ansi_attrs &= ~(_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK);
 }
@@ -379,28 +378,25 @@ int t3_term_init(int fd) {
 
 		sgr = get_ti_string("sgr");
 		if ((smul = get_ti_string("smul")) != NULL) {
-			supported_attrs |= _T3_ATTR_UNDERLINE;
 			if ((rmul = get_ti_string("rmul")) == NULL || streq(rmul, "\033[m"))
 				reset_required_mask |= _T3_ATTR_UNDERLINE;
 		}
-		if ((bold = get_ti_string("bold")) != NULL) supported_attrs |= _T3_ATTR_BOLD;
+		bold = get_ti_string("bold");
 		/* FIXME: we could get smso and rmso for the purpose of ANSI detection. On many
 		   terminals smso == rev and rmso = exit rev */
-		if ((rev = get_ti_string("rev")) != NULL) supported_attrs |= _T3_ATTR_REVERSE;
-		if ((blink = get_ti_string("blink")) != NULL) supported_attrs |= _T3_ATTR_BLINK;
-		if ((dim = get_ti_string("dim")) != NULL) supported_attrs |= _T3_ATTR_DIM;
-		if ((smacs = get_ti_string("smacs")) != NULL) supported_attrs |= _T3_ATTR_ACS;
+		rev = get_ti_string("rev");
+		blink = get_ti_string("blink");
+		dim = get_ti_string("dim");
+		smacs = get_ti_string("smacs");
 		if (smacs != NULL && ((rmacs = get_ti_string("rmacs")) == NULL || streq(rmul, "\033[m")))
-			reset_required_mask |= _T3_ATTR_ACS;
+			reset_required_mask |= T3_ATTR_ACS;
 
 		/* FIXME: use scp if neither setaf/setf is available */
 		if ((setaf = get_ti_string("setaf")) == NULL)
 			setf = get_ti_string("setf");
-		if (setaf != NULL || setf != NULL) supported_attrs |= _T3_ATTR_FG_MASK;
 
 		if ((setab = get_ti_string("setab")) == NULL)
 			setb = get_ti_string("setb");
-		if (setab != NULL || setb != NULL) supported_attrs |= _T3_ATTR_BG_MASK;
 
 		op = get_ti_string("op");
 
@@ -504,7 +500,7 @@ int t3_term_init(int fd) {
 	}
 
 	/* Set the attributes of the terminal to a known value. */
-	_t3_term_set_attrs(0);
+	set_attrs(0);
 
 	_t3_init_output_buffer();
 	/* FIXME: make sure that the encoding is really set! */
@@ -527,7 +523,7 @@ void t3_term_restore(void) {
 			if (!show_cursor)
 				_t3_putp(cnorm);
 			/* Make sure attributes are reset */
-			_t3_term_set_attrs(0);
+			set_attrs(0);
 			attrs = 0;
 			fflush(stdout);
 		}
@@ -801,7 +797,7 @@ static void set_attrs_non_ansi(t3_chardata_t new_attrs) {
 
     The state of ::attrs is updated to reflect the new state.
 */
-static void _t3_term_set_attrs(t3_chardata_t new_attrs) {
+static void set_attrs(t3_chardata_t new_attrs) {
 	char mode_string[30]; /* Max is (if I counted correctly) 24. Use 30 for if I miscounted. */
 	t3_chardata_t changed_attrs;
 	const char *sep = "[";
@@ -886,7 +882,7 @@ static void _t3_term_set_attrs(t3_chardata_t new_attrs) {
     @param new_attrs The new attributes that should be used for subsequent character display.
 */
 void t3_term_set_attrs(t3_attr_t new_attrs) {
-	_t3_term_set_attrs(_t3_term_attr_to_chardata(new_attrs));
+	set_attrs(_t3_term_attr_to_chardata(new_attrs));
 }
 
 /** Set callback for drawing characters with ::_T3_ATTR_USER1 attribute.
@@ -972,14 +968,14 @@ void t3_term_update(void) {
 
 						user_callback(str, j - start,
 							_T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[start]),
-							_t3_term_chardata_to_attr(terminal_window->lines[i].data[start]));
+							chardata_to_attr(terminal_window->lines[i].data[start]));
 						free(str);
 					}
 					if (j < new_idx)
 						j--;
 					continue;
 				} else if (new_attrs != attrs) {
-					_t3_term_set_attrs(new_attrs);
+					set_attrs(new_attrs);
 				}
 			}
 			if (attrs & _T3_ATTR_ACS)
@@ -991,7 +987,7 @@ void t3_term_update(void) {
 		/* Clear the terminal line if the new line is shorter than the old one. */
 		if ((terminal_window->lines[i].width < old_data.width || j < new_idx) && width < terminal_window->width) {
 			if (bce && (attrs & ~_T3_ATTR_FG_MASK) != 0)
-				_t3_term_set_attrs(0);
+				set_attrs(0);
 
 			if (el != NULL) {
 				_t3_putp(el);
@@ -1006,7 +1002,7 @@ void t3_term_update(void) {
 done: /* Add empty statement to shut up compilers */ ;
 	}
 
-	_t3_term_set_attrs(0);
+	set_attrs(0);
 
 	if (show_cursor) {
 		if (rc != NULL)
@@ -1021,7 +1017,7 @@ done: /* Add empty statement to shut up compilers */ ;
 
 /** Redraw the entire terminal from scratch. */
 void t3_term_redraw(void) {
-	_t3_term_set_attrs(0);
+	set_attrs(0);
 	_t3_putp(clear);
 	t3_win_set_paint(terminal_window, 0, 0);
 	t3_win_clrtobot(terminal_window);
@@ -1114,6 +1110,17 @@ t3_attr_t t3_term_get_ncv(void) {
     Color can be tested for by testing for ::T3_ATTR_FG_MASK and ::T3_ATTR_BG_MASK.
 */
 t3_attr_t t3_term_get_supported_attrs(void) {
+	t3_attr_t supported_attrs = 0;
+
+	if (smul != NULL) supported_attrs |= T3_ATTR_UNDERLINE;
+	if (bold != NULL) supported_attrs |= T3_ATTR_BOLD;
+	if (rev != NULL) supported_attrs |= T3_ATTR_REVERSE;
+	if (blink != NULL) supported_attrs |= T3_ATTR_BLINK;
+	if (dim != NULL) supported_attrs |= T3_ATTR_DIM;
+	if (smacs != NULL) supported_attrs |= T3_ATTR_ACS;
+
+	if (setaf != NULL || setf != NULL) supported_attrs |= T3_ATTR_FG_MASK;
+	if (setab != NULL || setb != NULL) supported_attrs |= T3_ATTR_BG_MASK;
 	return supported_attrs;
 }
 
@@ -1134,7 +1141,7 @@ t3_chardata_t _t3_term_attr_to_chardata(t3_attr_t attr) {
 	;
 }
 
-t3_attr_t _t3_term_chardata_to_attr(t3_chardata_t chardata) {
+static t3_attr_t chardata_to_attr(t3_chardata_t chardata) {
 	return ((chardata & (0x7f << _T3_ATTR_SHIFT)) >> _T3_ATTR_SHIFT)
 	|
 		(((chardata >> _T3_ATTR_COLOR_SHIFT) & 0x1f) > 8 ?

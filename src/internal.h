@@ -49,7 +49,6 @@ struct t3_window_t {
 T3_WINDOW_LOCAL t3_bool _t3_win_refresh_term_line(struct t3_window_t *terminal, int line);
 T3_WINDOW_LOCAL t3_chardata_t _t3_term_attr_to_chardata(t3_attr_t attr);
 T3_WINDOW_LOCAL int _t3_term_get_default_acs(int idx);
-T3_WINDOW_LOCAL t3_attr_t _t3_term_chardata_to_attr(t3_chardata_t chardata);
 
 /** Bit number of the least significant attribute bit.
 
