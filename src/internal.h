@@ -59,7 +59,7 @@ T3_WINDOW_LOCAL int _t3_term_get_default_acs(int idx);
 */
 #define _T3_ATTR_SHIFT (CHAR_BIT + 2)
 /** Bit number of the least significant color attribute bit. */
-#define _T3_ATTR_COLOR_SHIFT (_T3_ATTR_SHIFT + 8)
+#define _T3_ATTR_COLOR_SHIFT (_T3_ATTR_SHIFT + 7)
 /** Get the width in character cells encoded in a ::t3_chardata_t value. */
 #define _T3_CHARDATA_TO_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
 
@@ -95,44 +95,44 @@ T3_WINDOW_LOCAL int _t3_term_get_default_acs(int idx);
 /** Foreground color unspecified. */
 #define _T3_ATTR_FG_UNSPEC ((t3_chardata_t) 0L)
 /** Foreground color black. */
-#define _T3_ATTR_FG_BLACK ((t3_chardata_t) (1L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_BLACK ((t3_chardata_t) (1L << _T3_ATTR_COLOR_SHIFT))
 /** Foreground color red. */
-#define _T3_ATTR_FG_RED ((t3_chardata_t) (2L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_RED ((t3_chardata_t) (2L << _T3_ATTR_COLOR_SHIFT))
 /** Foreground color green. */
-#define _T3_ATTR_FG_GREEN ((t3_chardata_t) (3L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_GREEN ((t3_chardata_t) (3L << _T3_ATTR_COLOR_SHIFT))
 /** Foreground color yellow. */
-#define _T3_ATTR_FG_YELLOW ((t3_chardata_t) (4L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_YELLOW ((t3_chardata_t) (4L << _T3_ATTR_COLOR_SHIFT))
 /** Foreground color blue. */
-#define _T3_ATTR_FG_BLUE ((t3_chardata_t) (5L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_BLUE ((t3_chardata_t) (5L << _T3_ATTR_COLOR_SHIFT))
 /** Foreground color magenta. */
-#define _T3_ATTR_FG_MAGENTA ((t3_chardata_t) (6L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_MAGENTA ((t3_chardata_t) (6L << _T3_ATTR_COLOR_SHIFT))
 /** Foreground color cyan. */
-#define _T3_ATTR_FG_CYAN ((t3_chardata_t) (7L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_CYAN ((t3_chardata_t) (7L << _T3_ATTR_COLOR_SHIFT))
 /** Foreground color white. */
-#define _T3_ATTR_FG_WHITE ((t3_chardata_t) (8L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_WHITE ((t3_chardata_t) (8L << _T3_ATTR_COLOR_SHIFT))
 /** Foreground color default. */
-#define _T3_ATTR_FG_DEFAULT ((t3_chardata_t) (9L << T3_ATTR_COLOR_SHIFT))
+#define _T3_ATTR_FG_DEFAULT ((t3_chardata_t) (9L << _T3_ATTR_COLOR_SHIFT))
 
 /** Background color unspecified. */
 #define _T3_ATTR_BG_UNSPEC ((t3_chardata_t) 0L)
 /** Background color black. */
-#define _T3_ATTR_BG_BLACK ((t3_chardata_t) (1L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_BLACK ((t3_chardata_t) (1L << (_T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color red. */
-#define _T3_ATTR_BG_RED ((t3_chardata_t) (2L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_RED ((t3_chardata_t) (2L << (_T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color green. */
-#define _T3_ATTR_BG_GREEN ((t3_chardata_t) (3L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_GREEN ((t3_chardata_t) (3L << (_T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color yellow. */
-#define _T3_ATTR_BG_YELLOW ((t3_chardata_t) (4L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_YELLOW ((t3_chardata_t) (4L << (_T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color blue. */
-#define _T3_ATTR_BG_BLUE ((t3_chardata_t) (5L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_BLUE ((t3_chardata_t) (5L << (_T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color magenta. */
-#define _T3_ATTR_BG_MAGENTA ((t3_chardata_t) (6L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_MAGENTA ((t3_chardata_t) (6L << (_T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color cyan. */
-#define _T3_ATTR_BG_CYAN ((t3_chardata_t) (7L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_CYAN ((t3_chardata_t) (7L << (_T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color white. */
-#define _T3_ATTR_BG_WHITE ((t3_chardata_t) (8L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_WHITE ((t3_chardata_t) (8L << (_T3_ATTR_COLOR_SHIFT + 4)))
 /** Background color default. */
-#define _T3_ATTR_BG_DEFAULT ((t3_chardata_t) (9L << (T3_ATTR_COLOR_SHIFT + 4)))
+#define _T3_ATTR_BG_DEFAULT ((t3_chardata_t) (9L << (_T3_ATTR_COLOR_SHIFT + 4)))
 
 
 #endif

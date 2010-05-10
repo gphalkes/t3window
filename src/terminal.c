@@ -450,12 +450,12 @@ int t3_term_init(int fd) {
 		set_alternate_chars_defaults(default_alternate_chars);
 
 		ncv_int = _t3_tigetnum("ncv");
-		if (ncv_int & (1<<1)) ncv |= _T3_ATTR_UNDERLINE;
-		if (ncv_int & (1<<2)) ncv |= _T3_ATTR_REVERSE;
-		if (ncv_int & (1<<3)) ncv |= _T3_ATTR_BLINK;
-		if (ncv_int & (1<<4)) ncv |= _T3_ATTR_DIM;
-		if (ncv_int & (1<<5)) ncv |= _T3_ATTR_BOLD;
-		if (ncv_int & (1<<8)) ncv |= _T3_ATTR_ACS;
+		if (ncv_int & (1<<1)) ncv |= T3_ATTR_UNDERLINE;
+		if (ncv_int & (1<<2)) ncv |= T3_ATTR_REVERSE;
+		if (ncv_int & (1<<3)) ncv |= T3_ATTR_BLINK;
+		if (ncv_int & (1<<4)) ncv |= T3_ATTR_DIM;
+		if (ncv_int & (1<<5)) ncv |= T3_ATTR_BOLD;
+		if (ncv_int & (1<<8)) ncv |= T3_ATTR_ACS;
 
 		seqs_initialised = t3_true;
 	}
@@ -575,7 +575,7 @@ static int last_key = -1, /**< Last keychar returned from ::t3_term_get_keychar.
 
 /** Get a key @c char from stdin with timeout.
     @param msec The timeout in miliseconds, or a value <= 0 for indefinite wait.
-    @retval A @c char read from stdin.
+    @retval >=0 A @c char read from stdin.
     @retval ::T3_ERR_ERRNO on error, with @c errno set to the error.
     @retval ::T3_ERR_EOF on end of file.
     @retval ::T3_ERR_TIMEOUT if there was no character to read within the specified timeout.
@@ -1130,7 +1130,7 @@ t3_attr_t t3_term_get_ncv(void) {
     @param caps The location to store the capabilites.
     @param version The version of the library used when compiling (should be ::T3_WINDOW_VERSION).
 
-    Note: do not call this function directly, but use ::t3_term_get_caps which automatically uses
+    @note Do not call this function directly, but use ::t3_term_get_caps which automatically uses
     ::T3_WINDOW_VERSION as the second argument.
 
     This function can be used to obtain the supported video attributes and other information about
@@ -1167,24 +1167,24 @@ t3_chardata_t _t3_term_attr_to_chardata(t3_attr_t attr) {
 	|
 		(((attr >> T3_ATTR_COLOR_SHIFT) & 0x1ff) > 8 ?
 			_T3_ATTR_FG_DEFAULT :
-			((attr >> T3_ATTR_COLOR_SHIFT) & 0x1f) << _T3_ATTR_COLOR_SHIFT)
+			((attr >> T3_ATTR_COLOR_SHIFT) & 0xf) << _T3_ATTR_COLOR_SHIFT)
 	|
 		(((attr >> (T3_ATTR_COLOR_SHIFT + 9)) & 0x1ff) > 8 ?
 			_T3_ATTR_BG_DEFAULT :
-			((attr >> (T3_ATTR_COLOR_SHIFT + 9)) & 0x1f) << (_T3_ATTR_COLOR_SHIFT + 4))
+			((attr >> (T3_ATTR_COLOR_SHIFT + 9)) & 0xf) << (_T3_ATTR_COLOR_SHIFT + 4))
 	;
 }
 
 static t3_attr_t chardata_to_attr(t3_chardata_t chardata) {
 	return ((chardata & (0x7f << _T3_ATTR_SHIFT)) >> _T3_ATTR_SHIFT)
 	|
-		(((chardata >> _T3_ATTR_COLOR_SHIFT) & 0x1f) > 8 ?
+		(((chardata >> _T3_ATTR_COLOR_SHIFT) & 0xf) > 8 ?
 			T3_ATTR_FG_DEFAULT :
-			((chardata >> _T3_ATTR_COLOR_SHIFT) & 0x1f) << T3_ATTR_COLOR_SHIFT)
+			((chardata >> _T3_ATTR_COLOR_SHIFT) & 0xf) << T3_ATTR_COLOR_SHIFT)
 	|
-		(((chardata >> (_T3_ATTR_COLOR_SHIFT + 4)) & 0x1f) > 8 ?
+		(((chardata >> (_T3_ATTR_COLOR_SHIFT + 4)) & 0xf) > 8 ?
 			T3_ATTR_BG_DEFAULT :
-			((chardata >> (_T3_ATTR_COLOR_SHIFT + 4)) & 0x1f) << (T3_ATTR_COLOR_SHIFT + 9))
+			((chardata >> (_T3_ATTR_COLOR_SHIFT + 4)) & 0xf) << (T3_ATTR_COLOR_SHIFT + 9))
 	;
 }
 

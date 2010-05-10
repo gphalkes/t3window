@@ -228,12 +228,14 @@ T3_WINDOW_API void t3_term_disable_ansi_optimization(void);
 
 /** Get terminal capabilities.
     @param caps The location to store the capabilites.
-    @addtogroup t3window_term
+    @ingroup t3window_term
 
     This function can be used to obtain the supported video attributes and other information about
-    the capabilities of the terminal.
+    the capabilities of the terminal. This define calls ::t3_term_get_caps_internal with the
+    correct version argument.
 */
 #define t3_term_get_caps(caps) t3_term_get_caps_internal((caps), T3_WINDOW_VERSION)
+
 T3_WINDOW_API void t3_term_get_caps_internal(t3_term_caps_t *caps, size_t caps_size);
 
 #ifdef __cplusplus
