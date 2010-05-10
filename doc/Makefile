@@ -1,12 +1,5 @@
-
-
 all: doxygen
+.PHONY: all
 
-
-doxygen:
-	doxygen doxygen.conf
-
-clean:
-	rm -rf API 2>&1
-
-.PHONY: all doxygen clean
+T3NAME:=window
+include ../../t3shared/doc-rules.mk
