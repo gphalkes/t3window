@@ -1137,7 +1137,7 @@ t3_attr_t t3_term_get_ncv(void) {
     the capabilities of the terminal. To allow different ABI versions to live together, the version
     number of the library used when compiling the call to this function must be passed.
 */
-void t3_term_get_caps_interal(t3_term_caps_t *caps, int version) {
+void t3_term_get_caps_internal(t3_term_caps_t *caps, int version) {
 	(void) version;
 
 	caps->highlights = 0;

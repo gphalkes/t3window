@@ -40,7 +40,10 @@ T3_WINDOW_API long t3_window_get_version(void);
 /*@}*/
 
 /** Boolean type that does not clash with C++ or C99 bool. */
-typedef enum {t3_false, t3_true} t3_bool;
+typedef enum {
+	t3_false, /**< False */
+	t3_true /**< True */
+} t3_bool;
 
 /** @typedef t3_attr_t
     @brief Type to hold attributes used for terminal display.
@@ -60,7 +63,7 @@ typedef struct {
 	t3_attr_t highlights; /**< The supported attributes other then color attributes. This is a bitmask of T3_ATTR_* flags. */
 	int colors; /**< The maximum number of supported colors, or 0 if color is not supported. */
 	int pairs; /**< The maximum number of color pairs that are supported by this terminal, or 0 if color is not supported. */
-	int cap_flags; /**< A bitmask of T3_TERM_CAP flags indicating capabilities of the terminal. */
+	int cap_flags; /**< A bitmask of T3_TERM_CAP_* flags indicating capabilities of the terminal. */
 } t3_term_caps_t;
 
 /** Terminal capability flag: terminal can set foreground. */
@@ -236,7 +239,7 @@ T3_WINDOW_API void t3_term_disable_ansi_optimization(void);
 */
 #define t3_term_get_caps(caps) t3_term_get_caps_internal((caps), T3_WINDOW_VERSION)
 
-T3_WINDOW_API void t3_term_get_caps_internal(t3_term_caps_t *caps, size_t caps_size);
+T3_WINDOW_API void t3_term_get_caps_internal(t3_term_caps_t *caps, int version);
 
 #ifdef __cplusplus
 } /* extern "C" */
