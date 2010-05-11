@@ -1,5 +1,3 @@
-CFLAGS +=-I. -DT3_WINDOW_BUILD_DSO
-
 LCFILES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c
 LDFLAGS.libt3window.la := -shared -Lunicode
 CFLAGS.window := -D_XOPEN_SOURCE
@@ -23,5 +21,7 @@ include ../../makesys/rules.mk
 #================================================#
 T3NAME := window
 include ../../t3shared/rules.mk
+
+CFLAGS +=-I. -DT3_WINDOW_BUILD_DSO
 
 test: | libt3window.la
