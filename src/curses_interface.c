@@ -10,9 +10,9 @@
 
 FILE *_t3_putp_file; /**< @c FILE struct corresponding to the terminal. Used for tputs in ::_t3_putp. */
 
-int _t3_setupterm(void) {
+int _t3_setupterm(const char *term) {
 	int error;
-	if (setupterm(NULL, 1, &error) != OK)
+	if (setupterm(term, 1, &error) != OK)
 		return error + 2;
 	return 0;
 }

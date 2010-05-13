@@ -310,6 +310,7 @@ static void detect_ansi(void) {
 
 /** Initialize the terminal.
     @param fd The file descriptor of the terminal or -1 for default/last used.
+    @param term The name of the terminal, or @c NULL to use the @c TERM environment variable.
     @return One of: ::T3_ERR_SUCCESS, ::T3_ERR_NOT_A_TTY, ::T3_ERR_ERRNO, ::T3_ERR_HARDCOPY_TERMINAL,
         ::T3_ERR_TERMINFODB_NOT_FOUND, ::T3_ERR_UNKNOWN, ::T3_ERR_TERMINAL_TOO_LIMITED,
         ::T3_ERR_NO_SIZE_INFO.
@@ -329,7 +330,7 @@ static void detect_ansi(void) {
     and generally all characters typed are passed to the program immediately
     and with a minimum of pre-processing.
 */
-int t3_term_init(int fd) {
+int t3_term_init(int fd, const char *term) {
 	struct winsize wsz;
 	char *enacs;
 	struct termios new_params;
@@ -358,7 +359,7 @@ int t3_term_init(int fd) {
 		int error;
 		char *acsc;
 
-		if ((error = _t3_setupterm()) != 0) {
+		if ((error = _t3_setupterm(term)) != 0) {
 			if (error == 1)
 				return T3_ERR_HARDCOPY_TERMINAL;
 			else if (error == -1)

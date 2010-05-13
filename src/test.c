@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
 	printf("Waiting for enter to allow debug\n");
 	getchar();
 
-	ASSERT(t3_term_init(-1) == T3_ERR_SUCCESS);
+	ASSERT(t3_term_init(-1, NULL) == T3_ERR_SUCCESS);
 	atexit(t3_term_restore);
 	inited = t3_true;
 
