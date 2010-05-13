@@ -180,20 +180,14 @@ enum {
 
 /** @name Error codes (libt3window specific) */
 /*@{*/
-/** Error code: no information found for the terminal in the terminfo database. */
-#define T3_ERR_TERMINFODB_NOT_FOUND (-64)
-/** Error code: the file descriptor is a hard-copy terminal. */
-#define T3_ERR_HARDCOPY_TERMINAL (-63)
 /** Error code: the file descriptor is not a terminal. */
-#define T3_ERR_NOT_A_TTY (-62)
+#define T3_ERR_NOT_A_TTY (-64)
 /** Error code: a timeout occured. */
-#define T3_ERR_TIMEOUT (-61)
-/** Error code: terminal provides too limited possibilities for the library to function. */
-#define T3_ERR_TERMINAL_TOO_LIMITED (-60)
+#define T3_ERR_TIMEOUT (-63)
 /** Error code: could not retrieve information about the size of the terminal window. */
-#define T3_ERR_NO_SIZE_INFO (-59)
+#define T3_ERR_NO_SIZE_INFO (-62)
 /** Error code: input contains non-printable characters. */
-#define T3_ERR_NONPRINT (-58)
+#define T3_ERR_NONPRINT (-61)
 
 T3_WINDOW_API const char *t3_window_strerror(int error);
 /*@}*/

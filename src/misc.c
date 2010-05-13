@@ -45,12 +45,15 @@ const char *t3_window_strerror(int error) {
 			return _("No information found in terminfo database for terminal");
 		case T3_ERR_HARDCOPY_TERMINAL:
 			return _("Terminal is a hard-copy terminal");
+		case T3_ERR_TERMINAL_TOO_LIMITED:
+			return _("Terminal provides too limited functionality");
+		case T3_ERR_NO_TERM:
+			return _("No terminal given and TERM environment variable not set");
+
 		case T3_ERR_NOT_A_TTY:
 			return _("In/output device is not a terminal");
 		case T3_ERR_TIMEOUT:
 			return _("Timeout");
-		case T3_ERR_TERMINAL_TOO_LIMITED:
-			return _("Terminal provides too limited functionality");
 		case T3_ERR_NO_SIZE_INFO:
 			return _("Size information for terminal could not be found");
 		case T3_ERR_NONPRINT:

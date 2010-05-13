@@ -363,7 +363,8 @@ int t3_term_init(int fd) {
 				return T3_ERR_HARDCOPY_TERMINAL;
 			else if (error == -1)
 				return T3_ERR_TERMINFODB_NOT_FOUND;
-
+			else if (error == 0)
+				return T3_ERR_TERMINAL_TOO_LIMITED;
 			return T3_ERR_UNKNOWN;
 		}
 
