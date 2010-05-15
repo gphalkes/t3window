@@ -355,6 +355,8 @@ int t3_term_init(int fd, const char *term) {
 	FD_ZERO(&inset);
 	FD_SET(terminal_fd, &inset);
 
+	/* FIXME: we should check whether the same value is passed for term each time,
+	   or tell the user that only the first time is relevant. */
 	if (!seqs_initialised) {
 		int error;
 		char *acsc;
