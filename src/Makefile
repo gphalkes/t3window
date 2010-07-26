@@ -22,8 +22,4 @@ include ../../makesys/rules.mk
 T3NAME := window
 include ../../t3shared/rules.mk
 
-CFLAGS +=-I.
-LCFLAGS += -DT3_WINDOW_BUILD_DSO
-LCFLAGS += -DT3_DEBUG
-
 test: | libt3window.la
