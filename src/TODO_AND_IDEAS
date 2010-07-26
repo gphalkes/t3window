@@ -1,7 +1,3 @@
-- add a attribute combine routine, which allows a dominant attribute to be
-  specified and takes curses ncv into account. I.e. if a dominant attribute
-  only specifies something which cannot be combined with color, the color should
-  be removed.
 - UTF-8 detection/CJK detection
 - zero-width characters at start of line?
 - program alternatives

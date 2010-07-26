@@ -1,4 +1,4 @@
-LCFILES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c
+LCFILES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c window_shared.c
 LDFLAGS.libt3window.la := -shared -Lunicode
 CFLAGS.window := -D_XOPEN_SOURCE
 CFLAGS.misc := -DUSE_GETTEXT
@@ -22,6 +22,8 @@ include ../../makesys/rules.mk
 T3NAME := window
 include ../../t3shared/rules.mk
 
-CFLAGS +=-I. -DT3_WINDOW_BUILD_DSO
+CFLAGS +=-I.
+LCFLAGS += -DT3_WINDOW_BUILD_DSO
+LCFLAGS += -DT3_DEBUG
 
 test: | libt3window.la
