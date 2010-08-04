@@ -43,18 +43,19 @@ static t3_bool ensureSpace(line_data_t *line, size_t n);
 /** @addtogroup t3window_win */
 /** @{ */
 /** Create a new t3_window_t.
+    @param parent t3_window_t used for clipping and relative positioning.
     @param height The desired height in terminal lines.
     @param width The desired width in terminal columns.
     @param y The vertical location of the window in terminal lines.
     @param x The horizontal location of the window in terminal columns.
-	@param depth The depth of the window in the stack of windows.
-	@return A pointer to a new t3_window_t struct or @c NULL if not enough
-	    memory could be allocated.
+    @param depth The depth of the window in the stack of windows.
+    @return A pointer to a new t3_window_t struct or @c NULL if not enough
+    	memory could be allocated.
 
     The @p depth parameter determines the z-order of the windows. Windows
-	with lower depth will hide windows with higher depths.
+    with lower depth will hide windows with higher depths.
 */
-t3_window_t *t3_win_new(int height, int width, int y, int x, int depth) {
+t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x, int depth) {
 	t3_window_t *retval, *ptr;
 	int i;
 
@@ -86,6 +87,8 @@ t3_window_t *t3_win_new(int height, int width, int y, int x, int depth) {
 	retval->depth = depth;
 	retval->shown = t3_false;
 	retval->default_attrs = 0;
+	retval->parent = parent;
+	retval->anchor = parent;
 
 	if (head == NULL) {
 		tail = head = retval;
@@ -118,45 +121,47 @@ t3_window_t *t3_win_new(int height, int width, int y, int x, int depth) {
 }
 
 /** Create a new t3_window_t with relative position.
+    @param parent t3_window_t used for clipping.
     @param height The desired height in terminal lines.
     @param width The desired width in terminal columns.
     @param y The vertical location of the window in terminal lines.
     @param x The horizontal location of the window in terminal columns.
-	@param depth The depth of the window in the stack of windows.
-    @param parent The window used as reference for relative positioning.
-    @param relation The relation between this window and @p parent (see WinT3_ANCHOR).
-	@return A pointer to a new t3_window_t struct or @c NULL if not enough
-	    memory could be allocated.
+    @param depth The depth of the window in the stack of windows.
+    @param anchor The window used as reference for relative positioning.
+    @param relation The relation between this window and @p anchor (see ::WinAnchor).
+    @return A pointer to a new t3_window_t struct or @c NULL if not enough
+    	memory could be allocated.
 
     The @p depth parameter determines the z-order of the windows. Windows
-	with lower depth will hide windows with higher depths.
+    with lower depth will hide windows with higher depths.
 */
-t3_window_t *t3_win_new_relative(int height, int width, int y, int x, int depth, t3_window_t *parent, int relation) {
+t3_window_t *t3_win_new_relative(t3_window_t *parent, int height, int width, int y, int x, int depth, t3_window_t *anchor, int relation) {
 	t3_window_t *retval;
 
-	if (parent == NULL && T3_GETPARENT(relation) != T3_ANCHOR_ABSOLUTE)
-			return NULL;
-
 	if (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT && T3_GETPARENT(relation) != T3_ANCHOR_TOPRIGHT &&
-			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT &&
-			T3_GETPARENT(relation) != T3_ANCHOR_ABSOLUTE) {
+			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT) {
 		return NULL;
 	}
 
 	if (T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT && T3_GETCHILD(relation) != T3_ANCHOR_TOPRIGHT &&
-			T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMRIGHT &&
-			T3_GETCHILD(relation) != T3_ANCHOR_ABSOLUTE) {
+			T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMRIGHT) {
 		return NULL;
 	}
 
-	retval = t3_win_new(height, width, y, x, depth);
+	if (anchor == NULL)
+		anchor = parent;
+
+	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
+		return NULL;
+
+	retval = t3_win_new(parent, height, width, y, x, depth);
 	if (retval == NULL)
 		return retval;
 
-	retval->parent = parent;
+	retval->anchor = anchor;
 	retval->relation = relation;
-	if (depth == INT_MIN && parent != NULL && parent->depth != INT_MIN)
-		retval->depth = parent->depth - 1;
+	if (depth == INT_MIN && anchor != NULL && anchor->depth != INT_MIN)
+		retval->depth = anchor->depth - 1;
 	return retval;
 }
 
@@ -177,6 +182,18 @@ static void _win_del(t3_window_t *win) {
 		free(win->lines);
 	}
 	free(win);
+}
+
+/** Check whether a window is show, both by the direct setting of the shown flag,
+		as well as the parents.
+*/
+static t3_bool _win_is_shown(t3_window_t *win) {
+	do {
+		if (!win->shown)
+			return t3_false;
+		win = win->parent;
+	} while (win != NULL);
+	return t3_true;
 }
 
 /** Set default attributes for a window.
@@ -305,30 +322,35 @@ int t3_win_get_depth(t3_window_t *win) {
 
 /** Get a t3_window_t's relative positioning information.
     @param win The t3_window_t to get the relative positioning information for.
-    @param [out] parent The location to store the pointer to the t3_window_t relative to
-	    which the position is specified.
+    @param [out] anchor The location to store the pointer to the t3_window_t relative to
+    	which the position is specified.
     @return The relative positioning method.
 
     To retrieve the separate parts of the relative positioning information, use
     ::T3_GETPARENT and ::T3_GETCHILD.
 */
-int t3_win_get_relation(t3_window_t *win, t3_window_t **parent) {
-	if (parent != NULL)
-		*parent = win->parent;
+int t3_win_get_relation(t3_window_t *win, t3_window_t **anchor) {
+	if (anchor != NULL)
+		*anchor = win->anchor;
 	return win->relation;
 }
 
 /** Get a t3_window_t's absolute horizontal position. */
 int t3_win_get_abs_x(t3_window_t *win) {
 	int result;
+
+	if (win == NULL)
+		return 0;
+
 	switch (T3_GETPARENT(win->relation)) {
 		case T3_ANCHOR_TOPLEFT:
 		case T3_ANCHOR_BOTTOMLEFT:
-			result = win->x + t3_win_get_abs_x(win->parent);
+			result = win->x + t3_win_get_abs_x(win->anchor);
 			break;
 		case T3_ANCHOR_TOPRIGHT:
 		case T3_ANCHOR_BOTTOMRIGHT:
-			result = t3_win_get_abs_x(win->parent) + win->parent->width + win->x;
+			/* If anchor == NULL, the relation is always T3_ANCHOR_TOPLEFT. */
+			result = t3_win_get_abs_x(win->anchor) + win->anchor->width + win->x;
 			break;
 		default:
 			result = win->x;
@@ -347,14 +369,19 @@ int t3_win_get_abs_x(t3_window_t *win) {
 /** Get a t3_window_t's absolute vertical position. */
 int t3_win_get_abs_y(t3_window_t *win) {
 	int result;
+
+	if (win == NULL)
+		return 0;
+
 	switch (T3_GETPARENT(win->relation)) {
 		case T3_ANCHOR_TOPLEFT:
 		case T3_ANCHOR_TOPRIGHT:
-			result = win->y + t3_win_get_abs_y(win->parent);
+			result = win->y + t3_win_get_abs_y(win->anchor);
 			break;
 		case T3_ANCHOR_BOTTOMLEFT:
 		case T3_ANCHOR_BOTTOMRIGHT:
-			result = t3_win_get_abs_y(win->parent) + win->parent->height + win->y;
+			/* If anchor == NULL, the relation is always T3_ANCHOR_TOPLEFT. */
+			result = t3_win_get_abs_y(win->anchor) + win->anchor->height + win->y;
 			break;
 		default:
 			result = win->y;
@@ -378,7 +405,7 @@ int t3_win_get_abs_y(t3_window_t *win) {
     The cursor is only moved if the window is currently shown.
 */
 void t3_win_set_cursor(t3_window_t *win, int y, int x) {
-	if (win->shown)
+	if (_win_is_shown(win))
 		t3_term_set_cursor(t3_win_get_abs_y(win) + y, t3_win_get_abs_x(win) + x);
 }
 
@@ -400,10 +427,10 @@ void t3_win_hide(t3_window_t *win) {
 
 /** Ensure that a line_data_t struct has at least a specified number of
         bytes of unused space.
-	@param line The line_data_t struct to check.
-	@param n The required unused space in bytes.
+    @param line The line_data_t struct to check.
+    @param n The required unused space in bytes.
     @return A boolean indicating whether, after possibly reallocating, the
-        requested number of bytes is available.
+    	requested number of bytes is available.
 */
 static t3_bool ensureSpace(line_data_t *line, size_t n) {
 	int newsize;
@@ -734,7 +761,8 @@ int t3_win_addchrep(t3_window_t *win, char c, t3_attr_t attr, int rep) { return 
 t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	line_data_t *draw;
 	t3_window_t *ptr;
-	int y;
+	int y, x, parent_y, parent_x, parent_max_y, parent_max_x;
+	int data_start, length, paint_x;
 	t3_bool result = t3_true;
 
 	/* FIXME: check return value of called functions for memory allocation errors. */
@@ -744,22 +772,97 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	terminal->lines[line].start = 0;
 
 	for (ptr = tail; ptr != NULL; ptr = ptr->prev) {
-		if (!ptr->shown)
+		if (!_win_is_shown(ptr))
 			continue;
 
+		if (ptr->parent == NULL) {
+			parent_y = 0;
+			parent_max_y = INT_MAX;
+			parent_x = 0;
+			parent_max_x = INT_MAX;
+		} else {
+			parent_y = t3_win_get_abs_y(ptr->parent);
+			parent_max_y = parent_y + ptr->parent->height;
+			parent_x = t3_win_get_abs_x(ptr->parent);
+			parent_max_x = parent_x + ptr->parent->width;
+		}
+
 		y = t3_win_get_abs_y(ptr);
-		if (y > line || y + ptr->height <= line)
+
+		/* Skip lines outside the visible area, or that are clipped by the parent window. */
+		if (y > line || y + ptr->height <= line || y < parent_y || y > parent_max_y)
 			continue;
 
 		draw = ptr->lines + line - y;
-		terminal->paint_x = t3_win_get_abs_x(ptr);
+		x = t3_win_get_abs_x(ptr);
+
+		/* Skip lines that are fully clipped by the parent window. */
+		if (x >= parent_max_x || x + draw->start + draw->width < parent_x)
+			continue;
+
+		data_start = 0;
+		/* Draw/skip unused leading part of line. */
+		if (x + draw->start >= parent_x) {
+			int start;
+			if (x + draw->start > parent_max_x)
+				start = parent_max_x - x;
+			else
+				start = draw->start;
+
+			if (ptr->default_attrs == 0) {
+				terminal->paint_x = x + start;
+			} else if (x >= parent_x) {
+				terminal->paint_x = x;
+				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, start) == 0;
+			} else {
+				terminal->paint_x = parent_x;
+				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, start - parent_x + x) == 0;
+			}
+		} else if (x < parent_x) {
+			terminal->paint_x = parent_x;
+			for (paint_x = x + draw->start;
+				paint_x + _T3_CHARDATA_TO_WIDTH(draw->data[data_start]) <= terminal->paint_x && data_start < draw->length;
+				paint_x += _T3_CHARDATA_TO_WIDTH(draw->data[data_start]), data_start++) {}
+			/* Add a space for the multi-cell character that is crossed by the parent clipping. */
+			if (data_start < draw->length && paint_x < terminal->paint_x) {
+				/* WARNING: when changing the internal representation of attributes, this must also be changed!!! */
+				result &= t3_win_addch(terminal, ' ', (draw->data[data_start] & _T3_ATTR_MASK) >> _T3_ATTR_SHIFT) == 0;
+				for (data_start++;
+					data_start < draw->length && _T3_CHARDATA_TO_WIDTH(draw->data[data_start]) == 0;
+					data_start++) {}
+			}
+		}
+
+		paint_x = terminal->paint_x;
+		for (length = data_start;
+			length < draw->length && paint_x + _T3_CHARDATA_TO_WIDTH(draw->data[length]) <= parent_max_x;
+			paint_x += _T3_CHARDATA_TO_WIDTH(draw->data[length]), length++) {}
+
+		result &= _win_add_chardata(terminal, draw->data + data_start, length - data_start);
+
+		/* Add a space for the multi-cell character that is crossed by the parent clipping. */
+		if (length < draw->length && paint_x == parent_max_x - 1)
+			/* WARNING: when changing the internal representation of attributes, this must also be changed!!! */
+			result &= t3_win_addch(terminal, ' ', (draw->data[length] & _T3_ATTR_MASK) >> _T3_ATTR_SHIFT) == 0;
+
+		if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width &&
+				x + draw->start + draw->width < parent_max_x)
+		{
+			if (x + ptr->width <= parent_max_x)
+				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width) == 0;
+			else
+				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, parent_max_x - x - draw->start - draw->width) == 0;
+		}
+
+/*		terminal->paint_x = t3_win_get_abs_x(ptr);
+		#warning FIXME: do clipping!!!
 		if (ptr->default_attrs == 0)
 			terminal->paint_x += draw->start;
 		else
 			result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, draw->start) == 0;
 		result &= _win_add_chardata(terminal, draw->data, draw->length);
 		if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width)
-			result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width) == 0;
+			result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width) == 0;*/
 	}
 
 	/* If a line does not start at position 0, just make it do so. This makes the whole repainting

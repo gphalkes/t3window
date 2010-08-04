@@ -493,7 +493,7 @@ int t3_term_init(int fd, const char *term) {
 	/* Create or resize terminal window */
 	if (terminal_window == NULL) {
 		/* FIXME: maybe someday we can make the window outside of the window stack. */
-		if ((terminal_window = t3_win_new(lines, columns, 0, 0, 0)) == NULL)
+		if ((terminal_window = t3_win_new(NULL, lines, columns, 0, 0, 0)) == NULL)
 			return T3_ERR_ERRNO;
 		if ((old_data.data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL)
 			return T3_ERR_ERRNO;
@@ -1079,7 +1079,7 @@ void t3_term_putp(const char *str) {
     on the terminal screen. This function is provided to calculate that value.
 */
 int t3_term_strwidth(const char *str) {
-	t3_window_t *win = t3_win_new(1, INT_MAX, 0, 0, 0);
+	t3_window_t *win = t3_win_new(NULL, 1, INT_MAX, 0, 0, 0);
 	int result;
 
 	t3_win_set_paint(win, 0, 0);

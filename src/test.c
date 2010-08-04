@@ -49,7 +49,7 @@ void callback(const char *str, int length, int width, t3_attr_t attr) {
 }
 
 int main(int argc, char *argv[]) {
-	t3_window_t *low, *high;
+	t3_window_t *low, *high, *sub;
 
 	(void) argc;
 	(void) argv;
@@ -62,23 +62,24 @@ int main(int argc, char *argv[]) {
 	atexit(t3_term_restore);
 	inited = t3_true;
 
-	ASSERT(low = t3_win_new(10, 10, 0, 5, 10));
-	ASSERT(high = t3_win_new(10, 10, 5, 10, 0));
+	t3_term_hide_cursor();
+	ASSERT(low = t3_win_new(NULL, 10, 10, 0, 5, 10));
+	ASSERT(high = t3_win_new(NULL, 10, 10, 5, 10, 0));
 	t3_win_show(low);
-	t3_term_update();
-	getchar();
+/* 	t3_term_update();
+	getchar(); */
 
 	t3_win_set_paint(low, 0, 0);
 	t3_win_addstr(low, "0123456789-", 0);
 	t3_win_set_paint(low, 6, 0);
 	t3_win_addstr(low, "abＱc̃defghijk", 0);
-	t3_term_update();
-	getchar();
+/* 	t3_term_update();
+	getchar(); */
 
 	t3_term_show_cursor();
 	t3_win_set_cursor(low, 0, 0);
-/* 	t3_win_show(high);
-	t3_term_update();
+	t3_win_show(high);
+/* 	t3_term_update();
 	getchar();
  */
 	t3_win_set_paint(high, 0, 0);
@@ -95,28 +96,41 @@ int main(int argc, char *argv[]) {
 	t3_win_set_paint(high, 3, 0);
 	t3_win_addstr(high, "f", T3_ATTR_USER);
 /* 	t3_term_update();
-	getchar();
+	getchar(); */
 
 	t3_win_hide(high);
-	t3_term_update();
-	getchar();
- */
+/* 	t3_term_update();
+	getchar(); */
+
 	t3_win_move(high, 5, 0);
 	t3_win_resize(high, 10, 8);
 	t3_win_show(high);
-	t3_term_update();
-	getchar();
+/* 	t3_term_update();
+	getchar(); */
 
 	t3_win_hide(high);
-	t3_term_update();
-	getchar();
+/* 	t3_term_update();
+	getchar(); */
 
 	t3_win_box(low, 0, 0, 10, 10, T3_ATTR_REVERSE);
+/* 	t3_term_update();
+	getchar(); */
+
+	t3_win_hide(low);
+	//~ t3_win_show(high);
+/* 	t3_term_update();
+	getchar(); */
+
+	sub = t3_win_new(low, 1, 20, 1, -6, -3);
+
+	t3_win_set_paint(sub, 0, 2);
+	t3_win_set_default_attrs(sub, T3_ATTR_REVERSE);
+	t3_win_addstr(sub, "abcＱabcＱabcＱ", 0);
+	t3_win_show(sub);
 	t3_term_update();
 	getchar();
 
-	t3_win_hide(low);
-	t3_win_show(high);
+	t3_win_show(low);
 	t3_term_update();
 	getchar();
 

@@ -52,7 +52,8 @@ struct t3_window_t {
 	                           Mostly useful for background specification. */
 	t3_bool shown; /* Indicates whether this t3_window_t is visible. */
 	line_data_t *lines; /* The contents of the t3_window_t. */
-	t3_window_t *parent; /* t3_window_t for relative placment. */
+	t3_window_t *parent; /* t3_window_t used for clipping. */
+	t3_window_t *anchor; /* t3_window_t for relative placment. */
 
 	/* Pointers for linking into depth sorted list. */
 	t3_window_t *next;
