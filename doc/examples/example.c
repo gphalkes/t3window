@@ -15,9 +15,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Create a new 10x10 window on line 0, column 5, depth 10. */
-	hidden = t3_win_new(10, 10, 0, 5, 10);
+	hidden = t3_win_new(NULL, 10, 10, 0, 5, 10);
 	/* Create a new 10x10 window on line 5, column 11, depth 0. */
-	exposed = t3_win_new(10, 10, 5, 11, 0);
+	exposed = t3_win_new(NULL, 10, 10, 5, 11, 0);
 	if (hidden == NULL || exposed == NULL) {
 		/* Restore the terminal to normal state. */
 		t3_term_restore();

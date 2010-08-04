@@ -53,7 +53,9 @@ static t3_bool ensureSpace(line_data_t *line, size_t n);
     	memory could be allocated.
 
     The @p depth parameter determines the z-order of the windows. Windows
-    with lower depth will hide windows with higher depths.
+    with lower depth will hide windows with higher depths. The position will
+    be relative to the top-left corner of the @p parent window, or to the
+    top-left corner of the terminal if @p parent is @c NULL.
 */
 t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x, int depth) {
 	t3_window_t *retval, *ptr;
