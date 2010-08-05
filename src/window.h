@@ -63,7 +63,7 @@ T3_WINDOW_API int t3_win_get_height(t3_window_t *win);
 T3_WINDOW_API int t3_win_get_x(t3_window_t *win);
 T3_WINDOW_API int t3_win_get_y(t3_window_t *win);
 T3_WINDOW_API int t3_win_get_depth(t3_window_t *win);
-T3_WINDOW_API int t3_win_get_relation(t3_window_t *win, t3_window_t **parent);
+T3_WINDOW_API int t3_win_get_relation(t3_window_t *win, t3_window_t **anchor);
 T3_WINDOW_API void t3_win_set_cursor(t3_window_t *win, int y, int x);
 T3_WINDOW_API void t3_win_set_paint(t3_window_t *win, int y, int x);
 T3_WINDOW_API void t3_win_show(t3_window_t *win);
