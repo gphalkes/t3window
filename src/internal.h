@@ -47,6 +47,7 @@ struct t3_window_t {
 	int paint_x, paint_y; /* Drawing cursor */
 	int width, height; /* Height and width of the t3_window_t */
 	int depth; /* Depth in stack. Higher values are deeper and thus obscured by Windows with lower depth. */
+	int sub_depth; /* Depth relative to top-level parent. */
 	int relation; /* Relation of this t3_window_t to parent. See window.h for values. */
 	t3_chardata_t default_attrs; /* Default attributes to be combined with drawing attributes.
 	                           Mostly useful for background specification. */

@@ -53,9 +53,10 @@ static t3_bool ensureSpace(line_data_t *line, size_t n);
     	memory could be allocated.
 
     The @p depth parameter determines the z-order of the windows. Windows
-    with lower depth will hide windows with higher depths. The position will
-    be relative to the top-left corner of the @p parent window, or to the
-    top-left corner of the terminal if @p parent is @c NULL.
+    with lower depth will hide windows with higher depths. However, this only
+    holds relative to the @p parent window. The position will be relative to
+    the top-left corner of the @p parent window, or to the top-left corner of
+    the terminal if @p parent is @c NULL.
 */
 t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x, int depth) {
 	t3_window_t *retval, *ptr;
@@ -86,7 +87,6 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
 	retval->paint_y = 0;
 	retval->width = width;
 	retval->height = height;
-	retval->depth = depth;
 	retval->shown = t3_false;
 	retval->default_attrs = 0;
 	retval->parent = parent;
@@ -98,10 +98,20 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
 		return retval;
 	}
 
+	if (parent == NULL) {
+		retval->depth = depth;
+		retval->sub_depth = INT_MAX;
+	} else {
+		for (ptr = parent; ptr->parent != NULL; ptr = ptr->parent) {}
+		retval->depth = parent->depth;
+		retval->sub_depth = depth;
+	}
+
 	/* Insert new window at the correct place in the sorted list of windows. */
-	ptr = head;
-	while (ptr != NULL && ptr->depth < depth)
-		ptr = ptr->next;
+	for (ptr = head;
+		ptr != NULL && (ptr->depth < retval->depth ||
+			(ptr->depth == retval->depth && ptr->sub_depth < retval->sub_depth));
+		ptr = ptr->next) {}
 
 	if (ptr == NULL) {
 		retval->prev = tail;
