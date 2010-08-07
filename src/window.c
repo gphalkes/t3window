@@ -74,11 +74,11 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
 	}
 
 	for (i = 0; i < height; i++) {
-		if ((retval->lines[i].data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL) {
+		if ((retval->lines[i].data = malloc(sizeof(t3_chardata_t) * width)) == NULL) {
 			_win_del(retval);
 			return NULL;
 		}
-		retval->lines[i].allocated = INITIAL_ALLOC;
+		retval->lines[i].allocated = width;
 	}
 
 	retval->x = x;
