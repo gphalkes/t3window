@@ -74,11 +74,11 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
 	}
 
 	for (i = 0; i < height; i++) {
-		if ((retval->lines[i].data = malloc(sizeof(t3_chardata_t) * width)) == NULL) {
+		retval->lines[i].allocated = width > INITIAL_ALLOC ? INITIAL_ALLOC : width;
+		if ((retval->lines[i].data = malloc(sizeof(t3_chardata_t) * retval->lines[i].allocated)) == NULL) {
 			_win_del(retval);
 			return NULL;
 		}
-		retval->lines[i].allocated = width;
 	}
 
 	retval->x = x;
@@ -793,16 +793,36 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 			parent_x = 0;
 			parent_max_x = INT_MAX;
 		} else {
-			parent_y = t3_win_get_abs_y(ptr->parent);
-			parent_max_y = parent_y + ptr->parent->height;
-			parent_x = t3_win_get_abs_x(ptr->parent);
-			parent_max_x = parent_x + ptr->parent->width;
+			t3_window_t *parent = ptr->parent;
+			parent_y = INT_MIN;
+			parent_max_y = INT_MAX;
+			parent_x = INT_MIN;
+			parent_max_x = INT_MAX;
+
+			do {
+				int tmp;
+				tmp = t3_win_get_abs_y(parent);
+				if (tmp > parent_y)
+					parent_y = tmp;
+				tmp += parent->height;
+				if (tmp < parent_max_y)
+					parent_max_y = tmp;
+
+				tmp = t3_win_get_abs_x(parent);
+				if (tmp > parent_x)
+					parent_x = tmp;
+				tmp += parent->width;
+				if (tmp < parent_max_x)
+					parent_max_x = tmp;
+
+				parent = parent->parent;
+			} while (parent != NULL);
 		}
 
 		y = t3_win_get_abs_y(ptr);
 
 		/* Skip lines outside the visible area, or that are clipped by the parent window. */
-		if (y > line || y + ptr->height <= line || y < parent_y || y > parent_max_y)
+		if (y > line || y + ptr->height <= line || y < parent_y || y >= parent_max_y)
 			continue;
 
 		draw = ptr->lines + line - y;
