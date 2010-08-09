@@ -822,7 +822,7 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 		y = t3_win_get_abs_y(ptr);
 
 		/* Skip lines outside the visible area, or that are clipped by the parent window. */
-		if (y > line || y + ptr->height <= line || y < parent_y || y >= parent_max_y)
+		if (y > line || y + ptr->height <= line || line < parent_y || line >= parent_max_y)
 			continue;
 
 		draw = ptr->lines + line - y;
