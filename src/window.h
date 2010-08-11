@@ -52,6 +52,7 @@ typedef struct t3_window_t t3_window_t;
 
 T3_WINDOW_API t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x, int depth);
 T3_WINDOW_API t3_window_t *t3_win_new_relative(t3_window_t *parent, int height, int width, int y, int x, int depth, t3_window_t *anchor, int relation);
+T3_WINDOW_API t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int y, int x, int depth, t3_window_t *anchor, int relation);
 T3_WINDOW_API void t3_win_del(t3_window_t *win);
 
 T3_WINDOW_API void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr);

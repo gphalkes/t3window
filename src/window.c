@@ -42,6 +42,44 @@ static t3_bool ensureSpace(line_data_t *line, size_t n);
 
 /** @addtogroup t3window_win */
 /** @{ */
+
+/** Insert a window into the list of known windows.
+    @param win The t3_window_t to insert.
+*/
+static void _insert_window(t3_window_t *win) {
+	t3_window_t *ptr;
+
+	if (head == NULL) {
+		tail = head = win;
+		win->next = win->prev = NULL;
+		return;
+	}
+
+	/* Insert new window at the correct place in the sorted list of windows. */
+	for (ptr = head;
+		ptr != NULL && (ptr->depth < win->depth ||
+			(ptr->depth == win->depth && ptr->sub_depth < win->sub_depth));
+		ptr = ptr->next) {}
+
+	if (ptr == NULL) {
+		win->prev = tail;
+		win->next = NULL;
+		tail->next = win;
+		tail = win;
+	} else if (ptr->prev == NULL) {
+		win->prev = NULL;
+		win->next = ptr;
+		head->prev = win;
+		head = win;
+	} else {
+		win->prev = ptr->prev;
+		win->next = ptr;
+		ptr->prev->next = win;
+		ptr->prev = win;
+	}
+
+}
+
 /** Create a new t3_window_t.
     @param parent t3_window_t used for clipping and relative positioning.
     @param height The desired height in terminal lines.
@@ -92,12 +130,6 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
 	retval->parent = parent;
 	retval->anchor = parent;
 
-	if (head == NULL) {
-		tail = head = retval;
-		retval->next = retval->prev = NULL;
-		return retval;
-	}
-
 	if (parent == NULL) {
 		retval->depth = depth;
 		retval->sub_depth = INT_MAX;
@@ -107,28 +139,7 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
 		retval->sub_depth = depth;
 	}
 
-	/* Insert new window at the correct place in the sorted list of windows. */
-	for (ptr = head;
-		ptr != NULL && (ptr->depth < retval->depth ||
-			(ptr->depth == retval->depth && ptr->sub_depth < retval->sub_depth));
-		ptr = ptr->next) {}
-
-	if (ptr == NULL) {
-		retval->prev = tail;
-		retval->next = NULL;
-		tail->next = retval;
-		tail = retval;
-	} else if (ptr->prev == NULL) {
-		retval->prev = NULL;
-		retval->next = ptr;
-		head->prev = retval;
-		head = retval;
-	} else {
-		retval->prev = ptr->prev;
-		retval->next = ptr;
-		ptr->prev->next = retval;
-		ptr->prev = retval;
-	}
+	_insert_window(retval);
 	return retval;
 }
 
@@ -142,7 +153,7 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
     @param anchor The window used as reference for relative positioning.
     @param relation The relation between this window and @p anchor (see ::WinAnchor).
     @return A pointer to a new t3_window_t struct or @c NULL if not enough
-    	memory could be allocated.
+    	memory could be allocated or an invalid parameter was passed.
 
     The @p depth parameter determines the z-order of the windows. Windows
     with lower depth will hide windows with higher depths.
@@ -166,16 +177,86 @@ t3_window_t *t3_win_new_relative(t3_window_t *parent, int height, int width, int
 	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
 		return NULL;
 
+	if (depth == INT_MIN && anchor != NULL && anchor->depth != INT_MIN)
+		depth = anchor->depth - 1;
+
 	retval = t3_win_new(parent, height, width, y, x, depth);
 	if (retval == NULL)
 		return retval;
 
 	retval->anchor = anchor;
 	retval->relation = relation;
-	if (depth == INT_MIN && anchor != NULL && anchor->depth != INT_MIN)
-		retval->depth = anchor->depth - 1;
 	return retval;
 }
+
+/** Create a new t3_window_t with relative position without backing store.
+    @param parent t3_window_t used for clipping.
+    @param height The desired height in terminal lines.
+    @param width The desired width in terminal columns.
+    @param y The vertical location of the window in terminal lines.
+    @param x The horizontal location of the window in terminal columns.
+    @param depth The depth of the window in the stack of windows.
+    @param anchor The window used as reference for relative positioning.
+    @param relation The relation between this window and @p anchor (see ::WinAnchor).
+    @return A pointer to a new t3_window_t struct or @c NULL if not enough
+    	memory could be allocated or an invalid parameter was passed.
+
+    The @p depth parameter determines the z-order of the windows. Windows
+    with lower depth will hide windows with higher depths.
+*/
+t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int y, int x, int depth, t3_window_t *anchor, int relation) {
+	t3_window_t *retval, *ptr;
+
+	if (height <= 0 || width <= 0)
+		return NULL;
+
+	if (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT && T3_GETPARENT(relation) != T3_ANCHOR_TOPRIGHT &&
+			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT) {
+		return NULL;
+	}
+
+	if (T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT && T3_GETCHILD(relation) != T3_ANCHOR_TOPRIGHT &&
+			T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMRIGHT) {
+		return NULL;
+	}
+
+	if (anchor == NULL)
+		anchor = parent;
+
+	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
+		return NULL;
+
+	if ((retval = calloc(1, sizeof(t3_window_t))) == NULL)
+		return NULL;
+
+	retval->x = x;
+	retval->y = y;
+	retval->paint_x = 0;
+	retval->paint_y = 0;
+	retval->width = width;
+	retval->height = height;
+	retval->shown = t3_false;
+	retval->default_attrs = 0;
+	retval->parent = parent;
+	retval->anchor = anchor;
+	retval->relation = relation;
+
+	if (depth == INT_MIN && anchor != NULL && anchor->depth != INT_MIN)
+		retval->depth = anchor->depth - 1;
+
+	if (parent == NULL) {
+		retval->depth = depth;
+		retval->sub_depth = INT_MAX;
+	} else {
+		for (ptr = parent; ptr->parent != NULL; ptr = ptr->parent) {}
+		retval->depth = parent->depth;
+		retval->sub_depth = depth;
+	}
+
+	_insert_window(retval);
+	return retval;
+}
+
 
 /** Free a t3_window_t struct.
 
@@ -246,6 +327,12 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 
 	if (height <= 0 || width <= 0)
 		return t3_false;
+
+	if (win->lines == NULL) {
+		win->height = height;
+		win->width = width;
+		return t3_true;
+	}
 
 	if (height > win->height) {
 		void *result;
@@ -489,6 +576,9 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 	size_t k;
 	t3_bool result = t3_true;
 	t3_chardata_t space = ' ' | _t3_term_attr_to_chardata(win->default_attrs);
+
+	if (win->lines == NULL)
+		return t3_false;
 
 	if (win->paint_y >= win->height)
 		return t3_true;
@@ -784,6 +874,9 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	terminal->lines[line].start = 0;
 
 	for (ptr = tail; ptr != NULL; ptr = ptr->prev) {
+		if (ptr->lines == NULL)
+			continue;
+
 		if (!_win_is_shown(ptr))
 			continue;
 
@@ -910,7 +1003,7 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 
 /** Clear current t3_window_t painting line to end. */
 void t3_win_clrtoeol(t3_window_t *win) {
-	if (win->paint_y >= win->height)
+	if (win->paint_y >= win->height || win->lines == NULL)
 		return;
 
 	if (win->paint_x <= win->lines[win->paint_y].start) {
@@ -954,7 +1047,7 @@ int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_chardat
 	attr = t3_term_combine_attrs(attr, win->default_attrs);
 
 	if (y >= win->height || y + height > win->height ||
-			x >= win->width || x + width > win->width)
+			x >= win->width || x + width > win->width || win->lines == NULL)
 		return -1;
 
 	t3_win_set_paint(win, y, x);
@@ -976,6 +1069,9 @@ int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_chardat
 
 /** Clear current t3_window_t painting line to end and all subsequent lines fully. */
 void t3_win_clrtobot(t3_window_t *win) {
+	if (win->lines == NULL)
+		return;
+
 	t3_win_clrtoeol(win);
 	for (win->paint_y++; win->paint_y < win->height; win->paint_y++) {
 		win->lines[win->paint_y].length = 0;
