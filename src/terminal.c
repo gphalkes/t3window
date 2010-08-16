@@ -171,6 +171,7 @@ static void set_alternate_chars_defaults(char *table) {
 	table['l'] = '+';
 	table['k'] = '+';
 	table['x'] = '|';
+	table['~'] = 'o';
 }
 
 static void set_attrs(t3_chardata_t new_attrs);
