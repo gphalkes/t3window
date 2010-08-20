@@ -187,7 +187,9 @@ enum {
 	T3_ACS_RARROW = '+', /**< Arrow pointing right. */
 	T3_ACS_BOARD = 'h', /**< Board of squares. */
 	T3_ACS_CKBOARD = 'a', /**< Checker board pattern (stipple). */
-	T3_ACS_BULLET = '~' /** < Bullet. */
+	T3_ACS_BULLET = '~', /** < Bullet. */
+	T3_ACS_DIAMOND = '`', /** < Diamond. */
+	/* FIXME: add all the different known ACS chars */
 };
 
 #include "window_errors.h"
