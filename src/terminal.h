@@ -52,12 +52,6 @@ extern "C" {
 T3_WINDOW_API long t3_window_get_version(void);
 /*@}*/
 
-/** Boolean type that does not clash with C++ or C99 bool. */
-typedef enum {
-	t3_false, /**< False */
-	t3_true /**< True */
-} t3_bool;
-
 /** @typedef t3_attr_t
     @brief Type to hold attributes used for terminal display.
 
