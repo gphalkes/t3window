@@ -18,12 +18,15 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
+#include <iconv.h>
 
 #include "window.h"
 #include "internal.h"
 #include "unicode.h"
 
 #define CONV_BUFFER_LEN (160)
+
+typedef void *t3_export_t;
 
 static char *output_buffer;
 static size_t output_buffer_size, output_buffer_idx;
@@ -32,6 +35,212 @@ static t3_export_t output_iconv = (t3_export_t) -1;
 static char *nfc_output;
 static size_t nfc_output_size;
 static char replacement_char = '?';
+
+static int unicode_export_fast(t3_export_t, char **, size_t *, char **, size_t *);
+static int unicode_export_conservative(t3_export_t, char **, size_t *, char **, size_t *);
+static int (*unicode_export)(t3_export_t, char **, size_t *, char **, size_t *) = unicode_export_conservative;
+
+#define CONVBUF_SIZE 32
+typedef struct {
+	iconv_t handle;
+	char convbuf[CONVBUF_SIZE];
+	size_t convbuf_size;
+	t3_bool saved;
+} export_data;
+
+static t3_bool check_utf8_validity(const char *buf) {
+	size_t discard;
+	uint32_t c = t3_getuc(buf, &discard);
+	const unsigned char *_buf = (const unsigned char *) buf;
+
+	/* t3_getuc returns a replacement character if the sequence is not valid. However,
+	   the buffer may actually contain the replacement character so only return false
+	   if that is not the case. */
+	if (c == 0xFFFD && !(_buf[0] == 0xEF && _buf[1] == 0xBF && _buf[2] == 0xDB))
+		return t3_false;
+	return t3_true;
+}
+
+
+static int unicode_export_fast(t3_export_t handle, char **inbuf, size_t *inbytesleft, char **outbuf, size_t *outbytesleft) {
+	/* libiconv and glibc stop with EILSEQ on an unavailable character. Therefore
+	   we can simply try to do the conversion in one go, and if it fails with
+	   EILSEQ, determine whether the next character is valid UTF-8 to see which
+	   of the two possible cases we are in.
+	*/
+	size_t retval;
+
+	retval = iconv(((export_data *) handle)->handle, inbuf, inbytesleft, outbuf, outbytesleft);
+	if (retval == (size_t) -1) {
+		if (errno == EILSEQ && check_utf8_validity(*inbuf))
+			return ENOTSUP;
+		return errno;
+	}
+	/* The conversion should not return anything other than 0 or an error, so
+	   we don't check here anymore. */
+	return 0;
+}
+
+static int unicode_export_conservative(t3_export_t handle, char **inbuf, size_t *inbytesleft, char **outbuf, size_t *outbytesleft) {
+	/* Some iconv libraries replace unavailable output characters with a fixed,
+	   but unknown character (usually a question mark or NUL byte). We won't be
+	   able to find out about this until it is too late. Furthermore, if the
+	   conversion fails, we won't even be told about the fact that this has
+	   happened. Therefore we just convert one UTF-8 codepoint at a time, such
+	   that we at least have the full picture.
+	*/
+	export_data *_handle = (export_data *) handle;
+	size_t charsize, saved_charsize, outbytes;
+	char *outbuf_ptr;
+	char *saved_inbuf, *saved_outbuf;
+	size_t saved_inbytesleft, saved_outbytesleft;
+
+	if (_handle->saved) {
+		if (outbuf != NULL) {
+			outbytes = CONVBUF_SIZE - _handle->convbuf_size;
+			if (outbytes > *outbytesleft)
+				return E2BIG;
+
+			memcpy(*outbuf, _handle->convbuf, outbytes);
+			*outbuf += outbytes;
+			*outbytesleft -= outbytes;
+		}
+
+		_handle->saved = t3_false;
+	}
+
+	/* Reset the state of the iconv conversion. We do this so we have a known state
+	   to which we can return if a non-reversible conversion is performed and we
+	   have to roll-back the conversion. */
+	if (iconv(_handle->handle, NULL, NULL, outbuf, outbytesleft) == (size_t) -1)
+		return errno;
+
+	if (inbuf == NULL)
+		return 0;
+
+	saved_inbuf = *inbuf;
+	saved_inbytesleft = *inbytesleft;
+	saved_outbuf = *outbuf;
+	saved_outbytesleft = *outbytesleft;
+
+	while (*inbytesleft > 0 && (outbytesleft == NULL || *outbytesleft > 0)) {
+		switch ((**inbuf) & 0xF0) {
+			case 0xF0:
+				charsize = 4;
+				break;
+			case 0xE0:
+				charsize = 3;
+				break;
+			case 0xC0:
+			case 0xD0:
+				charsize = 2;
+				break;
+			default:
+				charsize = 1;
+				break;
+		}
+		if (*inbytesleft < charsize)
+			return EINVAL;
+		saved_charsize = charsize;
+
+		outbuf_ptr = _handle->convbuf;
+		_handle->convbuf_size = CONVBUF_SIZE;
+		switch (iconv(_handle->handle, inbuf, &charsize, &outbuf_ptr, &_handle->convbuf_size)) {
+			case -1:
+				if (errno == EILSEQ && check_utf8_validity(*inbuf))
+					return ENOTSUP;
+				return errno;
+			case 0:
+				outbytes = CONVBUF_SIZE - _handle->convbuf_size;
+				*inbytesleft -= saved_charsize;
+				if (outbytes > *outbytesleft) {
+					_handle->saved = t3_true;
+					return E2BIG;
+				}
+				memcpy(*outbuf, _handle->convbuf, outbytes);
+				*outbuf += outbytes;
+				*outbytesleft -= outbytes;
+				break;
+			default: {
+				/* Now we are in a pickle. Iconv did something we do not want, but which we
+				   can not avoid: it performed an non-reversible conversion. This means that
+				   it probably inserted some character that we do not want there. So we roll-back
+				   the state to what it was before the conversion, and start the conversion
+				   again. Only this time, we know exactly which part of the input is convertible,
+				   so we can do the conversion in one go.
+				*/
+				size_t to_convert = (*inbuf - saved_inbuf) - saved_charsize;
+				if (iconv(_handle->handle, NULL, NULL, NULL, NULL) == (size_t) -1)
+					return errno;
+
+				*inbuf = saved_inbuf;
+				*outbuf = saved_outbuf;
+				*inbytesleft = saved_inbytesleft - to_convert;
+				*outbytesleft = saved_outbytesleft;
+
+				if (to_convert == 0)
+					return ENOTSUP;
+
+				if (iconv(_handle->handle, inbuf, &to_convert, outbuf, outbytesleft) == (size_t) -1)
+					return errno;
+
+				return ENOTSUP;
+			}
+		}
+	}
+	return 0;
+}
+
+/** Open an export character set for ::unicode_export.
+    @param charset The name of the character set to convert to.
+
+    This function wraps ::iconv_open and returns either a ::t3_export_t or
+    @c (t3_export_t) @c -1.
+*/
+static t3_export_t unicode_open_export(const char *charset) {
+	static t3_bool export_initalized = t3_false;
+	export_data *retval;
+
+	if (!export_initalized) {
+		iconv_t handle;
+		char _in[2] = "\xc3\xa1", *in = _in;
+		char _out[10], *out = _out;
+		size_t inlen = 2, outlen = 10;
+
+		/* FIXME: add more names for ASCII that are in common use. */
+		if ((handle = iconv_open("ASCII", "UTF-8")) != (iconv_t) -1 ||
+			(handle = iconv_open("IBM367", "UTF-8")) != (iconv_t) -1) {
+			if (iconv(handle, &in, &inlen, &out, &outlen) == (size_t) -1 && errno == EILSEQ)
+				unicode_export = unicode_export_fast;
+			iconv_close(handle);
+		}
+		export_initalized = t3_true;
+	}
+
+	if ((retval = malloc(sizeof(export_data))) == NULL) {
+		errno = ENOMEM;
+		return (t3_export_t) -1;
+	}
+
+	retval->saved = t3_false;
+
+	if ((retval->handle = iconv_open(charset, "UTF-8")) == NULL) {
+		int saved_errno = errno;
+		free(retval);
+		errno = saved_errno;
+		return (t3_export_t) -1;
+	}
+
+	return (t3_export_t) retval;
+}
+
+/** Close an export character set. */
+static void unicode_close_export(t3_export_t handle) {
+	export_data *_handle = (export_data *) handle;
+	iconv_close(_handle->handle);
+	free(handle);
+}
+
 
 /** @internal
     @brief Initialize the output buffer used for accumulating output characters.
@@ -47,7 +256,7 @@ t3_bool _t3_init_output_buffer(void) {
 */
 t3_bool _t3_init_output_iconv(const char *encoding) {
 	if (output_iconv != (t3_export_t) -1)
-		t3_unicode_close_export(output_iconv);
+		unicode_close_export(output_iconv);
 
 	/* FIXME: use case-insensitive compare and check for other "spellings" of UTF-8 */
 	if (strcmp(encoding, "UTF-8") == 0) {
@@ -55,7 +264,7 @@ t3_bool _t3_init_output_iconv(const char *encoding) {
 		return t3_true;
 	}
 
-	return (output_iconv = t3_unicode_open_export(encoding)) != (t3_export_t) -1;
+	return (output_iconv = unicode_open_export(encoding)) != (t3_export_t) -1;
 }
 
 /** Add a charater to the output buffer.
@@ -126,7 +335,7 @@ void _t3_output_buffer_print(void) {
 
 		/* Convert UTF-8 sequence into current output encoding using iconv. */
 		while (input_len > 0) {
-			retval = t3_unicode_export(output_iconv, &conversion_input_ptr, &input_len, &conversion_output_ptr, &output_len);
+			retval = unicode_export(output_iconv, &conversion_input_ptr, &input_len, &conversion_output_ptr, &output_len);
 			switch (retval) {
 				case EILSEQ:
 					/* Handle illegal sequences (which shouldn't occur anyway) the same was
@@ -151,7 +360,7 @@ void _t3_output_buffer_print(void) {
 					   be outputing replacement characters. */
 					conversion_output_ptr = conversion_output;
 					output_len = CONV_BUFFER_LEN;
-					t3_unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
+					unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
 					if (output_len < CONV_BUFFER_LEN)
 						fwrite(conversion_output, 1, CONV_BUFFER_LEN - output_len, stdout);
 
@@ -180,7 +389,7 @@ void _t3_output_buffer_print(void) {
 		   be outputing escape sequences. */
 		conversion_output_ptr = conversion_output;
 		output_len = CONV_BUFFER_LEN;
-		t3_unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
+		unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
 		if (output_len < CONV_BUFFER_LEN)
 			fwrite(conversion_output, 1, CONV_BUFFER_LEN - output_len, stdout);
 	}
@@ -225,14 +434,14 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 
 		/* Convert UTF-8 sequence into current output encoding using iconv. */
 		while (input_len > 0) {
-			retval = t3_unicode_export(output_iconv, &conversion_input_ptr, &input_len, &conversion_output_ptr, &output_len);
+			retval = unicode_export(output_iconv, &conversion_input_ptr, &input_len, &conversion_output_ptr, &output_len);
 			switch (retval) {
 				case EILSEQ:
 				case EINVAL:
 					/* Reset conversion to initial state. */
 					conversion_output_ptr = conversion_output;
 					output_len = CONV_BUFFER_LEN;
-					t3_unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
+					unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
 					return t3_false;
 				case E2BIG:
 					/* Not enough space in output buffer. Restart conversion with remaining chars. */
@@ -248,7 +457,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		/* Reset conversion to initial state. */
 		conversion_output_ptr = conversion_output;
 		output_len = CONV_BUFFER_LEN;
-		t3_unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
+		unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
 		return t3_true;
 	}
 }
@@ -264,3 +473,4 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 void t3_term_set_replacement_char(char c) {
 	replacement_char = c;
 }
+
