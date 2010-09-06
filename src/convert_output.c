@@ -296,28 +296,6 @@ t3_bool t3_term_putc(char c) {
     @brief Print the characters in the output buffer.
 */
 void _t3_output_buffer_print(void) {
-/* FIXME: The following was taken from gnulib striconv.c:
-
-	 Irix iconv() inserts a NUL byte if it cannot convert.
-     NetBSD iconv() inserts a question mark if it cannot convert.
-     Only GNU libiconv and GNU libc are known to prefer to fail rather
-     than doing a lossy conversion.  For other iconv() implementations,
-     we have to look at the number of irreversible conversions returned;
-     but this information is lost when iconv() returns for an E2BIG reason.
-     Therefore we cannot use the second, faster algorithm.
-
-	This means that we won't have any control over how we print such characters, unless we
-	actually convert character by character, checking for irreversible conversions in
-	the process. Of course the E2BIG "error" will prevent us from checking this if the
-	output buffer is smaller than needed for the full conversion (nice API design guys...).
-
-	Maybe we can implement some kind of binary like searching, by first trying to convert
-	the whole string and if that contains some irreversible converion try the first half etc.
-
-	Associated ifdef from same file:
-	# if !defined _LIBICONV_VERSION && !defined __GLIBC__
-*/
-
 	size_t nfc_output_len;
 	if (output_buffer_idx == 0)
 		return;
@@ -333,12 +311,12 @@ void _t3_output_buffer_print(void) {
 		size_t input_len = nfc_output_len, output_len = CONV_BUFFER_LEN;
 		int retval;
 
-		/* Convert UTF-8 sequence into current output encoding using iconv. */
+		/* Convert UTF-8 sequence into current output encoding using t3_unicode_export. */
 		while (input_len > 0) {
 			retval = unicode_export(output_iconv, &conversion_input_ptr, &input_len, &conversion_output_ptr, &output_len);
 			switch (retval) {
 				case EILSEQ:
-					/* Handle illegal sequences (which shouldn't occur anyway) the same was
+					/* Handle illegal sequences (which shouldn't occur anyway) the same as
 					   unsupported characters. This way we at least make progress, and hope
 					   for the best. */
 					/* FALLTHROUGH */
@@ -428,20 +406,14 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		size_t input_len = nfc_output_len, output_len = CONV_BUFFER_LEN;
 		int retval;
 
-		/* NOTE: although the iconv manual page and glibc iconv description mention that
-		   outbuf may be a NULL pointer, in fact passing one results in a segmentation fault.
-		   Therefore we just convert to a temporary buffer which is then discarded. */
-
-		/* Convert UTF-8 sequence into current output encoding using iconv. */
+		/* Convert UTF-8 sequence into current output encoding using t3_unicode_export. */
 		while (input_len > 0) {
 			retval = unicode_export(output_iconv, &conversion_input_ptr, &input_len, &conversion_output_ptr, &output_len);
 			switch (retval) {
 				case EILSEQ:
 				case EINVAL:
 					/* Reset conversion to initial state. */
-					conversion_output_ptr = conversion_output;
-					output_len = CONV_BUFFER_LEN;
-					unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
+					unicode_export(output_iconv, NULL, NULL, NULL, NULL);
 					return t3_false;
 				case E2BIG:
 					/* Not enough space in output buffer. Restart conversion with remaining chars. */
@@ -455,9 +427,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 			}
 		}
 		/* Reset conversion to initial state. */
-		conversion_output_ptr = conversion_output;
-		output_len = CONV_BUFFER_LEN;
-		unicode_export(output_iconv, NULL, NULL, &conversion_output_ptr, &output_len);
+		unicode_export(output_iconv, NULL, NULL, NULL, NULL);
 		return t3_true;
 	}
 }
