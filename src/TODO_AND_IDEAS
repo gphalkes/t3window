@@ -1,3 +1,7 @@
+- Do we need to change anything for non-ascii based encodings? I.e., what if the
+  terminal uses UTF-16? The escape sequences we send then probably need to be
+  converted to the output character set before sending, because otherwise the
+  terminal can't understand them.
 - UTF-8 detection/CJK detection
 - zero-width characters at start of line?
 - program alternatives

@@ -342,6 +342,9 @@ void _t3_output_buffer_print(void) {
 					if (output_len < CONV_BUFFER_LEN)
 						fwrite(conversion_output, 1, CONV_BUFFER_LEN - output_len, stdout);
 
+					/* FIXME: this assumes that the given character is actually valid in the output
+					   encoding, which is of course not necessarily the case. It should be converted
+					   first!. */
 					for (width = T3_INFO_TO_WIDTH(t3_get_codepoint_info(c)); width > 0; width--)
 						putchar(replacement_char);
 
