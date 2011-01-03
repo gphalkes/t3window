@@ -492,6 +492,9 @@ int t3_term_init(int fd, const char *term) {
 		}
 	}
 
+	if (!_t3_init_output_convertor(nl_langinfo(CODESET)))
+		return T3_ERR_UNKNOWN;
+
 	/* Create or resize terminal window */
 	if (terminal_window == NULL) {
 		/* FIXME: maybe someday we can make the window outside of the window stack. */
@@ -539,7 +542,6 @@ int t3_term_init(int fd, const char *term) {
 	/* FIXME: make sure that the encoding is really set! */
 	/* FIXME: nl_langinfo only works when setlocale has been called first. This should
 	   therefore be a requirement for calling this function */
-	_t3_init_output_iconv(nl_langinfo(CODESET));
 	initialised = t3_true;
 	return T3_ERR_SUCCESS;
 }

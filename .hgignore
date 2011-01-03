@@ -1,4 +1,5 @@
 syntax: glob
+src/charconv
 src/window_shared.c
 src/window_errors.h
 src/window_api.h
