@@ -11,21 +11,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-LCFILES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c window_shared.c
+SOURCES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c window_shared.c
 LDFLAGS.libt3window.la := -shared -Lunicode -Lcharconv
 CFLAGS.window := -D_XOPEN_SOURCE
 CFLAGS.misc := -DUSE_GETTEXT
 LDLIBS.libt3window.la := -lncurses -lt3unicode -lcharconv
 CFLAGS.convert_output := -Iunicode -Icharconv
 
-CFILES.test := test.c
+SOURCES.test := test.c
 LDFLAGS.test := -L.libs
 LDLIBS.test :=-lt3window
 
 LD_LIBRARY_PATH := unicode
 export LD_LIBRARY_PATH
 
-TARGETS := libt3window.la test
+LTTARGETS := libt3window.la
+TARGETS := test
 
 #================================================#
 # NO RULES SHOULD BE DEFINED BEFORE THIS INCLUDE #
