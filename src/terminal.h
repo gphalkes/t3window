@@ -198,6 +198,8 @@ enum {
 #define T3_ERR_NO_SIZE_INFO (-62)
 /** Error code: input contains non-printable characters. */
 #define T3_ERR_NONPRINT (-61)
+/** Error code: could not open character-set conversion. */
+#define T3_ERR_CHARSET_ERROR (-60)
 
 T3_WINDOW_API const char *t3_window_strerror(int error);
 /*@}*/

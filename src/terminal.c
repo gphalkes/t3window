@@ -493,7 +493,7 @@ int t3_term_init(int fd, const char *term) {
 	}
 
 	if (!_t3_init_output_convertor(nl_langinfo(CODESET)))
-		return T3_ERR_UNKNOWN;
+		return T3_ERR_CHARSET_ERROR;
 
 	/* Create or resize terminal window */
 	if (terminal_window == NULL) {

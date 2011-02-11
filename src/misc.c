@@ -52,5 +52,7 @@ const char *t3_window_strerror(int error) {
 			return _("size information for terminal could not be found");
 		case T3_ERR_NONPRINT:
 			return _("non-printable character passed for display");
+		case T3_ERR_CHARSET_ERROR:
+			return _("character-set conversion not available");
 	}
 }
