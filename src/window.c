@@ -37,7 +37,6 @@
 static t3_window_t *head, /**< Head of depth sorted t3_window_t list. */
 	*tail; /**< Tail of depth sorted t3_window_t list. */
 
-static void _win_del(t3_window_t *win);
 static t3_bool ensureSpace(line_data_t *line, size_t n);
 
 /** @addtogroup t3window_win */
@@ -46,38 +45,34 @@ static t3_bool ensureSpace(line_data_t *line, size_t n);
 /** Insert a window into the list of known windows.
     @param win The t3_window_t to insert.
 */
-static void _insert_window(t3_window_t *win) {
+static void _insert_window(t3_window_t *win, t3_window_t **head_ptr, t3_window_t **tail_ptr) {
 	t3_window_t *ptr;
 
-	if (head == NULL) {
-		tail = head = win;
+	if (*head_ptr == NULL) {
+		*tail_ptr = *head_ptr = win;
 		win->next = win->prev = NULL;
 		return;
 	}
 
 	/* Insert new window at the correct place in the sorted list of windows. */
-	for (ptr = head;
-		ptr != NULL && (ptr->depth < win->depth ||
-			(ptr->depth == win->depth && ptr->sub_depth < win->sub_depth));
-		ptr = ptr->next) {}
+	for (ptr = *head_ptr; ptr != NULL && ptr->depth < win->depth; ptr = ptr->next) {}
 
 	if (ptr == NULL) {
 		win->prev = tail;
 		win->next = NULL;
-		tail->next = win;
-		tail = win;
+		(*tail_ptr)->next = win;
+		*tail_ptr = win;
 	} else if (ptr->prev == NULL) {
 		win->prev = NULL;
 		win->next = ptr;
-		head->prev = win;
-		head = win;
+		(*head_ptr)->prev = win;
+		*head_ptr = win;
 	} else {
 		win->prev = ptr->prev;
 		win->next = ptr;
 		ptr->prev->next = win;
 		ptr->prev = win;
 	}
-
 }
 
 /** Create a new t3_window_t.
@@ -97,95 +92,25 @@ static void _insert_window(t3_window_t *win) {
     the terminal if @p parent is @c NULL.
 */
 t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x, int depth) {
-	t3_window_t *retval, *ptr;
+	t3_window_t *retval;
 	int i;
 
-	if (height <= 0 || width <= 0)
-		return NULL;
-
-	if ((retval = calloc(1, sizeof(t3_window_t))) == NULL)
+	if ((retval = t3_win_new_unbacked(parent, height, width, y, x, depth)) == NULL)
 		return NULL;
 
 	if ((retval->lines = calloc(1, sizeof(line_data_t) * height)) == NULL) {
-		_win_del(retval);
+		t3_win_del(retval);
 		return NULL;
 	}
 
 	for (i = 0; i < height; i++) {
 		retval->lines[i].allocated = width > INITIAL_ALLOC ? INITIAL_ALLOC : width;
 		if ((retval->lines[i].data = malloc(sizeof(t3_chardata_t) * retval->lines[i].allocated)) == NULL) {
-			_win_del(retval);
+			t3_win_del(retval);
 			return NULL;
 		}
 	}
 
-	retval->x = x;
-	retval->y = y;
-	retval->paint_x = 0;
-	retval->paint_y = 0;
-	retval->width = width;
-	retval->height = height;
-	retval->shown = t3_false;
-	retval->default_attrs = 0;
-	retval->parent = parent;
-	retval->anchor = parent;
-
-	if (parent == NULL) {
-		retval->depth = depth;
-		retval->sub_depth = INT_MAX;
-	} else {
-		for (ptr = parent; ptr->parent != NULL; ptr = ptr->parent) {}
-		retval->depth = parent->depth;
-		retval->sub_depth = depth;
-	}
-
-	_insert_window(retval);
-	return retval;
-}
-
-/** Create a new t3_window_t with relative position.
-    @param parent t3_window_t used for clipping.
-    @param height The desired height in terminal lines.
-    @param width The desired width in terminal columns.
-    @param y The vertical location of the window in terminal lines.
-    @param x The horizontal location of the window in terminal columns.
-    @param depth The depth of the window in the stack of windows.
-    @param anchor The window used as reference for relative positioning.
-    @param relation The relation between this window and @p anchor (see ::WinAnchor).
-    @return A pointer to a new t3_window_t struct or @c NULL if not enough
-    	memory could be allocated or an invalid parameter was passed.
-
-    The @p depth parameter determines the z-order of the windows. Windows
-    with lower depth will hide windows with higher depths.
-*/
-t3_window_t *t3_win_new_relative(t3_window_t *parent, int height, int width, int y, int x, int depth, t3_window_t *anchor, int relation) {
-	t3_window_t *retval;
-
-	if (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT && T3_GETPARENT(relation) != T3_ANCHOR_TOPRIGHT &&
-			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT) {
-		return NULL;
-	}
-
-	if (T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT && T3_GETCHILD(relation) != T3_ANCHOR_TOPRIGHT &&
-			T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMRIGHT) {
-		return NULL;
-	}
-
-	if (anchor == NULL)
-		anchor = parent;
-
-	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
-		return NULL;
-
-	if (depth == INT_MIN && anchor != NULL && anchor->depth != INT_MIN)
-		depth = anchor->depth - 1;
-
-	retval = t3_win_new(parent, height, width, y, x, depth);
-	if (retval == NULL)
-		return retval;
-
-	retval->anchor = anchor;
-	retval->relation = relation;
 	return retval;
 }
 
@@ -196,34 +121,19 @@ t3_window_t *t3_win_new_relative(t3_window_t *parent, int height, int width, int
     @param y The vertical location of the window in terminal lines.
     @param x The horizontal location of the window in terminal columns.
     @param depth The depth of the window in the stack of windows.
-    @param anchor The window used as reference for relative positioning.
-    @param relation The relation between this window and @p anchor (see ::WinAnchor).
     @return A pointer to a new t3_window_t struct or @c NULL if not enough
     	memory could be allocated or an invalid parameter was passed.
+
+    Windows without a backing store can not be used for drawing. These are
+    only defined to allow a window for positioning other windows only.
 
     The @p depth parameter determines the z-order of the windows. Windows
     with lower depth will hide windows with higher depths.
 */
-t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int y, int x, int depth, t3_window_t *anchor, int relation) {
-	t3_window_t *retval, *ptr;
+t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int y, int x, int depth) {
+	t3_window_t *retval;
 
 	if (height <= 0 || width <= 0)
-		return NULL;
-
-	if (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT && T3_GETPARENT(relation) != T3_ANCHOR_TOPRIGHT &&
-			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT) {
-		return NULL;
-	}
-
-	if (T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT && T3_GETCHILD(relation) != T3_ANCHOR_TOPRIGHT &&
-			T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMRIGHT) {
-		return NULL;
-	}
-
-	if (anchor == NULL)
-		anchor = parent;
-
-	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
 		return NULL;
 
 	if ((retval = calloc(1, sizeof(t3_window_t))) == NULL)
@@ -231,50 +141,45 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 
 	retval->x = x;
 	retval->y = y;
-	retval->paint_x = 0;
-	retval->paint_y = 0;
 	retval->width = width;
 	retval->height = height;
+	retval->paint_x = 0;
+	retval->paint_y = 0;
 	retval->shown = t3_false;
 	retval->default_attrs = 0;
 	retval->parent = parent;
-	retval->anchor = anchor;
-	retval->relation = relation;
+	retval->anchor = parent;
+	retval->relation = 0;
+	retval->depth = depth;
 
-	if (depth == INT_MIN && anchor != NULL && anchor->depth != INT_MIN)
-		retval->depth = anchor->depth - 1;
-
-	if (parent == NULL) {
-		retval->depth = depth;
-		retval->sub_depth = INT_MAX;
-	} else {
-		for (ptr = parent; ptr->parent != NULL; ptr = ptr->parent) {}
-		retval->depth = parent->depth;
-		retval->sub_depth = depth;
-	}
-
-	_insert_window(retval);
+	if (parent == NULL)
+		_insert_window(retval, &head, &tail);
+	else
+		_insert_window(retval, &parent->head, &parent->tail);
 	return retval;
 }
 
-
-/** Free a t3_window_t struct.
-
-    This function only @c free's the memory associated with the t3_window_t. For
-    a full clean-up, call ::t3_win_del.
+/** Link a t3_window_t's position to the position of another t3_window_t.
+    @param win The t3_window_t to set the anchor for.
+    @param anchor The t3_window_t to link to.
+    @param relation The relation between this window and @p anchor (see ::WinAnchor).
 */
-static void _win_del(t3_window_t *win) {
-	int i;
+void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
+	if (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT && T3_GETPARENT(relation) != T3_ANCHOR_TOPRIGHT &&
+			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT) {
+		return;
+	}
 
-	if (win == NULL)
+	if (T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT && T3_GETCHILD(relation) != T3_ANCHOR_TOPRIGHT &&
+			T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMRIGHT) {
+		return;
+	}
+
+	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
 		return;
 
-	if (win->lines != NULL) {
-		for (i = 0; i < win->height; i++)
-			free(win->lines[i].data);
-		free(win->lines);
-	}
-	free(win);
+	win->anchor = anchor;
+	win->relation = relation;
 }
 
 /** Check whether a window is show, both by the direct setting of the shown flag,
@@ -300,18 +205,40 @@ void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr) {
 	win->default_attrs = attr;
 }
 
-/** Discard a t3_window_t. */
-void t3_win_del(t3_window_t *win) {
-	if (win->next == NULL)
-		tail = win->prev;
-	else
-		win->next->prev = win->prev;
+/** Discard a t3_window_t.
+    @param win The t3_window_t to discard.
 
-	if (win->prev == NULL)
-		head = win->next;
-	else
+    Note that child windows are @em not automatically discarded as well.
+*/
+void t3_win_del(t3_window_t *win) {
+	int i;
+	if (win == NULL)
+		return;
+
+	if (win->next == NULL) {
+		if (win->parent == NULL)
+			tail = win->prev;
+		else
+			win->parent->tail = win->prev;
+	} else {
+		win->next->prev = win->prev;
+	}
+
+	if (win->prev == NULL) {
+		if (win->parent == NULL)
+			head = win->next;
+		else
+			win->parent->head = win->next;
+	} else {
 		win->prev->next = win->next;
-	_win_del(win);
+	}
+
+	if (win->lines != NULL) {
+		for (i = 0; i < win->height; i++)
+			free(win->lines[i].data);
+		free(win->lines);
+	}
+	free(win);
 }
 
 /** Change a t3_window_t's size.
@@ -854,6 +781,31 @@ int t3_win_addstrrep(t3_window_t *win, const char *str, t3_attr_t attr, int rep)
 */
 int t3_win_addchrep(t3_window_t *win, char c, t3_attr_t attr, int rep) { return t3_win_addnstrrep(win, &c, 1, attr, rep); }
 
+/** Get the starting t3_window_t for drawing, i.e. the deepest child of the last t3_window_t. */
+static t3_window_t *_get_last_window(void) {
+	t3_window_t *ptr = tail;
+
+	if (ptr != NULL) {
+		/* Keep going deeper into the tree and to the last child. */
+		while (ptr->tail != NULL)
+			ptr = ptr->tail;
+	}
+	return ptr;
+}
+
+/** Get the next t3_window_t, when iterating over the t3_window_t's for drawing.
+    @param ptr The last t3_window_t that was handled.
+*/
+static t3_window_t *_get_previous_window(t3_window_t *ptr) {
+	if (ptr->prev != NULL) {
+		ptr = ptr->prev;
+		while (ptr->tail != NULL)
+			ptr = ptr->tail;
+		return ptr;
+	}
+	return ptr->parent;
+}
+
 /** @internal
     @brief Redraw a terminal line, based on all visible t3_window_t structs.
     @param terminal The t3_window_t representing the cached terminal contents.
@@ -873,7 +825,7 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	terminal->lines[line].length = 0;
 	terminal->lines[line].start = 0;
 
-	for (ptr = tail; ptr != NULL; ptr = ptr->prev) {
+	for (ptr = _get_last_window(); ptr != NULL; ptr = _get_previous_window(ptr)) {
 		if (ptr->lines == NULL)
 			continue;
 
@@ -980,7 +932,6 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 		}
 
 /*		terminal->paint_x = t3_win_get_abs_x(ptr);
-		#warning FIXME: do clipping!!!
 		if (ptr->default_attrs == 0)
 			terminal->paint_x += draw->start;
 		else
