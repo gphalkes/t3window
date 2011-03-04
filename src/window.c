@@ -45,8 +45,17 @@ static t3_bool ensureSpace(line_data_t *line, size_t n);
 /** Insert a window into the list of known windows.
     @param win The t3_window_t to insert.
 */
-static void _insert_window(t3_window_t *win, t3_window_t **head_ptr, t3_window_t **tail_ptr) {
+static void _insert_window(t3_window_t *win) {
+	t3_window_t **head_ptr, **tail_ptr;
 	t3_window_t *ptr;
+
+	if (win->parent == NULL) {
+		head_ptr = &head;
+		tail_ptr = &tail;
+	} else {
+		head_ptr = &win->parent->head;
+		tail_ptr = &win->parent->tail;
+	}
 
 	if (*head_ptr == NULL) {
 		*tail_ptr = *head_ptr = win;
@@ -74,6 +83,27 @@ static void _insert_window(t3_window_t *win, t3_window_t **head_ptr, t3_window_t
 		ptr->prev = win;
 	}
 }
+
+static void _remove_window(t3_window_t *win) {
+	if (win->next == NULL) {
+		if (win->parent == NULL)
+			tail = win->prev;
+		else
+			win->parent->tail = win->prev;
+	} else {
+		win->next->prev = win->prev;
+	}
+
+	if (win->prev == NULL) {
+		if (win->parent == NULL)
+			head = win->next;
+		else
+			win->parent->head = win->next;
+	} else {
+		win->prev->next = win->next;
+	}
+}
+
 
 /** Create a new t3_window_t.
     @param parent t3_window_t used for clipping and relative positioning.
@@ -152,10 +182,7 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 	retval->relation = 0;
 	retval->depth = depth;
 
-	if (parent == NULL)
-		_insert_window(retval, &head, &tail);
-	else
-		_insert_window(retval, &parent->head, &parent->tail);
+	_insert_window(retval);
 	return retval;
 }
 
@@ -180,6 +207,16 @@ void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
 
 	win->anchor = anchor;
 	win->relation = relation;
+}
+
+/** Change the depth of a t3_window_t.
+    @param win The t3_window_t to set the depth for.
+    @param depth The new depth for the window.
+*/
+void t3_win_set_depth(t3_window_t *win, int depth) {
+	_remove_window(win);
+	win->depth = depth;
+	_insert_window(win);
 }
 
 /** Check whether a window is show, both by the direct setting of the shown flag,
@@ -215,23 +252,7 @@ void t3_win_del(t3_window_t *win) {
 	if (win == NULL)
 		return;
 
-	if (win->next == NULL) {
-		if (win->parent == NULL)
-			tail = win->prev;
-		else
-			win->parent->tail = win->prev;
-	} else {
-		win->next->prev = win->prev;
-	}
-
-	if (win->prev == NULL) {
-		if (win->parent == NULL)
-			head = win->next;
-		else
-			win->parent->head = win->next;
-	} else {
-		win->prev->next = win->next;
-	}
+	_remove_window(win);
 
 	if (win->lines != NULL) {
 		for (i = 0; i < win->height; i++)
