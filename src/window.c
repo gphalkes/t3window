@@ -802,29 +802,22 @@ int t3_win_addstrrep(t3_window_t *win, const char *str, t3_attr_t attr, int rep)
 */
 int t3_win_addchrep(t3_window_t *win, char c, t3_attr_t attr, int rep) { return t3_win_addnstrrep(win, &c, 1, attr, rep); }
 
-/** Get the starting t3_window_t for drawing, i.e. the deepest child of the last t3_window_t. */
-static t3_window_t *_get_last_window(void) {
-	t3_window_t *ptr = tail;
-
-	if (ptr != NULL) {
-		/* Keep going deeper into the tree and to the last child. */
-		while (ptr->tail != NULL)
-			ptr = ptr->tail;
-	}
-	return ptr;
-}
-
 /** Get the next t3_window_t, when iterating over the t3_window_t's for drawing.
     @param ptr The last t3_window_t that was handled.
 */
 static t3_window_t *_get_previous_window(t3_window_t *ptr) {
-	if (ptr->prev != NULL) {
-		ptr = ptr->prev;
-		while (ptr->tail != NULL)
-			ptr = ptr->tail;
-		return ptr;
+	if (ptr->tail != NULL)
+		return ptr->tail;
+
+	if (ptr->prev != NULL)
+		return ptr->prev;
+
+	while (ptr->parent != NULL) {
+		if (ptr->parent->prev != NULL)
+			return ptr->parent->prev;
+		ptr = ptr->parent;
 	}
-	return ptr->parent;
+	return NULL;
 }
 
 /** @internal
@@ -846,7 +839,7 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	terminal->lines[line].length = 0;
 	terminal->lines[line].start = 0;
 
-	for (ptr = _get_last_window(); ptr != NULL; ptr = _get_previous_window(ptr)) {
+	for (ptr = tail; ptr != NULL; ptr = _get_previous_window(ptr)) {
 		if (ptr->lines == NULL)
 			continue;
 

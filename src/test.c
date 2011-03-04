@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
 /* 	t3_term_update();
 	getchar(); */
 
-	sub = t3_win_new(low, 1, 20, 1, -6, -3);
+	ASSERT(sub = t3_win_new(low, 1, 20, 1, -6, -3));
 
 	t3_win_set_paint(sub, 0, 2);
 	t3_win_set_default_attrs(sub, T3_ATTR_REVERSE);
