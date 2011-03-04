@@ -702,8 +702,10 @@ void t3_term_show_cursor(void) {
     Neither @p height nor @p width may be @c NULL.
 */
 void t3_term_get_size(int *height, int *width) {
-	*height = lines;
-	*width = columns;
+	if (height != NULL)
+		*height = lines;
+	if (width != NULL)
+		*width = columns;
 }
 
 /** Handle resizing of the terminal.
