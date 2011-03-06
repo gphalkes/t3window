@@ -19,7 +19,7 @@
 
 T3_WINDOW_LOCAL FILE *_t3_putp_file;
 
-T3_WINDOW_LOCAL int _t3_setupterm(const char *term);
+T3_WINDOW_LOCAL int _t3_setupterm(const char *term, int fd);
 T3_WINDOW_LOCAL char *_t3_tigetstr(const char *name);
 T3_WINDOW_LOCAL int _t3_tigetnum(const char *name);
 T3_WINDOW_LOCAL int _t3_tigetflag(const char *name);

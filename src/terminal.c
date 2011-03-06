@@ -132,7 +132,7 @@ static char alternate_chars[256],
 	default_alternate_chars[256];
 
 /** File descriptor of the terminal. */
-static int terminal_fd = STDIN_FILENO;
+static int terminal_fd;
 
 /*FIXME: Should this be a function or should we simply set the default_alternate_chars
 	array as it is the only one still being filled this way. */
@@ -354,9 +354,6 @@ int t3_term_init(int fd, const char *term) {
 	if (initialised)
 		return T3_ERR_SUCCESS;
 
-	if (!isatty(fd >= 0 ? fd : terminal_fd))
-		return T3_ERR_NOT_A_TTY;
-
 	if (fd >= 0) {
 		if ((_t3_putp_file = fdopen(fd, "w")) == NULL)
 			return T3_ERR_ERRNO;
@@ -364,8 +361,12 @@ int t3_term_init(int fd, const char *term) {
 	} else if (_t3_putp_file == NULL) {
 		/* Unfortunately stdout is not a constant, and _putp_file can therefore not be
 		   initialized statically. */
+		terminal_fd = STDOUT_FILENO;
 		_t3_putp_file = stdout;
 	}
+
+	if (!isatty(terminal_fd))
+		return T3_ERR_NOT_A_TTY;
 
 	FD_ZERO(&inset);
 	FD_SET(terminal_fd, &inset);
@@ -376,7 +377,7 @@ int t3_term_init(int fd, const char *term) {
 		int error;
 		char *acsc;
 
-		if ((error = _t3_setupterm(term)) != 0) {
+		if ((error = _t3_setupterm(term, terminal_fd)) != 0) {
 			if (error == 1)
 				return T3_ERR_HARDCOPY_TERMINAL;
 			else if (error == -1)

@@ -23,9 +23,9 @@
 
 FILE *_t3_putp_file; /**< @c FILE struct corresponding to the terminal. Used for tputs in ::_t3_putp. */
 
-int _t3_setupterm(const char *term) {
+int _t3_setupterm(const char *term, int fd) {
 	int error;
-	if (setupterm(term, 1, &error) != OK)
+	if (setupterm(term, fd, &error) != OK)
 		return error + 2;
 	return 0;
 }
