@@ -1009,26 +1009,26 @@ void t3_win_clrtoeol(t3_window_t *win) {
 int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_chardata_t attr) {
 	int i;
 
-	attr = t3_term_combine_attrs(attr, win->default_attrs);
+	attr = t3_term_combine_attrs(attr | T3_ATTR_ACS, win->default_attrs);
 
 	if (y >= win->height || y + height > win->height ||
 			x >= win->width || x + width > win->width || win->lines == NULL)
 		return -1;
 
 	t3_win_set_paint(win, y, x);
-	ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_ULCORNER, attr | T3_ATTR_ACS));
-	ABORT_ON_FAIL(t3_win_addchrep(win, T3_ACS_HLINE, attr | T3_ATTR_ACS, width - 2));
-	ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_URCORNER, attr | T3_ATTR_ACS));
+	ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_ULCORNER, attr));
+	ABORT_ON_FAIL(t3_win_addchrep(win, T3_ACS_HLINE, attr, width - 2));
+	ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_URCORNER, attr));
 	for (i = 1; i < height - 1; i++) {
 		t3_win_set_paint(win, y + i, x);
-		ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_VLINE, attr | T3_ATTR_ACS));
+		ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_VLINE, attr));
 		t3_win_set_paint(win, y + i, x + width - 1);
-		ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_VLINE, attr | T3_ATTR_ACS));
+		ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_VLINE, attr));
 	}
 	t3_win_set_paint(win, y + height - 1, x);
-	ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_LLCORNER, attr | T3_ATTR_ACS));
-	ABORT_ON_FAIL(t3_win_addchrep(win, T3_ACS_HLINE, attr | T3_ATTR_ACS, width - 2));
-	ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_LRCORNER, attr | T3_ATTR_ACS));
+	ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_LLCORNER, attr));
+	ABORT_ON_FAIL(t3_win_addchrep(win, T3_ACS_HLINE, attr, width - 2));
+	ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_LRCORNER, attr));
 	return T3_ERR_SUCCESS;
 }
 
