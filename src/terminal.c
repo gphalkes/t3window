@@ -111,8 +111,10 @@ static line_data_t old_data; /**< line_data_t struct used in terminal update to 
 static int lines, /**< Size of terminal (lines). */
 	columns, /**< Size of terminal (columns). */
 	cursor_y, /**< Cursor position (y coordinate). */
-	cursor_x; /**< Cursor position (x coordinate). */
-static t3_bool show_cursor = t3_true; /**< Boolean indicating whether the cursor is visible currently. */
+	cursor_x, /**< Cursor position (x coordinate). */
+	new_cursor_y, /**< New cursor position (y coordinate). */
+	new_cursor_x; /**< New cursor position (x coordinate). */
+static t3_bool show_cursor = t3_true, new_show_cursor = t3_true; /**< Boolean indicating whether the cursor is visible currently. */
 
 /** Conversion table between color attributes and ANSI colors. */
 static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7, 9 };
@@ -566,7 +568,7 @@ void t3_term_restore(void) {
 			/* Make sure attributes are reset */
 			set_attrs(0);
 			attrs = 0;
-			fflush(stdout);
+			fflush(_t3_putp_file);
 		}
 		tcsetattr(terminal_fd, TCSADRAIN, &saved);
 		initialised = t3_false;
@@ -656,44 +658,25 @@ int t3_term_unget_keychar(int c) {
     Moving the cursor takes effect immediately.
 */
 void t3_term_set_cursor(int y, int x) {
-	cursor_y = y;
-	cursor_x = x;
-	if (show_cursor) {
-		do_cup(y, x);
-		fflush(stdout);
-	}
+	new_cursor_y = y;
+	new_cursor_x = x;
 }
 
 /** Hide the cursor.
 
     Instructs the terminal to make the cursor invisible. If the terminal does not provide
-    the required functionality, the cursor is moved to the bottom right corner. Hiding
-    the cursor takes effect immediately.
+    the required functionality, the cursor is moved to the bottom right.
 */
 void t3_term_hide_cursor(void) {
-	if (show_cursor) {
-		if (civis != NULL) {
-			show_cursor = t3_false;
-			_t3_putp(civis);
-			fflush(stdout);
-		} else {
-			/* Put cursor in bottom right corner if it can't be made invisible. */
-			do_cup(lines - 1, columns - 1);
-		}
-	}
+	new_show_cursor = t3_false;
 }
 
 /** Show the cursor.
 
-    Showing the cursor takes effect immediately.
+    Instructs the terminal to make the cursor visible.
 */
 void t3_term_show_cursor(void) {
-	if (!show_cursor) {
-		show_cursor = t3_true;
-		do_cup(cursor_y, cursor_x);
-		_t3_putp(cnorm);
-		fflush(stdout);
-	}
+	new_show_cursor = t3_true;
 }
 
 /** Retrieve the terminal size.
@@ -939,6 +922,29 @@ void t3_term_set_user_callback(t3_attr_user_callback_t callback) {
 	user_callback = callback;
 }
 
+/** Update the cursor, not drawing anything. */
+void t3_term_update_cursor(void) {
+	/* Only move the cursor if it is to be shown after the update. */
+	if (new_show_cursor != show_cursor) {
+		show_cursor = new_show_cursor;
+		if (show_cursor) {
+			do_cup(new_cursor_y, new_cursor_x);
+			cursor_y = new_cursor_y;
+			cursor_x = new_cursor_x;
+			_t3_putp(cnorm);
+		} else {
+			_t3_putp(civis);
+		}
+	} else {
+		if (new_cursor_y != cursor_y || new_cursor_x != cursor_x) {
+			do_cup(new_cursor_y, new_cursor_x);
+			cursor_y = new_cursor_y;
+			cursor_x = new_cursor_x;
+		}
+	}
+	fflush(_t3_putp_file);
+}
+
 /** Update the terminal, drawing all changes since last refresh.
 
     After changing window contents, this function should be called to make those
@@ -950,8 +956,14 @@ void t3_term_update(void) {
 	int i, j;
 	t3_chardata_t new_attrs;
 
-	if (show_cursor) {
-		_t3_putp(sc);
+	if (new_show_cursor != show_cursor) {
+		/* If the cursor should now be invisible, hide it before drawing. If the
+		   cursor should now be visible, leave it invisible until after drawing. */
+		if (!new_show_cursor)
+			_t3_putp(civis);
+	} else if (show_cursor) {
+		if (new_cursor_y == cursor_y && new_cursor_x == cursor_x)
+			_t3_putp(sc);
 		_t3_putp(civis);
 	}
 
@@ -1051,15 +1063,27 @@ done: /* Add empty statement to shut up compilers */ ;
 
 	set_attrs(0);
 
-	if (show_cursor) {
-		if (rc != NULL)
+	if (new_show_cursor != show_cursor) {
+		/* If the cursor should now be visible, move it to the right position and
+		   show it. Otherewise, it was already hidden at the start of this routine. */
+		if (new_show_cursor) {
+			do_cup(new_cursor_y, new_cursor_x);
+			cursor_y = new_cursor_y;
+			cursor_x = new_cursor_x;
+			_t3_putp(cnorm);
+		}
+		show_cursor = new_show_cursor;
+	} else if (show_cursor) {
+		if (new_cursor_y == cursor_y && new_cursor_x == cursor_x && rc != NULL)
 			_t3_putp(rc);
 		else
-			do_cup(cursor_y, cursor_x);
+			do_cup(new_cursor_y, new_cursor_x);
+		cursor_y = new_cursor_y;
+		cursor_x = new_cursor_x;
 		_t3_putp(cnorm);
 	}
 
-	fflush(stdout);
+	fflush(_t3_putp_file);
 }
 
 /** Redraw the entire terminal from scratch. */

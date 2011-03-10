@@ -214,6 +214,7 @@ T3_WINDOW_API void t3_term_hide_cursor(void);
 T3_WINDOW_API void t3_term_show_cursor(void);
 T3_WINDOW_API void t3_term_get_size(int *height, int *width);
 T3_WINDOW_API t3_bool t3_term_resize(void);
+T3_WINDOW_API void t3_term_update_cursor(void);
 T3_WINDOW_API void t3_term_update(void);
 T3_WINDOW_API void t3_term_redraw(void);
 T3_WINDOW_API void t3_term_set_attrs(t3_attr_t new_attrs);
