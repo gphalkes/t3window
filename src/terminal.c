@@ -472,12 +472,14 @@ int t3_term_init(int fd, const char *term) {
 		set_alternate_chars_defaults(default_alternate_chars);
 
 		ncv_int = _t3_tigetnum("ncv");
-		if (ncv_int & (1<<1)) ncv |= T3_ATTR_UNDERLINE;
-		if (ncv_int & (1<<2)) ncv |= T3_ATTR_REVERSE;
-		if (ncv_int & (1<<3)) ncv |= T3_ATTR_BLINK;
-		if (ncv_int & (1<<4)) ncv |= T3_ATTR_DIM;
-		if (ncv_int & (1<<5)) ncv |= T3_ATTR_BOLD;
-		if (ncv_int & (1<<8)) ncv |= T3_ATTR_ACS;
+		if (ncv_int >= 0) {
+			if (ncv_int & (1<<1)) ncv |= T3_ATTR_UNDERLINE;
+			if (ncv_int & (1<<2)) ncv |= T3_ATTR_REVERSE;
+			if (ncv_int & (1<<3)) ncv |= T3_ATTR_BLINK;
+			if (ncv_int & (1<<4)) ncv |= T3_ATTR_DIM;
+			if (ncv_int & (1<<5)) ncv |= T3_ATTR_BOLD;
+			if (ncv_int & (1<<8)) ncv |= T3_ATTR_ACS;
+		}
 
 		seqs_initialised = t3_true;
 	}

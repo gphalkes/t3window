@@ -708,6 +708,7 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 	int width;
 
 	attr = t3_term_combine_attrs(attr, win->default_attrs);
+	/* FIXME this works because t3_attr_t is the same as t3_chardata_t! */
 	attr = _t3_term_attr_to_chardata(attr) & _T3_ATTR_MASK;
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
