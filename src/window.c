@@ -239,6 +239,8 @@ static t3_bool _win_is_shown(t3_window_t *win) {
     well as any other attributes.
 */
 void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr) {
+	if (win == NULL)
+		win = _t3_terminal_window;
 	win->default_attrs = attr;
 }
 
@@ -836,11 +838,22 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	int data_start, length, paint_x;
 	t3_bool result = t3_true;
 
+
+	/* FIXME: the terminal is now available as _t3_terminal_window, so we don't have to pass
+		it anymore. */
 	/* FIXME: check return value of called functions for memory allocation errors. */
 	terminal->paint_y = line;
 	terminal->lines[line].width = 0;
 	terminal->lines[line].length = 0;
 	terminal->lines[line].start = 0;
+
+	if (terminal->default_attrs != 0) {
+		/* Fill the line with spaces in the background color. */
+		terminal->paint_x = 0;
+		result &= t3_win_addch(terminal, ' ', 0) == 0;
+		terminal->paint_x = terminal->width - 1;
+		result &= t3_win_addch(terminal, ' ', 0) == 0;
+	}
 
 	for (ptr = tail; ptr != NULL; ptr = _get_previous_window(ptr)) {
 		if (ptr->lines == NULL)

@@ -105,7 +105,7 @@ static t3_chardata_t ncv; /**< Terminal info: Non-color video attributes (encode
 static t3_bool bce; /**< Terminal info: screen erased with background color. */
 static int colors, pairs;
 
-static t3_window_t *terminal_window; /**< t3_window_t struct representing the last drawn terminal state. */
+t3_window_t *_t3_terminal_window; /**< t3_window_t struct representing the last drawn terminal state. */
 static line_data_t old_data; /**< line_data_t struct used in terminal update to save previous line state. */
 
 static int lines, /**< Size of terminal (lines). */
@@ -501,15 +501,15 @@ int t3_term_init(int fd, const char *term) {
 		return T3_ERR_CHARSET_ERROR;
 
 	/* Create or resize terminal window */
-	if (terminal_window == NULL) {
+	if (_t3_terminal_window == NULL) {
 		/* FIXME: maybe someday we can make the window outside of the window stack. */
-		if ((terminal_window = t3_win_new(NULL, lines, columns, 0, 0, 0)) == NULL)
+		if ((_t3_terminal_window = t3_win_new(NULL, lines, columns, 0, 0, 0)) == NULL)
 			return T3_ERR_ERRNO;
 		if ((old_data.data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL)
 			return T3_ERR_ERRNO;
 		old_data.allocated = INITIAL_ALLOC;
 	} else {
-		if (!t3_win_resize(terminal_window, lines, columns))
+		if (!t3_win_resize(_t3_terminal_window, lines, columns))
 			return T3_ERR_ERRNO;
 	}
 
@@ -560,8 +560,8 @@ void t3_term_disable_ansi_optimization(void) {
 void t3_term_restore(void) {
 	if (initialised) {
 		/* Ensure complete repaint of the terminal on re-init (if required) */
-		t3_win_set_paint(terminal_window, 0, 0);
-		t3_win_clrtobot(terminal_window);
+		t3_win_set_paint(_t3_terminal_window, 0, 0);
+		t3_win_clrtobot(_t3_terminal_window);
 		if (seqs_initialised) {
 			do_rmcup();
 			/* Restore cursor to visible state. */
@@ -710,19 +710,19 @@ t3_bool t3_term_resize(void) {
 
 	lines = wsz.ws_row;
 	columns = wsz.ws_col;
-	if (columns > terminal_window->width || lines != terminal_window->height) {
+	if (columns > _t3_terminal_window->width || lines != _t3_terminal_window->height) {
 		int i;
 
 		/* Clear the cache of the terminal contents and the actual terminal. This
 		   is necessary because shrinking the terminal tends to cause all kinds of
 		   weird corruption of the on screen state. */
-		for (i = 0; i < terminal_window->height; i++) {
-			t3_win_set_paint(terminal_window, i, 0);
-			t3_win_clrtoeol(terminal_window);
+		for (i = 0; i < _t3_terminal_window->height; i++) {
+			t3_win_set_paint(_t3_terminal_window, i, 0);
+			t3_win_clrtoeol(_t3_terminal_window);
 		}
 		_t3_putp(clear);
 	}
-	return t3_win_resize(terminal_window, lines, columns);
+	return t3_win_resize(_t3_terminal_window, lines, columns);
 }
 
 /** Set the non-ANSI terminal drawing attributes.
@@ -976,16 +976,16 @@ void t3_term_update(void) {
 	   It also brings with it several issues with the clearing of the end of
 	   the line. */
 	for (i = 0; i < lines; i++) {
-		int new_idx, old_idx = terminal_window->lines[i].length, width = 0;
-		SWAP_LINES(old_data, terminal_window->lines[i]);
-		_t3_win_refresh_term_line(terminal_window, i);
+		int new_idx, old_idx = _t3_terminal_window->lines[i].length, width = 0;
+		SWAP_LINES(old_data, _t3_terminal_window->lines[i]);
+		_t3_win_refresh_term_line(_t3_terminal_window, i);
 
-		new_idx = terminal_window->lines[i].length;
+		new_idx = _t3_terminal_window->lines[i].length;
 
 		/* Find the last character that is different. */
-		if (old_data.width == terminal_window->lines[i].width) {
+		if (old_data.width == _t3_terminal_window->lines[i].width) {
 			for (new_idx--, old_idx--; new_idx >= 0 &&
-					old_idx >= 0 && terminal_window->lines[i].data[new_idx] == old_data.data[old_idx];
+					old_idx >= 0 && _t3_terminal_window->lines[i].data[new_idx] == old_data.data[old_idx];
 					new_idx--, old_idx--)
 			{}
 			if (new_idx == -1) {
@@ -993,43 +993,43 @@ void t3_term_update(void) {
 				goto done;
 			}
 			assert(old_idx >= 0);
-			for (new_idx++; new_idx < terminal_window->lines[i].length && _T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[new_idx]) == 0; new_idx++) {}
+			for (new_idx++; new_idx < _t3_terminal_window->lines[i].length && _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[new_idx]) == 0; new_idx++) {}
 			for (old_idx++; old_idx < old_data.length &&
 				_T3_CHARDATA_TO_WIDTH(old_data.data[old_idx]) == 0; old_idx++) {}
 		}
 
 		/* Find the first character that is different */
-		for (j = 0; j < new_idx && j < old_idx && terminal_window->lines[i].data[j] == old_data.data[j]; j++)
-			width += _T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[j]);
+		for (j = 0; j < new_idx && j < old_idx && _t3_terminal_window->lines[i].data[j] == old_data.data[j]; j++)
+			width += _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]);
 
 		/* Go back to the last non-zero-width character, because that is the one we want to print first. */
-		if ((j < new_idx && _T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[j]) == 0) || (j < old_idx && _T3_CHARDATA_TO_WIDTH(old_data.data[j]) == 0)) {
-			for (; j > 0 && (_T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[j]) == 0 || _T3_CHARDATA_TO_WIDTH(old_data.data[j]) == 0); j--) {}
-			width -= _T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[j]);
+		if ((j < new_idx && _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) == 0) || (j < old_idx && _T3_CHARDATA_TO_WIDTH(old_data.data[j]) == 0)) {
+			for (; j > 0 && (_T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) == 0 || _T3_CHARDATA_TO_WIDTH(old_data.data[j]) == 0); j--) {}
+			width -= _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]);
 		}
 
 		/* Position the cursor */
 		do_cup(i, width);
 		for (; j < new_idx; j++) {
-			if (_T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[j]) > 0) {
-				if (width + _T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[j]) > terminal_window->width)
+			if (_T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) > 0) {
+				if (width + _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) > _t3_terminal_window->width)
 					break;
 
-				new_attrs = terminal_window->lines[i].data[j] & _T3_ATTR_MASK;
+				new_attrs = _t3_terminal_window->lines[i].data[j] & _T3_ATTR_MASK;
 
-				width += _T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[j]);
+				width += _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]);
 				if (user_callback != NULL && new_attrs & _T3_ATTR_USER) {
 					/* Let the user draw this character because they want funky attributes */
 					int start = j, k;
 					char *str;
-					for (j++; j < new_idx && _T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[j]) == 0; j++) {}
+					for (j++; j < new_idx && _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) == 0; j++) {}
 					if ((str = malloc(j - start)) != NULL) {
 						for (k = start; k < j; k++)
-							str[k - start] = terminal_window->lines[i].data[k] & _T3_CHAR_MASK;
+							str[k - start] = _t3_terminal_window->lines[i].data[k] & _T3_CHAR_MASK;
 
 						user_callback(str, j - start,
-							_T3_CHARDATA_TO_WIDTH(terminal_window->lines[i].data[start]),
-							chardata_to_attr(terminal_window->lines[i].data[start]));
+							_T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[start]),
+							chardata_to_attr(_t3_terminal_window->lines[i].data[start]));
 						free(str);
 					}
 					if (j < new_idx)
@@ -1040,20 +1040,20 @@ void t3_term_update(void) {
 				}
 			}
 			if (attrs & _T3_ATTR_ACS)
-				t3_term_putc(alternate_chars[terminal_window->lines[i].data[j] & _T3_CHAR_MASK]);
+				t3_term_putc(alternate_chars[_t3_terminal_window->lines[i].data[j] & _T3_CHAR_MASK]);
 			else
-				t3_term_putc(terminal_window->lines[i].data[j] & _T3_CHAR_MASK);
+				t3_term_putc(_t3_terminal_window->lines[i].data[j] & _T3_CHAR_MASK);
 		}
 
 		/* Clear the terminal line if the new line is shorter than the old one. */
-		if ((terminal_window->lines[i].width < old_data.width || j < new_idx) && width < terminal_window->width) {
+		if ((_t3_terminal_window->lines[i].width < old_data.width || j < new_idx) && width < _t3_terminal_window->width) {
 			if (bce && (attrs & ~_T3_ATTR_FG_MASK) != 0)
 				set_attrs(0);
 
 			if (el != NULL) {
 				_t3_putp(el);
 			} else {
-				int max = old_data.width < terminal_window->width ? old_data.width : terminal_window->width;
+				int max = old_data.width < _t3_terminal_window->width ? old_data.width : _t3_terminal_window->width;
 				for (; width < max; width++)
 					t3_term_putc(' ');
 			}
@@ -1092,8 +1092,8 @@ done: /* Add empty statement to shut up compilers */ ;
 void t3_term_redraw(void) {
 	set_attrs(0);
 	_t3_putp(clear);
-	t3_win_set_paint(terminal_window, 0, 0);
-	t3_win_clrtobot(terminal_window);
+	t3_win_set_paint(_t3_terminal_window, 0, 0);
+	t3_win_clrtobot(_t3_terminal_window);
 }
 
 /** Send a terminal control string to the terminal, with correct padding. */
