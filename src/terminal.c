@@ -1162,6 +1162,9 @@ t3_attr_t t3_term_combine_attrs(t3_attr_t a, t3_attr_t b) {
 		result = ((result & ~(T3_ATTR_FG_MASK)) | (a & T3_ATTR_FG_MASK)) & ~ncv;
 	if ((a & T3_ATTR_BG_MASK) != 0)
 		result = ((result & ~(T3_ATTR_BG_MASK)) | (a & T3_ATTR_BG_MASK)) & ~ncv;
+	/* If ncv prevented ACS, then use fallbacks instead. */
+	if (((a | b) & T3_ATTR_ACS) && !(result & T3_ATTR_ACS))
+		result |= T3_ATTR_FALLBACK_ACS;
 	return result;
 }
 
@@ -1213,7 +1216,7 @@ void t3_term_get_caps_internal(t3_term_caps_t *caps, int version) {
     @param attr The ::t3_attr_t to convert.
 */
 t3_chardata_t _t3_term_attr_to_chardata(t3_attr_t attr) {
-	return ((attr & 0x7f) << _T3_ATTR_SHIFT)
+	return ((attr & ((1 << (T3_ATTR_COLOR_SHIFT + 8)) - 1)) << _T3_ATTR_SHIFT)
 	|
 		(((attr >> T3_ATTR_COLOR_SHIFT) & 0x1ff) > 8 ?
 			_T3_ATTR_FG_DEFAULT :

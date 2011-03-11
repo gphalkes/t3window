@@ -76,7 +76,7 @@ T3_WINDOW_LOCAL int _t3_term_get_default_acs(int idx);
 */
 #define _T3_ATTR_SHIFT (CHAR_BIT + 2)
 /** Bit number of the least significant color attribute bit. */
-#define _T3_ATTR_COLOR_SHIFT (_T3_ATTR_SHIFT + 7)
+#define _T3_ATTR_COLOR_SHIFT (_T3_ATTR_SHIFT + 8)
 /** Get the width in character cells encoded in a ::t3_chardata_t value. */
 #define _T3_CHARDATA_TO_WIDTH(_c) (((_c) >> CHAR_BIT) & 3)
 
@@ -108,6 +108,8 @@ T3_WINDOW_LOCAL int _t3_term_get_default_acs(int idx);
 #define _T3_ATTR_DIM ((t3_chardata_t) (1L << (_T3_ATTR_SHIFT + 5)))
 /** Draw characters with alternate character set (for line drawing etc). */
 #define _T3_ATTR_ACS ((t3_chardata_t) (1L << (_T3_ATTR_SHIFT + 6)))
+/** Draw characters with fallback alternate character set (for line drawing etc). */
+#define _T3_ATTR_FALLBACK_ACS ((t3_chardata_t) (1L << (_T3_ATTR_SHIFT + 7)))
 
 /** Foreground color unspecified. */
 #define _T3_ATTR_FG_UNSPEC ((t3_chardata_t) 0L)

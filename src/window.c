@@ -37,7 +37,7 @@
 static t3_window_t *head, /**< Head of depth sorted t3_window_t list. */
 	*tail; /**< Tail of depth sorted t3_window_t list. */
 
-static t3_bool ensureSpace(line_data_t *line, size_t n);
+static t3_bool ensure_space(line_data_t *line, size_t n);
 
 /** @addtogroup t3window_win */
 /** @{ */
@@ -479,7 +479,7 @@ void t3_win_hide(t3_window_t *win) {
     @return A boolean indicating whether, after possibly reallocating, the
     	requested number of bytes is available.
 */
-static t3_bool ensureSpace(line_data_t *line, size_t n) {
+static t3_bool ensure_space(line_data_t *line, size_t n) {
 	int newsize;
 	t3_chardata_t *resized;
 
@@ -553,7 +553,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 				win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width + 1)
 			return t3_true;
 
-		if (!ensureSpace(win->lines + win->paint_y, n))
+		if (!ensure_space(win->lines + win->paint_y, n))
 			return t3_false;
 
 		pos_width = win->lines[win->paint_y].start;
@@ -580,7 +580,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		win->lines[win->paint_y].length += n;
 	} else if (win->lines[win->paint_y].length == 0) {
 		/* Empty line. */
-		if (!ensureSpace(win->lines + win->paint_y, n))
+		if (!ensure_space(win->lines + win->paint_y, n))
 			return t3_false;
 		win->lines[win->paint_y].start = win->paint_x;
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
@@ -590,7 +590,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		/* Add characters after existing characters. */
 		int diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
 
-		if (!ensureSpace(win->lines + win->paint_y, n + diff))
+		if (!ensure_space(win->lines + win->paint_y, n + diff))
 			return t3_false;
 		for (i = diff; i > 0; i--)
 			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] = WIDTH_TO_META(1) | ' ' | _t3_term_attr_to_chardata(win->default_attrs);
@@ -601,7 +601,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		/* Add characters before existing characters. */
 		int diff = win->lines[win->paint_y].start - (win->paint_x + width);
 
-		if (!ensureSpace(win->lines + win->paint_y, n + diff))
+		if (!ensure_space(win->lines + win->paint_y, n + diff))
 			return t3_false;
 		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(t3_chardata_t) * win->lines[win->paint_y].length);
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
@@ -657,7 +657,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 
 		/* Move the existing characters out of the way. */
 		sdiff = n + end_spaces + start_spaces - (end_replace - start_replace);
-		if (sdiff > 0 && !ensureSpace(win->lines + win->paint_y, sdiff))
+		if (sdiff > 0 && !ensure_space(win->lines + win->paint_y, sdiff))
 			return t3_false;
 
 		memmove(win->lines[win->paint_y].data + end_replace + sdiff, win->lines[win->paint_y].data + end_replace,
@@ -728,7 +728,9 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 
 		if (bytes_read > 1) {
 			cd_buf[0] &= ~_T3_ATTR_ACS;
-		} else if ((cd_buf[0] & _T3_ATTR_ACS) && !t3_term_acs_available(cd_buf[0] & _T3_CHAR_MASK)) {
+		} else if (((cd_buf[0] & _T3_ATTR_ACS) && !t3_term_acs_available(cd_buf[0] & _T3_CHAR_MASK)) ||
+				cd_buf[0] & _T3_ATTR_FALLBACK_ACS)
+		{
 			int replacement = _t3_term_get_default_acs(cd_buf[0] & _T3_CHAR_MASK);
 			cd_buf[0] &= ~(_T3_ATTR_ACS | _T3_CHAR_MASK);
 			cd_buf[0] |= replacement & _T3_CHAR_MASK;
@@ -984,7 +986,7 @@ void t3_win_clrtoeol(t3_window_t *win) {
 		if (sumwidth < win->paint_x) {
 			int spaces = win->paint_x - sumwidth;
 			if (spaces < win->lines[win->paint_y].length - i ||
-					ensureSpace(win->lines + win->paint_y, spaces - win->lines[win->paint_y].length + i)) {
+					ensure_space(win->lines + win->paint_y, spaces - win->lines[win->paint_y].length + i)) {
 				for (; spaces > 0; spaces--)
 					win->lines[win->paint_y].data[i++] = WIDTH_TO_META(1) | ' ';
 				sumwidth = win->paint_x;

@@ -108,9 +108,11 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 #define T3_ATTR_DIM ((t3_attr_t) (1L << 5))
 /** Draw characters with alternate character set (for line drawing etc). */
 #define T3_ATTR_ACS ((t3_attr_t) (1L << 6))
+/** Draw characters with fallback alternate character set (for line drawing etc). */
+#define T3_ATTR_FALLBACK_ACS ((t3_attr_t) (1L << 7))
 
 /** Bit number of the least significant color attribute bit. */
-#define T3_ATTR_COLOR_SHIFT 7
+#define T3_ATTR_COLOR_SHIFT 8
 /** Convert a color number to a foreground color attribute. */
 #define T3_ATTR_FG(x) (((((t3_attr_t) (x)) & 0xff) + 1) << T3_ATTR_COLOR_SHIFT)
 /** Convert a color number to a background color attribute. */

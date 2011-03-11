@@ -13,6 +13,9 @@
   CharData type left. Perhaps we should change the user mode to have a number
   of user modes such that the program can do this itself. However, this is not
   a very generic solution.
+- we should allow fallback to drawing characters if the current characterset
+  provides them (UTF-8 does, and so does codepage 437 and several others). We
+  can test the availability using the t3_term_can_draw stuf.
 
 First test string from mined:
 C3 A5 D9 84 D8 A7 E0 B8 A9 E0 B8 A9 E5 88 88 E5 A2 A2
