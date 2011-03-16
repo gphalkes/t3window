@@ -24,6 +24,7 @@
 #include "internal.h"
 #include "unicode.h"
 #include "charconv.h"
+#include "curses_interface.h"
 
 #define CONV_BUFFER_LEN (160)
 
@@ -96,8 +97,19 @@ void _t3_output_buffer_print(void) {
 	nfc_output_len = t3_to_nfc(output_buffer, output_buffer_idx, &nfc_output, &nfc_output_size);
 
 	if (output_convertor == NULL) {
-		//FIXME: filter out combining characters if the terminal is known not to support them! (gnome-terminal)
-		fwrite(nfc_output, 1, nfc_output_len, stdout);
+		size_t idx, codepoint_len, output_start;
+		uint32_t c;
+
+		/* Filter out combining characters if the terminal is known not to support them! (gnome-terminal) */
+		/* FIXME: make this dependent on the detected terminal capabilities */
+		for (idx = 0, output_start = 0; idx < nfc_output_len; idx += codepoint_len) {
+			codepoint_len = nfc_output_len - idx;
+			c = t3_getuc(nfc_output + idx, &codepoint_len);
+			if (t3_get_codepoint_info(c) & T3_COMBINING_BIT) {
+				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
+				output_start = idx + codepoint_len;
+			}
+		}
 	} else {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr;
 		const char *conversion_input_ptr = nfc_output, *conversion_input_end = nfc_output + nfc_output_len;
@@ -117,7 +129,7 @@ void _t3_output_buffer_print(void) {
 
 					/* First write all output that has been converted. */
 					if (conversion_output_ptr != conversion_output)
-						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, stdout);
+						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 
 					c = t3_getuc(conversion_input_ptr, &char_len);
 					conversion_input_ptr += char_len;
@@ -127,7 +139,7 @@ void _t3_output_buffer_print(void) {
 					conversion_output_ptr = conversion_output;
 					charconv_from_unicode_flush(output_convertor, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
 					if (conversion_output_ptr != conversion_output)
-						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, stdout);
+						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 
 					/* FIXME: this assumes that the given character is actually valid in the output
 					   encoding, which is of course not necessarily the case. It should be converted
@@ -143,10 +155,10 @@ void _t3_output_buffer_print(void) {
 					break;
 				case CHARCONV_NO_SPACE:
 					/* Not enough space in output buffer. Flush current contents and continue. */
-					fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, stdout);
+					fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 					break;
 				case CHARCONV_SUCCESS:
-					fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, stdout);
+					fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 					break;
 			}
 		}
@@ -155,7 +167,7 @@ void _t3_output_buffer_print(void) {
 		conversion_output_ptr = conversion_output;
 		charconv_from_unicode_flush(output_convertor, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
 		if (conversion_output_ptr != conversion_output)
-			fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, stdout);
+			fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 	}
 	output_buffer_idx = 0;
 }
@@ -173,11 +185,11 @@ void _t3_output_buffer_print(void) {
     be correctly rendered, depending on the combination of combining marks.
 */
 t3_bool t3_term_can_draw(const char *str, size_t str_len) {
-	size_t idx, codepoint_len;
 	size_t nfc_output_len = t3_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
-	uint32_t c;
 
 	if (output_convertor == NULL) {
+		size_t idx, codepoint_len;
+		uint32_t c;
 		//FIXME: make this dependent on the detected terminal capabilities
 		for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
