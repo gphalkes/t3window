@@ -108,7 +108,11 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 #define T3_ATTR_DIM ((t3_attr_t) (1L << 5))
 /** Draw characters with alternate character set (for line drawing etc). */
 #define T3_ATTR_ACS ((t3_attr_t) (1L << 6))
-/** Draw characters with fallback alternate character set (for line drawing etc). */
+/** Draw characters with fallback alternate character set (for line drawing etc).
+
+    This attribute will result if the terminal can not combine color video with
+	drawing characters with the alternate character set. This attribute should
+	not be used directly. */
 #define T3_ATTR_FALLBACK_ACS ((t3_attr_t) (1L << 7))
 
 /** Bit number of the least significant color attribute bit. */

@@ -216,7 +216,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
     @param c The character to draw when an undrawable characters is encountered.
 
     The default character is the question mark ('?'). The character must be an
-    ASCI character. For terminals capable of Unicode output the Replacement
+    ASCII character. For terminals capable of Unicode output the Replacement
     Character is used (codepoint FFFD).
 */
 void t3_term_set_replacement_char(char c) {

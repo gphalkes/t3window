@@ -52,6 +52,13 @@ TODO list:
 /** @addtogroup t3window_term */
 /** @{ */
 
+typedef enum {
+	STATE_INITIAL,
+	STATE_ESC_SEEN,
+	STATE_ROW,
+	STATE_COLUMN
+} detection_state_t;
+
 /** @internal
     @brief Wrapper for strcmp which converts the return value to boolean. */
 #define streq(a,b) (strcmp((a), (b)) == 0)
@@ -135,6 +142,9 @@ static char alternate_chars[256],
 
 /** File descriptor of the terminal. */
 static int terminal_fd;
+
+/** Boolean indicating whether the terminal is currently detecting the terminal capabilities. */
+static t3_bool detecting_terminal_capabilities = t3_true;
 
 /*FIXME: Should this be a function or should we simply set the default_alternate_chars
 	array as it is the only one still being filled this way. */
@@ -545,8 +555,11 @@ int t3_term_init(int fd, const char *term) {
 
 	_t3_init_output_buffer();
 	/* FIXME: make sure that the encoding is really set! */
-	/* FIXME: nl_langinfo only works when setlocale has been called first. This should
-	   therefore be a requirement for calling this function */
+/*	do_cup(0, 0);
+	fputs("\x61\xcc\xa1", _t3_putp_file);
+	_t3_putp("\033[6n");
+	fflush(_t3_putp_file);
+*/
 	initialised = t3_true;
 	return T3_ERR_SUCCESS;
 }
@@ -577,6 +590,92 @@ void t3_term_restore(void) {
 	}
 }
 
+/** Process a position report triggered by the initialization.
+    @arg row The reported row.
+    @arg column The reported column.
+
+    The postion reports may generated as a response to the terminal
+    initialization. They are used to determine the used character set and
+    capabilities of the terminal.
+*/
+static void process_position_report(int row, int column) {
+	(void) row;
+	(void) column;
+/* 	FILE *log = fopen("/tmp/window.log", "a");
+	if (log)
+		fprintf(log, "Position report: %d,%d\n", row, column);
+	fclose(log); */
+	/*FIXME: we can actually do the different detections interactively, but then we have to split
+		t3_term_update. The sequence of actions would be:
+		- set attributes to 0
+		- move cursor to postion 0
+		- print the test sequence
+		- move cursor to position 0
+		- send the clear line seq
+		- clear the known terminal output for line 0
+		- update terminal line 0
+	It would be best to combine as many test strings as possible.
+	*/
+	detecting_terminal_capabilities = t3_false;
+}
+
+/** Check if a characters is a digit, in a locale independent way. */
+#define non_locale_isdigit(_c) (strchr("0123456789", _c) != NULL)
+
+/** Convert a digit character to an @c int value. */
+static int digit_value(int c) {
+	const char *digits = "0123456789";
+	return (int) (strchr(digits, c) - digits);
+}
+
+/** Handle a character read from the terminal to check for position reports.
+    @arg c The character read from the terminal.
+
+    The postion reports may generated as a response to the terminal
+    initialization. They are used to determine the used character set and
+    capabilities of the terminal.
+*/
+static void parse_position_reports(int c) {
+	static detection_state_t detection_state = STATE_INITIAL;
+	static int row, column;
+
+	switch (detection_state) {
+		case STATE_INITIAL:
+			if (c == 27)
+				detection_state = STATE_ESC_SEEN;
+			break;
+		case STATE_ESC_SEEN:
+			if (c == '[') {
+				detection_state = STATE_ROW;
+				row = 0;
+			} else {
+				detection_state = STATE_INITIAL;
+			}
+			break;
+		case STATE_ROW:
+			if (non_locale_isdigit(c))
+				row = row * 10 + digit_value(c);
+			else if (c == ';')
+				detection_state = STATE_COLUMN;
+			else
+				detection_state = STATE_INITIAL;
+			break;
+		case STATE_COLUMN:
+			if (non_locale_isdigit(c)) {
+				column = column * 10 + digit_value(c);
+			} else if (c == 'R') {
+				detection_state = STATE_INITIAL;
+				process_position_report(row, column);
+			} else {
+				detection_state = STATE_INITIAL;
+			}
+			break;
+		default:
+			detection_state = STATE_INITIAL;
+			break;
+	}
+}
+
 /** Read a character from @c stdin, continueing after interrupts.
     @retval A @c char read from stdin.
     @retval T3_ERR_ERRNO if an error occurred.
@@ -586,12 +685,15 @@ static int safe_read_char(void) {
 	char c;
 	while (1) {
 		ssize_t retval = read(terminal_fd, &c, 1);
-		if (retval < 0 && errno == EINTR)
+		if (retval < 0 && errno == EINTR) {
 			continue;
-		else if (retval >= 1)
+		} else if (retval >= 1) {
+			if (detecting_terminal_capabilities)
+				parse_position_reports((int) c);
 			return (int) (unsigned char) c;
-		else if (retval == 0)
+		} else if (retval == 0) {
 			return T3_ERR_EOF;
+		}
 		return T3_ERR_ERRNO;
 	}
 }
