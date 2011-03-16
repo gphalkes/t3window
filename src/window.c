@@ -192,6 +192,8 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
     @param relation The relation between this window and @p anchor (see ::WinAnchor).
 */
 void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
+	t3_window_t *ptr;
+
 	if (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT && T3_GETPARENT(relation) != T3_ANCHOR_TOPRIGHT &&
 			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT) {
 		return;
@@ -204,6 +206,16 @@ void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
 
 	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
 		return;
+
+	/* Detect potential loops in anchor relations, and abort assignment. */
+	ptr = win;
+	while (ptr != NULL) {
+		if (ptr == anchor)
+			return;
+		/* Take into account that if no anchor is specified, the parent is the
+		   default anchor. */
+		ptr = ptr->anchor == NULL ? ptr->parent : ptr->anchor;
+	}
 
 	win->anchor = anchor;
 	win->relation = relation;
