@@ -99,17 +99,24 @@ void _t3_output_buffer_print(void) {
 	if (output_convertor == NULL) {
 		size_t idx, codepoint_len, output_start;
 		uint32_t c;
+		uint_fast8_t codepoint_info;
 
-		/* Filter out combining characters if the terminal is known not to support them! (gnome-terminal) */
-		/* FIXME: make this dependent on the detected terminal capabilities */
+		/* Filter out combining characters if the terminal is known not to support them (e.g. gnome-terminal). */
+		/* FIXME: make this dependent on the detected terminal capabilities. */
 		for (idx = 0, output_start = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_getuc(nfc_output + idx, &codepoint_len);
-			if (t3_get_codepoint_info(c) & T3_COMBINING_BIT) {
+			codepoint_info = t3_get_codepoint_info(c);
+			if (codepoint_info & T3_COMBINING_BIT) {
 				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
+				/* For non-zero width combining characters, print a replacement character. */
+				if (T3_INFO_TO_WIDTH(codepoint_info) == 1)
+					fwrite(&replacement_char, 1, 1, _t3_putp_file);
 				output_start = idx + codepoint_len;
 			}
 		}
+		fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
+		/* fwrite(nfc_output, 1, nfc_output_len, _t3_putp_file); */
 	} else {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr;
 		const char *conversion_input_ptr = nfc_output, *conversion_input_end = nfc_output + nfc_output_len;
