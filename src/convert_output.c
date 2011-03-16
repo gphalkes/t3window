@@ -34,7 +34,12 @@ static charconv_t *output_convertor = NULL;
 
 static char *nfc_output;
 static size_t nfc_output_size;
-static char replacement_char = '?';
+static uint32_t replacement_char = '?';
+static char replacement_char_str[16] = "?";
+static size_t replacement_char_length = 1;
+
+static void convert_replacement_char(uint32_t c);
+static void print_replacement_character(void);
 
 /** @internal
     @brief Initialize the output buffer used for accumulating output characters.
@@ -58,7 +63,12 @@ t3_bool _t3_init_output_convertor(const char *encoding) {
 		return t3_true;
 	}
 
-	return (output_convertor = charconv_open_convertor(encoding, CHARCONV_UTF8, 0, NULL)) != NULL;
+	if ((output_convertor = charconv_open_convertor(encoding, CHARCONV_UTF8, 0, NULL)) == NULL)
+		return t3_false;
+
+	convert_replacement_char(replacement_char);
+
+	return t3_true;
 }
 
 /** Add a charater to the output buffer.
@@ -111,7 +121,7 @@ void _t3_output_buffer_print(void) {
 				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
 				/* For non-zero width combining characters, print a replacement character. */
 				if (T3_INFO_TO_WIDTH(codepoint_info) == 1)
-					fwrite(&replacement_char, 1, 1, _t3_putp_file);
+					print_replacement_character();
 				output_start = idx + codepoint_len;
 			}
 		}
@@ -148,11 +158,8 @@ void _t3_output_buffer_print(void) {
 					if (conversion_output_ptr != conversion_output)
 						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 
-					/* FIXME: this assumes that the given character is actually valid in the output
-					   encoding, which is of course not necessarily the case. It should be converted
-					   first!. */
 					for (width = T3_INFO_TO_WIDTH(t3_get_codepoint_info(c)); width > 0; width--)
-						putchar(replacement_char);
+						print_replacement_character();
 
 					break;
 				}
@@ -230,15 +237,58 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 	}
 }
 
+/** Convert the given replacment character. */
+static void convert_replacement_char(uint32_t c) {
+	char utf8_buffer[5];
+	char *conversion_output_ptr;
+	const char *conversion_input_ptr;
+
+	if (output_convertor == NULL)
+		return;
+
+	memset(utf8_buffer, 0, sizeof(replacement_char));
+	t3_putuc(c, utf8_buffer);
+
+	conversion_input_ptr = (const char *) &utf8_buffer;
+	conversion_output_ptr = replacement_char_str;
+
+	switch (charconv_from_unicode(output_convertor, &conversion_input_ptr, utf8_buffer + strlen(utf8_buffer),
+			&conversion_output_ptr, replacement_char_str + sizeof(replacement_char_str), CHARCONV_END_OF_TEXT))
+	{
+		default:
+			if (c != '?') {
+				/* Fallback to question mark if for some reason it doesn't work. */
+				convert_replacement_char('?');
+			} else {
+				/* If all else fails, hope that the bare question mark prints. */
+				replacement_char_str[0] = '?';
+				replacement_char_length = 1;
+			}
+			return;
+		case CHARCONV_SUCCESS:
+			replacement_char_length = conversion_output_ptr - replacement_char_str;
+			return;
+	}
+}
+
 /** Set the replacement character used for undrawable characters.
     @ingroup t3window_term
     @param c The character to draw when an undrawable characters is encountered.
 
-    The default character is the question mark ('?'). The character must be an
-    ASCII character. For terminals capable of Unicode output the Replacement
-    Character is used (codepoint FFFD).
+    The default character is the question mark ('?'). The character must be a
+    Unicode character representable in the current character set. For terminals
+    capable of Unicode output the Replacement Character is used (codepoint FFFD).
 */
-void t3_term_set_replacement_char(char c) {
+void t3_term_set_replacement_char(int c) {
 	replacement_char = c;
+	convert_replacement_char(replacement_char);
 }
 
+/** Print the replacement character. */
+static void print_replacement_character(void) {
+	if (output_convertor == NULL) {
+		fwrite("\xef\xbf\xbd", 1, 3, _t3_putp_file);
+	} else {
+		fwrite(replacement_char_str, 1, replacement_char_length, _t3_putp_file);
+	}
+}
