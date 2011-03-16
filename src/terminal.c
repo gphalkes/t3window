@@ -823,6 +823,12 @@ t3_bool t3_term_resize(void) {
 			t3_win_clrtoeol(_t3_terminal_window);
 		}
 		_t3_putp(clear);
+		/* The clear action moves the cursor, so we need to reposition the cursor.
+		   Therefore, we force a cursor reposition by changing the current idea
+		   of where the cursor is to something where it should not be after the
+		   update. */
+		if (new_show_cursor && show_cursor)
+			cursor_x = new_cursor_x + 1;
 	}
 	return t3_win_resize(_t3_terminal_window, lines, columns);
 }
@@ -1192,6 +1198,11 @@ done: /* Add empty statement to shut up compilers */ ;
 
 /** Redraw the entire terminal from scratch. */
 void t3_term_redraw(void) {
+	/* The clear action destroys the current cursor position, so we make sure
+	   that it has to be repositioned afterwards. Because we are redrawing, we
+	   definately also want to ensure that the cursor is in the right place. */
+	if (new_show_cursor && show_cursor)
+		cursor_x = new_cursor_x + 1;
 	set_attrs(0);
 	_t3_putp(clear);
 	t3_win_set_paint(_t3_terminal_window, 0, 0);
