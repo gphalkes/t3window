@@ -96,6 +96,22 @@ t3_bool t3_term_putc(char c) {
 	return t3_true;
 }
 
+/** Add a string to the output buffer.
+    @ingroup t3window_term
+    @param s The character to add.
+
+    This function should not be used outside the callback set with ::t3_term_set_user_callback.
+    @internal
+    Contrary to the previous comment for users of the library, this function is also
+    used from term_update.
+*/
+t3_bool t3_term_puts(const char *s) {
+	t3_bool retval = t3_true;
+	while (*s != 0)
+		retval &= t3_term_putc(*s++);
+	return retval;
+}
+
 /** @internal
     @brief Print the characters in the output buffer.
 */

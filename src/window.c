@@ -741,13 +741,10 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 			cd_buf[i] = (unsigned char) str[i];
 
 		if (bytes_read > 1) {
+			cd_buf[0] &= ~(_T3_ATTR_ACS | _T3_ATTR_FALLBACK_ACS);
+		} else if ((cd_buf[0] & _T3_ATTR_ACS) && !t3_term_acs_available(cd_buf[0] & _T3_CHAR_MASK)) {
 			cd_buf[0] &= ~_T3_ATTR_ACS;
-		} else if (((cd_buf[0] & _T3_ATTR_ACS) && !t3_term_acs_available(cd_buf[0] & _T3_CHAR_MASK)) ||
-				cd_buf[0] & _T3_ATTR_FALLBACK_ACS)
-		{
-			int replacement = _t3_term_get_default_acs(cd_buf[0] & _T3_CHAR_MASK);
-			cd_buf[0] &= ~(_T3_ATTR_ACS | _T3_CHAR_MASK);
-			cd_buf[0] |= replacement & _T3_CHAR_MASK;
+			cd_buf[0] |= _T3_ATTR_FALLBACK_ACS;
 		}
 		if (!_win_add_chardata(win, cd_buf, bytes_read))
 			return T3_ERR_ERRNO;

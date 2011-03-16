@@ -135,10 +135,10 @@ static t3_chardata_t attrs = 0, /**< Last used set of attributes. */
 static t3_attr_user_callback_t user_callback = NULL;
 
 /** Alternate character set conversion table from TERM_* values to terminal ACS characters. */
-static char alternate_chars[256],
+static char alternate_chars[256];
 /** Alternate character set fall-back characters for when the terminal does not
     provide a proper ACS character. */
-	default_alternate_chars[256];
+static const char *default_alternate_chars[256];
 
 /** File descriptor of the terminal. */
 static int terminal_fd;
@@ -146,45 +146,62 @@ static int terminal_fd;
 /** Boolean indicating whether the terminal is currently detecting the terminal capabilities. */
 static t3_bool detecting_terminal_capabilities = t3_true;
 
-/*FIXME: Should this be a function or should we simply set the default_alternate_chars
-	array as it is the only one still being filled this way. */
-/** Fill a table with fall-back characters for the alternate character set.
+#define SET_CHARACTER(_idx, _utf, _ascii) do { \
+	if (t3_term_can_draw((_utf), strlen(_utf))) \
+		default_alternate_chars[_idx] = _utf; \
+	else \
+		default_alternate_chars[_idx] = _ascii; \
+} while (0)
+
+/** Fill the defaults table with fall-back characters for the alternate character set.
     @param table The table to fill. */
-static void set_alternate_chars_defaults(char *table) {
-	table['}'] = 'f';
-	table['.'] = 'v';
-	table[','] = '<';
-	table['+'] = '>';
-	table['-'] = '^';
-	table['h'] = '#';
-	table['~'] = 'o';
-	table['a'] = ':';
-	table['f'] = '\\';
-	table['\''] = '+';
-	table['z'] = '>';
-	table['{'] = '*';
-	table['q'] = '-';
-	table['i'] = '#';
-	table['n'] = '+';
-	table['y'] = '<';
-	table['m'] = '+';
-	table['j'] = '+';
-	table['|'] = '!';
-	table['g'] = '#';
-	table['o'] = '~';
-	table['p'] = '-';
-	table['r'] = '-';
-	table['s'] = '_';
-	table['0'] = '#';
-	table['w'] = '+';
-	table['u'] = '+';
-	table['t'] = '+';
-	table['v'] = '+';
-	table['l'] = '+';
-	table['k'] = '+';
-	table['x'] = '|';
-	table['~'] = 'o';
-	table['`'] = '+';
+static void set_alternate_chars_defaults(void) {
+	SET_CHARACTER('}', "\302\243", "f");
+	SET_CHARACTER('.', "\342\226\274", "v");
+	SET_CHARACTER(',', "\342\227\200", "<");
+	SET_CHARACTER('+', "\342\226\266", ">");
+	SET_CHARACTER('-', "\342\226\262", "^");
+	SET_CHARACTER('h', "\342\226\222", "#");
+	SET_CHARACTER('~', "\302\267", "o");
+	SET_CHARACTER('a', "\342\226\222", ":");
+	SET_CHARACTER('f', "\302\260", "\\");
+	SET_CHARACTER('z', "\342\211\245", ">");
+	SET_CHARACTER('{', "\317\200", "*");
+	SET_CHARACTER('q', "\342\224\200", "-");
+	/* Should probably be something like a crossed box, for now keep #.
+	   - ncurses maps to SNOWMAN!
+	   - xterm shows 240B, which is not desirable either
+	*/
+	SET_CHARACTER('i', "#", "#");
+	SET_CHARACTER('n', "\342\224\274", "+");
+	SET_CHARACTER('y', "\342\211\244", "<");
+	SET_CHARACTER('m', "\342\224\224", "+");
+	SET_CHARACTER('j', "\342\224\230", "+");
+	SET_CHARACTER('|', "\342\211\240", "!");
+	SET_CHARACTER('g', "\302\261", "#");
+	SET_CHARACTER('o', "\342\216\272", "~");
+	SET_CHARACTER('p', "\342\216\273", "-");
+	SET_CHARACTER('r', "\342\216\274", "-");
+	SET_CHARACTER('s', "\342\216\275", "_");
+	SET_CHARACTER('0', "\342\226\256", "#");
+	SET_CHARACTER('w', "\342\224\254", "+");
+	SET_CHARACTER('u', "\342\224\244", "+");
+	SET_CHARACTER('t', "\342\224\234", "+");
+	SET_CHARACTER('v', "\342\224\264", "+");
+	SET_CHARACTER('l', "\342\224\214", "+");
+	SET_CHARACTER('k', "\342\224\220", "+");
+	SET_CHARACTER('x', "\342\224\202", "|");
+	SET_CHARACTER('`', "\342\227\206", "+");
+}
+
+/** Get fall-back character for alternate character set character (internal use only).
+    @param idx The character to retrieve the fall-back character for.
+    @return The fall-back character.
+*/
+static const char *get_default_acs(int idx) {
+	if (idx < 0 || idx > 255)
+		return " ";
+	return default_alternate_chars[idx] != NULL ? default_alternate_chars[idx] : " ";
 }
 
 static void set_attrs(t3_chardata_t new_attrs);
@@ -479,8 +496,6 @@ int t3_term_init(int fd, const char *term) {
 			free(acsc);
 		}
 
-		set_alternate_chars_defaults(default_alternate_chars);
-
 		ncv_int = _t3_tigetnum("ncv");
 		if (ncv_int >= 0) {
 			if (ncv_int & (1<<1)) ncv |= T3_ATTR_UNDERLINE;
@@ -509,6 +524,8 @@ int t3_term_init(int fd, const char *term) {
 
 	if (!_t3_init_output_convertor(nl_langinfo(CODESET)))
 		return T3_ERR_CHARSET_ERROR;
+
+	set_alternate_chars_defaults();
 
 	/* Create or resize terminal window */
 	if (_t3_terminal_window == NULL) {
@@ -946,7 +963,7 @@ static void set_attrs(t3_chardata_t new_attrs) {
 	_t3_output_buffer_print();
 
 	/* Just in case the caller forgot */
-	new_attrs &= _T3_ATTR_MASK;
+	new_attrs &= _T3_ATTR_MASK & ~_T3_ATTR_FALLBACK_ACS;
 
 	if (new_attrs == 0 && (sgr0 != NULL || sgr != NULL)) {
 		/* Use sgr instead of sgr0 as this is probably more tested (see rxvt-unicode terminfo bug) */
@@ -1123,10 +1140,10 @@ void t3_term_update(void) {
 				if (width + _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) > _t3_terminal_window->width)
 					break;
 
-				new_attrs = _t3_terminal_window->lines[i].data[j] & _T3_ATTR_MASK;
+				new_attrs = _t3_terminal_window->lines[i].data[j] & (_T3_ATTR_MASK & ~_T3_ATTR_FALLBACK_ACS);
 
 				width += _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]);
-				if (user_callback != NULL && new_attrs & _T3_ATTR_USER) {
+				if (user_callback != NULL && (new_attrs & _T3_ATTR_USER)) {
 					/* Let the user draw this character because they want funky attributes */
 					int start = j, k;
 					char *str;
@@ -1147,10 +1164,13 @@ void t3_term_update(void) {
 					set_attrs(new_attrs);
 				}
 			}
-			if (attrs & _T3_ATTR_ACS)
+			if (attrs & _T3_ATTR_ACS) {
 				t3_term_putc(alternate_chars[_t3_terminal_window->lines[i].data[j] & _T3_CHAR_MASK]);
-			else
+			} else if (_t3_terminal_window->lines[i].data[j] & _T3_ATTR_FALLBACK_ACS) {
+				t3_term_puts(get_default_acs(_t3_terminal_window->lines[i].data[j] & _T3_CHAR_MASK));
+			} else {
 				t3_term_putc(_t3_terminal_window->lines[i].data[j] & _T3_CHAR_MASK);
+			}
 		}
 
 		/* Clear the terminal line if the new line is shorter than the old one. */
@@ -1247,17 +1267,6 @@ t3_bool t3_term_acs_available(int idx) {
 	if (idx < 0 || idx > 255)
 		return t3_false;
 	return alternate_chars[idx] != 0;
-}
-
-/** @internal
-    @brief Get fall-back character for alternate character set character (internal use only).
-    @param idx The character to retrieve the fall-back character for.
-    @return The fall-back character.
-*/
-int _t3_term_get_default_acs(int idx) {
-	if (idx < 0 || idx > 255)
-		return ' ';
-	return default_alternate_chars[idx] != 0 ? default_alternate_chars[idx] : ' ';
 }
 
 /** Combine attributes, with priority.

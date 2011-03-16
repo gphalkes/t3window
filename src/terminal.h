@@ -240,6 +240,7 @@ T3_WINDOW_API t3_attr_t t3_term_get_supported_attrs(void);
 T3_WINDOW_API t3_bool t3_term_can_draw(const char *str, size_t str_len);
 T3_WINDOW_API void t3_term_set_replacement_char(int c);
 T3_WINDOW_API t3_bool t3_term_putc(char c);
+T3_WINDOW_API t3_bool t3_term_puts(const char *s);
 T3_WINDOW_API void t3_term_disable_ansi_optimization(void);
 
 /** Get terminal capabilities.
