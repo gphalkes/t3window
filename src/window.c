@@ -205,9 +205,9 @@ void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
 	}
 
 	/* Detect potential loops in anchor relations, and abort assignment. */
-	ptr = win;
+	ptr = anchor;
 	while (ptr != NULL) {
-		if (ptr == anchor)
+		if (ptr == win)
 			return;
 		/* Take into account that if no anchor is specified, the parent is the
 		   default anchor. */
