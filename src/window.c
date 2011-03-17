@@ -204,9 +204,6 @@ void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
 		return;
 	}
 
-	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
-		return;
-
 	/* Detect potential loops in anchor relations, and abort assignment. */
 	ptr = win;
 	while (ptr != NULL) {
