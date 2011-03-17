@@ -724,11 +724,11 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
 		bytes_read = n;
-		c = t3_getuc(str, &bytes_read);
+		c = t3_unicode_get(str, &bytes_read);
 
-		char_info = t3_get_codepoint_info(c);
-		width = T3_INFO_TO_WIDTH(char_info);
-		if ((char_info & (T3_GRAPH_BIT | T3_SPACE_BIT)) == 0 || width < 0) {
+		char_info = t3_unicode_get_info(c);
+		width = T3_UNICODE_INFO_TO_WIDTH(char_info);
+		if ((char_info & (T3_UNICODE_GRAPH_BIT | T3_UNICODE_SPACE_BIT)) == 0 || width < 0) {
 			retval = T3_ERR_NONPRINT;
 			continue;
 		}
