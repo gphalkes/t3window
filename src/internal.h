@@ -154,5 +154,14 @@ T3_WINDOW_LOCAL extern t3_window_t *_t3_terminal_window;
 /** Background color default. */
 #define _T3_ATTR_BG_DEFAULT ((t3_chardata_t) (9L << (_T3_ATTR_COLOR_SHIFT + 4)))
 
+enum {
+	_T3_TERM_UNKNOWN,
+	_T3_TERM_UTF8,
+	_T3_TERM_CJK_EUC_JP,
+	_T3_TERM_CJK_EUC_TW,
+	_T3_TERM_CJK_GB18030,
+	_T3_TERM_CJK_SHIFT_JIS
+};
 
+T3_WINDOW_LOCAL extern int _t3_term_encoding, _t3_term_combining, _t3_term_double_width;
 #endif

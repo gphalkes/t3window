@@ -54,11 +54,14 @@ t3_bool _t3_init_output_buffer(void) {
     @param encodig The encoding to convert to.
 */
 t3_bool _t3_init_output_convertor(const char *encoding) {
+	char squashed_name[10];
+
 	if (output_convertor != NULL)
 		charconv_close_convertor(output_convertor);
 
 	/* FIXME: use case-insensitive compare and check for other "spellings" of UTF-8 */
-	if (strcmp(encoding, "UTF-8") == 0) {
+	charconv_squash_name(encoding, squashed_name, sizeof(squashed_name));
+	if (strcmp(squashed_name, "utf8") == 0) {
 		output_convertor = NULL;
 		return t3_true;
 	}
@@ -123,26 +126,34 @@ void _t3_output_buffer_print(void) {
 	nfc_output_len = t3_unicode_to_nfc(output_buffer, output_buffer_idx, &nfc_output, &nfc_output_size);
 
 	if (output_convertor == NULL) {
+#if 1
 		size_t idx, codepoint_len, output_start;
 		uint32_t c;
 		uint_fast8_t codepoint_info;
-
 		/* Filter out combining characters if the terminal is known not to support them (e.g. gnome-terminal). */
 		/* FIXME: make this dependent on the detected terminal capabilities. */
 		for (idx = 0, output_start = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_unicode_get(nfc_output + idx, &codepoint_len);
 			codepoint_info = t3_unicode_get_info(c, INT_MAX); //FIXME: depend on known working version!
-			if (codepoint_info & T3_UNICODE_COMBINING_BIT) {
+			if ((codepoint_info & T3_UNICODE_COMBINING_BIT) && !_t3_term_combining) {
 				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
 				/* For non-zero width combining characters, print a replacement character. */
 				if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 1)
 					print_replacement_character();
 				output_start = idx + codepoint_len;
 			}
+			if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 2 && !_t3_term_double_width) {
+				fwrite(nfc_output + output_start, 1, idx - output_start + codepoint_len, _t3_putp_file);
+				/* Add a space to compensate for the lack of double width characters. */
+				fputc(' ', _t3_putp_file);
+				output_start = idx + codepoint_len;
+			}
 		}
 		fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
-		/* fwrite(nfc_output, 1, nfc_output_len, _t3_putp_file); */
+#else
+		fwrite(nfc_output, 1, nfc_output_len, _t3_putp_file);
+#endif
 	} else {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr;
 		const char *conversion_input_ptr = nfc_output, *conversion_input_end = nfc_output + nfc_output_len;

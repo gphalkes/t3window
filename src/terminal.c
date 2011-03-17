@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <langinfo.h>
+#include <charconv/charconv.h>
 
 #include "window.h"
 #include "internal.h"
@@ -145,6 +146,10 @@ static int terminal_fd;
 
 /** Boolean indicating whether the terminal is currently detecting the terminal capabilities. */
 static t3_bool detecting_terminal_capabilities = t3_true;
+
+int _t3_term_encoding, /**< Detected terminal encoding/mode. @internal */
+	_t3_term_combining, /**< Terminal combining capabilities. @internal */
+	_t3_term_double_width; /**< Terminal double width character support level. @internal */
 
 #define SET_CHARACTER(_idx, _utf, _ascii) do { \
 	if (t3_term_can_draw((_utf), strlen(_utf))) \
@@ -352,6 +357,18 @@ static void detect_ansi(void) {
 		ansi_attrs &= ~(_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK);
 }
 
+static void send_test_string(const char *str) {
+	/* Move cursor to the begining of the line. Use cup if hpa is not available. */
+	if (hpa != NULL)
+		_t3_putp(_t3_tparm(hpa, 1, 0));
+	else
+		do_cup(0, 0);
+
+	fputs(str, _t3_putp_file);
+	/* Send ANSI cursor reporting string. */
+	_t3_putp("\033[6n");
+}
+
 /** Initialize the terminal.
     @param fd The file descriptor of the terminal or -1 for default/last used.
     @param term The name of the terminal, or @c NULL to use the @c TERM environment variable.
@@ -424,8 +441,13 @@ int t3_term_init(int fd, const char *term) {
 		}
 		if ((clear = get_ti_string("clear")) == NULL)
 			return T3_ERR_TERMINAL_TOO_LIMITED;
-		if ((cup = get_ti_string("cup")) == NULL)
-			return T3_ERR_TERMINAL_TOO_LIMITED;
+
+		if ((cup = get_ti_string("cup")) == NULL) {
+			if ((hpa = get_ti_string("hpa")) == NULL || ((vpa = get_ti_string("vpa")) == NULL))
+				return T3_ERR_TERMINAL_TOO_LIMITED;
+		}
+		if (hpa == NULL)
+			hpa = get_ti_string("hpa");
 
 		sgr = get_ti_string("sgr");
 		if ((smul = get_ti_string("smul")) != NULL) {
@@ -571,12 +593,17 @@ int t3_term_init(int fd, const char *term) {
 	set_attrs(0);
 
 	_t3_init_output_buffer();
-	/* FIXME: make sure that the encoding is really set! */
-/*	do_cup(0, 0);
-	fputs("\x61\xcc\xa1", _t3_putp_file);
-	_t3_putp("\033[6n");
+
+	/* FIXME: do this only once! */
+	/* FIXME: make sure that the following will always result in a two cell width for non-UTF-8 encodings. */
+	send_test_string("\xc3\xa5"); /* U+00E5 LATIN SMALL LETTER A WITH RING ABOVE */
+	/* Send a combining character sequence. */
+	send_test_string("\x61\xcc\xa1"); /* U+0061 LATIN SMALL LETTER A / U+0321 COMBINING PALATALIZED HOOK BELOW */
+	/* Send a double-width character. */
+	send_test_string("\xe5\x88\x88"); /* U+5208 CJK UNIFIED IDEOGRAPH-5208 */
+	_t3_putp(clear);
 	fflush(_t3_putp_file);
-*/
+
 	initialised = t3_true;
 	return T3_ERR_SUCCESS;
 }
@@ -616,12 +643,69 @@ void t3_term_restore(void) {
     capabilities of the terminal.
 */
 static void process_position_report(int row, int column) {
+	static int report_nr;
+#define T3_WINDOW_DEBUG
+#ifdef T3_WINDOW_DEBUG
+	static FILE *log;
+	if (!log) {
+		log = fopen("libt3window.log", "a");
+		setvbuf(log, NULL, _IONBF, 100);
+	}
+#endif
+
 	(void) row;
 	(void) column;
-/* 	FILE *log = fopen("/tmp/window.log", "a");
-	if (log)
-		fprintf(log, "Position report: %d,%d\n", row, column);
-	fclose(log); */
+
+
+	column--;
+#ifdef T3_WINDOW_DEBUG
+	if (log) fprintf(log, "Position report %d: %d, %d\n", report_nr, row, column);
+#endif
+	switch (report_nr) {
+		case 0:
+			if (column == 1)
+				_t3_term_encoding = _T3_TERM_UTF8;
+			break;
+		case 1:
+			if (_t3_term_encoding == _T3_TERM_UTF8)
+				_t3_term_combining = column == 1;
+			break;
+		case 2:
+			if (_t3_term_encoding == _T3_TERM_UTF8)
+				_t3_term_double_width = column == 2;
+			/* FALLTHROUGH */
+		default:
+			if (_t3_term_encoding == _T3_TERM_UNKNOWN) {
+				char squashed_name[10];
+				charconv_squash_name(nl_langinfo(CODESET), squashed_name, sizeof(squashed_name));
+				/* We know that it is not a UTF-8 terminal if we reach this, so
+				   switch to ASCII. */
+				if (strcmp(squashed_name, "utf8") == 0) {
+					_t3_init_output_convertor("ASCII");
+					set_alternate_chars_defaults();
+					t3_win_set_paint(_t3_terminal_window, 0, 0);
+					t3_win_clrtobot(_t3_terminal_window);
+					/* FIXME: we need to somehow indicate that a redraw is necessary to the app. */
+				}
+			}
+			detecting_terminal_capabilities = t3_false;
+			break;
+	}
+
+	if (report_nr < INT_MAX)
+		report_nr++;
+
+#ifdef T3_WINDOW_DEBUG
+	if (!detecting_terminal_capabilities) {
+		if (log) {
+			fprintf(log, "_t3_term_encoding: %d\n", _t3_term_encoding);
+			fprintf(log, "_t3_term_combining: %d\n", _t3_term_combining);
+			fprintf(log, "_t3_term_double_width: %d\n", _t3_term_double_width);
+		}
+		fclose(log);
+		log = NULL;
+	}
+#endif
 	/*FIXME: we can actually do the different detections interactively, but then we have to split
 		t3_term_update. The sequence of actions would be:
 		- set attributes to 0
@@ -633,7 +717,6 @@ static void process_position_report(int row, int column) {
 		- update terminal line 0
 	It would be best to combine as many test strings as possible.
 	*/
-	detecting_terminal_capabilities = t3_false;
 }
 
 /** Check if a characters is a digit, in a locale independent way. */
@@ -658,8 +741,11 @@ static void parse_position_reports(int c) {
 
 	switch (detection_state) {
 		case STATE_INITIAL:
-			if (c == 27)
+			if (c == 27) {
 				detection_state = STATE_ESC_SEEN;
+				row = 0;
+				column = 0;
+			}
 			break;
 		case STATE_ESC_SEEN:
 			if (c == '[') {
