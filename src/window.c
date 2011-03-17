@@ -726,7 +726,7 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 		bytes_read = n;
 		c = t3_unicode_get(str, &bytes_read);
 
-		char_info = t3_unicode_get_info(c);
+		char_info = t3_unicode_get_info(c, INT_MAX);
 		width = T3_UNICODE_INFO_TO_WIDTH(char_info);
 		if ((char_info & (T3_UNICODE_GRAPH_BIT | T3_UNICODE_SPACE_BIT)) == 0 || width < 0) {
 			retval = T3_ERR_NONPRINT;

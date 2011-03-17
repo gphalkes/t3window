@@ -156,42 +156,42 @@ static t3_bool detecting_terminal_capabilities = t3_true;
 /** Fill the defaults table with fall-back characters for the alternate character set.
     @param table The table to fill. */
 static void set_alternate_chars_defaults(void) {
-	SET_CHARACTER('}', "\302\243", "f");
-	SET_CHARACTER('.', "\342\226\274", "v");
-	SET_CHARACTER(',', "\342\227\200", "<");
-	SET_CHARACTER('+', "\342\226\266", ">");
-	SET_CHARACTER('-', "\342\226\262", "^");
-	SET_CHARACTER('h', "\342\226\222", "#");
-	SET_CHARACTER('~', "\302\267", "o");
-	SET_CHARACTER('a', "\342\226\222", ":");
-	SET_CHARACTER('f', "\302\260", "\\");
-	SET_CHARACTER('z', "\342\211\245", ">");
-	SET_CHARACTER('{', "\317\200", "*");
-	SET_CHARACTER('q', "\342\224\200", "-");
+	SET_CHARACTER('}', "\302\243", "f"); /* U+00A3 POUND SIGN [1.1] */
+	SET_CHARACTER('.', "\342\226\274", "v"); /* U+25BC BLACK DOWN-POINTING TRIANGLE [1.1] */
+	SET_CHARACTER(',', "\342\227\200", "<"); /* U+25C0 BLACK LEFT-POINTING TRIANGLE [1.1] */
+	SET_CHARACTER('+', "\342\226\266", ">"); /* U+25B6 BLACK RIGHT-POINTING TRIANGLE [1.1] */
+	SET_CHARACTER('-', "\342\226\262", "^"); /* U+25B2 BLACK UP-POINTING TRIANGLE [1.1] */
+	SET_CHARACTER('h', "\342\226\222", "#"); /* U+2592 MEDIUM SHADE [1.1] */
+	SET_CHARACTER('~', "\302\267", "o"); /* U+00B7 MIDDLE DOT [1.1] */
+	SET_CHARACTER('a', "\342\226\222", ":"); /* U+2592 MEDIUM SHADE [1.1] */
+	SET_CHARACTER('f', "\302\260", "\\"); /* U+00B0 DEGREE SIGN [1.1] */
+	SET_CHARACTER('z', "\342\211\245", ">"); /* U+2265 GREATER-THAN OR EQUAL TO [1.1] */
+	SET_CHARACTER('{', "\317\200", "*"); /* U+03C0 GREEK SMALL LETTER PI [1.1] */
+	SET_CHARACTER('q', "\342\224\200", "-"); /* U+2500 BOX DRAWINGS LIGHT HORIZONTAL [1.1] */
 	/* Should probably be something like a crossed box, for now keep #.
 	   - ncurses maps to SNOWMAN!
 	   - xterm shows 240B, which is not desirable either
 	*/
 	SET_CHARACTER('i', "#", "#");
-	SET_CHARACTER('n', "\342\224\274", "+");
-	SET_CHARACTER('y', "\342\211\244", "<");
-	SET_CHARACTER('m', "\342\224\224", "+");
-	SET_CHARACTER('j', "\342\224\230", "+");
-	SET_CHARACTER('|', "\342\211\240", "!");
-	SET_CHARACTER('g', "\302\261", "#");
-	SET_CHARACTER('o', "\342\216\272", "~");
-	SET_CHARACTER('p', "\342\216\273", "-");
-	SET_CHARACTER('r', "\342\216\274", "-");
-	SET_CHARACTER('s', "\342\216\275", "_");
-	SET_CHARACTER('0', "\342\226\256", "#");
-	SET_CHARACTER('w', "\342\224\254", "+");
-	SET_CHARACTER('u', "\342\224\244", "+");
-	SET_CHARACTER('t', "\342\224\234", "+");
-	SET_CHARACTER('v', "\342\224\264", "+");
-	SET_CHARACTER('l', "\342\224\214", "+");
-	SET_CHARACTER('k', "\342\224\220", "+");
-	SET_CHARACTER('x', "\342\224\202", "|");
-	SET_CHARACTER('`', "\342\227\206", "+");
+	SET_CHARACTER('n', "\342\224\274", "+"); /* U+253C BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL [1.1] */
+	SET_CHARACTER('y', "\342\211\244", "<"); /* U+2264 LESS-THAN OR EQUAL TO [1.1] */
+	SET_CHARACTER('m', "\342\224\224", "+"); /* U+2514 BOX DRAWINGS LIGHT UP AND RIGHT [1.1] */
+	SET_CHARACTER('j', "\342\224\230", "+"); /* U+2518 BOX DRAWINGS LIGHT UP AND LEFT [1.1] */
+	SET_CHARACTER('|', "\342\211\240", "!"); /* U+2260 NOT EQUAL TO [1.1] */
+	SET_CHARACTER('g', "\302\261", "#"); /* U+00B1 PLUS-MINUS SIGN [1.1] */
+	SET_CHARACTER('o', "\342\216\272", "~"); /* U+23BA HORIZONTAL SCAN LINE-1 [3.2] */
+	SET_CHARACTER('p', "\342\216\273", "-"); /* U+23BB HORIZONTAL SCAN LINE-3 [3.2] */
+	SET_CHARACTER('r', "\342\216\274", "-"); /* U+23BC HORIZONTAL SCAN LINE-7 [3.2] */
+	SET_CHARACTER('s', "\342\216\275", "_"); /* U+23BD HORIZONTAL SCAN LINE-9 [3.2] */
+	SET_CHARACTER('0', "\342\226\256", "#"); /* U+25AE BLACK VERTICAL RECTANGLE [1.1] */
+	SET_CHARACTER('w', "\342\224\254", "+"); /* U+252C BOX DRAWINGS LIGHT DOWN AND HORIZONTAL [1.1] */
+	SET_CHARACTER('u', "\342\224\244", "+"); /* U+2524 BOX DRAWINGS LIGHT VERTICAL AND LEFT [1.1] */
+	SET_CHARACTER('t', "\342\224\234", "+"); /* U+251C BOX DRAWINGS LIGHT VERTICAL AND RIGHT [1.1] */
+	SET_CHARACTER('v', "\342\224\264", "+"); /* U+2534 BOX DRAWINGS LIGHT UP AND HORIZONTAL [1.1] */
+	SET_CHARACTER('l', "\342\224\214", "+"); /* U+250C BOX DRAWINGS LIGHT DOWN AND RIGHT [1.1] */
+	SET_CHARACTER('k', "\342\224\220", "+"); /* U+2510 BOX DRAWINGS LIGHT DOWN AND LEFT [1.1] */
+	SET_CHARACTER('x', "\342\224\202", "|"); /* U+2502 BOX DRAWINGS LIGHT VERTICAL [1.1] */
+	SET_CHARACTER('`', "\342\227\206", "+"); /* U+25C6 BLACK DIAMOND [1.1] */
 }
 
 /** Get fall-back character for alternate character set character (internal use only).
