@@ -147,6 +147,9 @@ static int terminal_fd;
 /** Boolean indicating whether the terminal is currently detecting the terminal capabilities. */
 static t3_bool detecting_terminal_capabilities = t3_true;
 
+static int last_key = -1, /**< Last keychar returned from ::t3_term_get_keychar. Used in ::t3_term_unget_keychar. */
+	stored_key = -1; /**< Location for storing "ungot" keys in ::t3_term_unget_keychar. */
+
 int _t3_term_encoding, /**< Detected terminal encoding/mode. @internal */
 	_t3_term_combining, /**< Terminal combining capabilities. @internal */
 	_t3_term_double_width; /**< Terminal double width character support level. @internal */
@@ -599,6 +602,18 @@ int t3_term_init(int fd, const char *term) {
 	send_test_string("\xc3\xa5"); /* U+00E5 LATIN SMALL LETTER A WITH RING ABOVE */
 	/* Send a combining character sequence. */
 	send_test_string("\x61\xcc\xa1"); /* U+0061 LATIN SMALL LETTER A / U+0321 COMBINING PALATALIZED HOOK BELOW */
+	/* Other test strings (from mined if available):
+		5.1: U+002E FULL STOP / U+0487 COMBINING CYRILLIC POKRYTIE [\x2e\xd2\x87]
+		     U+002E FULL STOP / U+1DCC COMBINING MACRON-BREVE [\x2e\xe1\xb7\x8c]  == width should be 2 ==
+		5.0: U+002E FULL STOP / U+1DC4 COMBINING MACRON-ACUTE [\x2e\xe1\xb7\x84]
+		     U+002E FULL STOP / U+1DC5 COMBINING GRAVE-MACRON [\x2e\xe1\xb7\x85]  == width should be 2 ==
+		4.1: U+002E FULL STOP / U+0358 COMBINING DOT ABOVE RIGHT [\x2e\xcd\x98]
+		     U+002E FULL STOP / U+0359 COMBINING ASTERISK BELOW [\x2e\xcd\x99]  == width should be 2 ==
+		4.0: U+002E FULL STOP / U+0350 COMBINING RIGHT ARROWHEAD ABOVE [\x2e\xcd\x90]
+		     U+002E FULL STOP / U+17B4 KHMER VOWEL INHERENT AQ [\x2e\xe1\x9e\xb4]  !!!! is Cf category, not combining !!!!
+		     U+002E FULL STOP / U+180E MONGOLIAN VOWEL SEPARATOR [\x2e\xe1\xa0\x8e] !!!! is Zs category, not combining !!!!
+			 == width should be 4 ==
+	*/
 	/* Send a double-width character. */
 	send_test_string("\xe5\x88\x88"); /* U+5208 CJK UNIFIED IDEOGRAPH-5208 */
 	_t3_putp(clear);
@@ -642,13 +657,14 @@ void t3_term_restore(void) {
     initialization. They are used to determine the used character set and
     capabilities of the terminal.
 */
-static void process_position_report(int row, int column) {
+static t3_bool process_position_report(int row, int column) {
 	static int report_nr;
+	t3_bool result = t3_false;
 #define T3_WINDOW_DEBUG
 #ifdef T3_WINDOW_DEBUG
 	static FILE *log;
 	if (!log) {
-		log = fopen("libt3window.log", "a");
+		log = fopen("libt3window.log", "w");
 		setvbuf(log, NULL, _IONBF, 100);
 	}
 #endif
@@ -685,7 +701,7 @@ static void process_position_report(int row, int column) {
 					set_alternate_chars_defaults();
 					t3_win_set_paint(_t3_terminal_window, 0, 0);
 					t3_win_clrtobot(_t3_terminal_window);
-					/* FIXME: we need to somehow indicate that a redraw is necessary to the app. */
+					result = t3_true;
 				}
 			}
 			detecting_terminal_capabilities = t3_false;
@@ -706,6 +722,8 @@ static void process_position_report(int row, int column) {
 		log = NULL;
 	}
 #endif
+	return result;
+
 	/*FIXME: we can actually do the different detections interactively, but then we have to split
 		t3_term_update. The sequence of actions would be:
 		- set attributes to 0
@@ -735,7 +753,7 @@ static int digit_value(int c) {
     initialization. They are used to determine the used character set and
     capabilities of the terminal.
 */
-static void parse_position_reports(int c) {
+static t3_bool parse_position_reports(int c) {
 	static detection_state_t detection_state = STATE_INITIAL;
 	static int row, column;
 
@@ -768,7 +786,7 @@ static void parse_position_reports(int c) {
 				column = column * 10 + digit_value(c);
 			} else if (c == 'R') {
 				detection_state = STATE_INITIAL;
-				process_position_report(row, column);
+				return process_position_report(row, column);
 			} else {
 				detection_state = STATE_INITIAL;
 			}
@@ -777,6 +795,7 @@ static void parse_position_reports(int c) {
 			detection_state = STATE_INITIAL;
 			break;
 	}
+	return t3_false;
 }
 
 /** Read a character from @c stdin, continueing after interrupts.
@@ -791,8 +810,12 @@ static int safe_read_char(void) {
 		if (retval < 0 && errno == EINTR) {
 			continue;
 		} else if (retval >= 1) {
-			if (detecting_terminal_capabilities)
-				parse_position_reports((int) c);
+			if (detecting_terminal_capabilities) {
+				if (parse_position_reports((int) c)) {
+					stored_key = c;
+					return T3_WARN_UPDATE_TERMINAL;
+				}
+			}
 			return (int) (unsigned char) c;
 		} else if (retval == 0) {
 			return T3_ERR_EOF;
@@ -801,15 +824,18 @@ static int safe_read_char(void) {
 	}
 }
 
-static int last_key = -1, /**< Last keychar returned from ::t3_term_get_keychar. Used in ::t3_term_unget_keychar. */
-	stored_key = -1; /**< Location for storing "ungot" keys in ::t3_term_unget_keychar. */
-
 /** Get a key @c char from stdin with timeout.
     @param msec The timeout in miliseconds, or a value <= 0 for indefinite wait.
     @retval >=0 A @c char read from stdin.
     @retval ::T3_ERR_ERRNO on error, with @c errno set to the error.
     @retval ::T3_ERR_EOF on end of file.
     @retval ::T3_ERR_TIMEOUT if there was no character to read within the specified timeout.
+    @retval ::T3_WARN_UPDATE_TERMINAL if the terminal-feature detection has finished
+    	and requires that the terminal is updated. @b Note: this is not an error,
+    	but a signal to update the terminal. To check for errors, use:
+    @code
+    	t3_term_get_keychar(msec) < T3_WARN_MIN
+    @endcode
 */
 int t3_term_get_keychar(int msec) {
 	int retval;
@@ -850,7 +876,7 @@ int t3_term_get_keychar(int msec) {
     Only a @c char just read from stdin with ::t3_term_get_keychar can be pushed back.
 */
 int t3_term_unget_keychar(int c) {
-	if (c == last_key) {
+	if (c == last_key && c >= 0) {
 		stored_key = c;
 		return c;
 	}

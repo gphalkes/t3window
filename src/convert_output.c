@@ -132,6 +132,7 @@ void _t3_output_buffer_print(void) {
 		uint_fast8_t codepoint_info;
 		/* Filter out combining characters if the terminal is known not to support them (e.g. gnome-terminal). */
 		/* FIXME: make this dependent on the detected terminal capabilities. */
+		/* FIXME: should we filter out other zero-width characters? */
 		for (idx = 0, output_start = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_unicode_get(nfc_output + idx, &codepoint_len);

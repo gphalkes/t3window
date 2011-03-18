@@ -206,6 +206,8 @@ enum {
 #define T3_ERR_NONPRINT (-61)
 /** Error code: could not open character-set conversion. */
 #define T3_ERR_CHARSET_ERROR (-60)
+/** Error code: terminal feature detection has finished and the terminal should be updated. */
+#define T3_WARN_UPDATE_TERMINAL (-1)
 
 T3_WINDOW_API const char *t3_window_strerror(int error);
 /*@}*/
