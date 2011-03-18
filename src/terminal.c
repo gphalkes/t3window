@@ -53,6 +53,7 @@ TODO list:
 /** @addtogroup t3window_term */
 /** @{ */
 
+/** @internal States for parsing cursor position reports. */
 typedef enum {
 	STATE_INITIAL,
 	STATE_ESC_SEEN,
@@ -113,7 +114,7 @@ static t3_chardata_t ncv; /**< Terminal info: Non-color video attributes (encode
 static t3_bool bce; /**< Terminal info: screen erased with background color. */
 static int colors, pairs;
 
-t3_window_t *_t3_terminal_window; /**< t3_window_t struct representing the last drawn terminal state. */
+t3_window_t *_t3_terminal_window; /**< @internal t3_window_t struct representing the last drawn terminal state. */
 static line_data_t old_data; /**< line_data_t struct used in terminal update to save previous line state. */
 
 static int lines, /**< Size of terminal (lines). */
@@ -132,7 +133,7 @@ static t3_chardata_t attrs = 0, /**< Last used set of attributes. */
 	ansi_attrs = 0, /**< Bit mask indicating which attributes should be drawn as ANSI colors. */
 	/** Attributes for which the only way to turn of the attribute is to reset all attributes. */
 	reset_required_mask = _T3_ATTR_BOLD | _T3_ATTR_REVERSE | _T3_ATTR_BLINK | _T3_ATTR_DIM;
-/** Callback for _T3_ATTR_USER1. */
+/** Callback for _T3_ATTR_USER. */
 static t3_attr_user_callback_t user_callback = NULL;
 
 /** Alternate character set conversion table from TERM_* values to terminal ACS characters. */
@@ -150,9 +151,9 @@ static t3_bool detecting_terminal_capabilities = t3_true;
 static int last_key = -1, /**< Last keychar returned from ::t3_term_get_keychar. Used in ::t3_term_unget_keychar. */
 	stored_key = -1; /**< Location for storing "ungot" keys in ::t3_term_unget_keychar. */
 
-int _t3_term_encoding, /**< Detected terminal encoding/mode. @internal */
-	_t3_term_combining, /**< Terminal combining capabilities. @internal */
-	_t3_term_double_width; /**< Terminal double width character support level. @internal */
+int _t3_term_encoding, /**< @internal Detected terminal encoding/mode. */
+	_t3_term_combining, /**< @internal Terminal combining capabilities. */
+	_t3_term_double_width; /**< @internal Terminal double width character support level. */
 
 #define SET_CHARACTER(_idx, _utf, _ascii) do { \
 	if (t3_term_can_draw((_utf), strlen(_utf))) \
@@ -395,6 +396,7 @@ static void send_test_string(const char *str) {
     and with a minimum of pre-processing.
 */
 int t3_term_init(int fd, const char *term) {
+	static t3_bool detection_done;
 	struct winsize wsz;
 	char *enacs;
 	struct termios new_params;
@@ -597,27 +599,29 @@ int t3_term_init(int fd, const char *term) {
 
 	_t3_init_output_buffer();
 
-	/* FIXME: do this only once! */
-	/* FIXME: make sure that the following will always result in a two cell width for non-UTF-8 encodings. */
-	send_test_string("\xc3\xa5"); /* U+00E5 LATIN SMALL LETTER A WITH RING ABOVE */
-	/* Send a combining character sequence. */
-	send_test_string("\x61\xcc\xa1"); /* U+0061 LATIN SMALL LETTER A / U+0321 COMBINING PALATALIZED HOOK BELOW */
-	/* Other test strings (from mined if available):
-		5.1: U+002E FULL STOP / U+0487 COMBINING CYRILLIC POKRYTIE [\x2e\xd2\x87]
-		     U+002E FULL STOP / U+1DCC COMBINING MACRON-BREVE [\x2e\xe1\xb7\x8c]  == width should be 2 ==
-		5.0: U+002E FULL STOP / U+1DC4 COMBINING MACRON-ACUTE [\x2e\xe1\xb7\x84]
-		     U+002E FULL STOP / U+1DC5 COMBINING GRAVE-MACRON [\x2e\xe1\xb7\x85]  == width should be 2 ==
-		4.1: U+002E FULL STOP / U+0358 COMBINING DOT ABOVE RIGHT [\x2e\xcd\x98]
-		     U+002E FULL STOP / U+0359 COMBINING ASTERISK BELOW [\x2e\xcd\x99]  == width should be 2 ==
-		4.0: U+002E FULL STOP / U+0350 COMBINING RIGHT ARROWHEAD ABOVE [\x2e\xcd\x90]
-		     U+002E FULL STOP / U+17B4 KHMER VOWEL INHERENT AQ [\x2e\xe1\x9e\xb4]  !!!! is Cf category, not combining !!!!
-		     U+002E FULL STOP / U+180E MONGOLIAN VOWEL SEPARATOR [\x2e\xe1\xa0\x8e] !!!! is Zs category, not combining !!!!
-			 == width should be 4 ==
-	*/
-	/* Send a double-width character. */
-	send_test_string("\xe5\x88\x88"); /* U+5208 CJK UNIFIED IDEOGRAPH-5208 */
-	_t3_putp(clear);
-	fflush(_t3_putp_file);
+	if (!detection_done) {
+		detection_done = t3_true;
+		/* FIXME: make sure that the following will always result in a two cell width for non-UTF-8 encodings. */
+		send_test_string("\xc3\xa5"); /* U+00E5 LATIN SMALL LETTER A WITH RING ABOVE */
+		/* Send a combining character sequence. */
+		send_test_string("\x61\xcc\xa1"); /* U+0061 LATIN SMALL LETTER A / U+0321 COMBINING PALATALIZED HOOK BELOW */
+		/* Other test strings (from mined if available):
+			5.1: U+002E FULL STOP / U+0487 COMBINING CYRILLIC POKRYTIE [\x2e\xd2\x87]
+				 U+002E FULL STOP / U+1DCC COMBINING MACRON-BREVE [\x2e\xe1\xb7\x8c]  == width should be 2 ==
+			5.0: U+002E FULL STOP / U+1DC4 COMBINING MACRON-ACUTE [\x2e\xe1\xb7\x84]
+				 U+002E FULL STOP / U+1DC5 COMBINING GRAVE-MACRON [\x2e\xe1\xb7\x85]  == width should be 2 ==
+			4.1: U+002E FULL STOP / U+0358 COMBINING DOT ABOVE RIGHT [\x2e\xcd\x98]
+				 U+002E FULL STOP / U+0359 COMBINING ASTERISK BELOW [\x2e\xcd\x99]  == width should be 2 ==
+			4.0: U+002E FULL STOP / U+0350 COMBINING RIGHT ARROWHEAD ABOVE [\x2e\xcd\x90]
+				 U+002E FULL STOP / U+17B4 KHMER VOWEL INHERENT AQ [\x2e\xe1\x9e\xb4]  !!!! is Cf category, not combining !!!!
+				 U+002E FULL STOP / U+180E MONGOLIAN VOWEL SEPARATOR [\x2e\xe1\xa0\x8e] !!!! is Zs category, not combining !!!!
+				 == width should be 4 ==
+		*/
+		/* Send a double-width character. */
+		send_test_string("\xe5\x88\x88"); /* U+5208 CJK UNIFIED IDEOGRAPH-5208 */
+		_t3_putp(clear);
+		fflush(_t3_putp_file);
+	}
 
 	initialised = t3_true;
 	return T3_ERR_SUCCESS;
@@ -737,7 +741,7 @@ static t3_bool process_position_report(int row, int column) {
 	*/
 }
 
-/** Check if a characters is a digit, in a locale independent way. */
+/** @internal Check if a characters is a digit, in a locale independent way. */
 #define non_locale_isdigit(_c) (strchr("0123456789", _c) != NULL)
 
 /** Convert a digit character to an @c int value. */
@@ -929,9 +933,9 @@ void t3_term_get_size(int *height, int *width) {
     @return A boolean indicating success of the resizing operation, which depends on
 		memory allocation success.
 
-    Retrieves the size of the terminal and resizes the backing structures.
-	After calling ::t3_term_resize, ::t3_term_get_size can be called to retrieve
-    the new terminal size. Should be called after a @c SIGWINCH.
+    Should be called after a @c SIGWINCH. Retrieves the size of the terminal and
+    resizes the backing structures. After calling ::t3_term_resize,
+    ::t3_term_get_size can be called to retrieve the new terminal size.
 */
 t3_bool t3_term_resize(void) {
 	struct winsize wsz;
@@ -1154,7 +1158,7 @@ void t3_term_set_attrs(t3_attr_t new_attrs) {
 	set_attrs(_t3_term_attr_to_chardata(new_attrs));
 }
 
-/** Set callback for drawing characters with ::_T3_ATTR_USER1 attribute.
+/** Set callback for drawing characters with ::T3_ATTR_USER attribute.
     @param callback The function to call for drawing.
 */
 void t3_term_set_user_callback(t3_attr_user_callback_t callback) {
@@ -1341,7 +1345,13 @@ void t3_term_redraw(void) {
 	t3_win_clrtobot(_t3_terminal_window);
 }
 
-/** Send a terminal control string to the terminal, with correct padding. */
+/** Send a terminal control string to the terminal, with correct padding.
+
+    @note This function should only be called in very special circumstances in
+    a registered user callback (see ::t3_term_set_user_callback), when
+    you want to do something which the library can not. Make sure that any state
+    changes are undone before returning from the callback.
+*/
 void t3_term_putp(const char *str) {
 	_t3_output_buffer_print();
 	_t3_putp(str);

@@ -65,7 +65,10 @@ typedef long t3_attr_t;
 typedef int t3_attr_t;
 #endif
 
-/** Data structure to store information about the capabilities of the terminal. */
+/** Data structure to store information about the capabilities of the terminal.
+
+    See ::t3_term_get_caps for details on how to use this struct.
+*/
 typedef struct {
 	t3_attr_t highlights; /**< The supported attributes other then color attributes. This is a bitmask of T3_ATTR_* flags. */
 	int colors; /**< The maximum number of supported colors, or 0 if color is not supported. */
@@ -92,7 +95,7 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 /** Use callback for drawing the characters.
 
     When T3_ATTR_USER is set all other attribute bits are ignored. These can be used by
-    the callback to determine the drawing style. The callback is set with ::t3_term_set_callback.
+    the callback to determine the drawing style. The callback is set with ::t3_term_set_user_callback.
 	Note that the callback is responsible for outputing the characters as well (using ::t3_term_putc).
 */
 #define T3_ATTR_USER ((t3_attr_t) (1L << 0))
@@ -121,9 +124,9 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 #define T3_ATTR_FG(x) (((((t3_attr_t) (x)) & 0xff) + 1) << T3_ATTR_COLOR_SHIFT)
 /** Convert a color number to a background color attribute. */
 #define T3_ATTR_BG(x) (((((t3_attr_t) (x)) & 0xff) + 1) << (T3_ATTR_COLOR_SHIFT + 9))
-/** Bitmask to leave only the foreground color in a ::t3_chardata_t value. */
+/** Bitmask to leave only the foreground color in a ::t3_attr_t value. */
 #define T3_ATTR_FG_MASK (0x1ff << T3_ATTR_COLOR_SHIFT)
-/** Bitmask to leave only the background color in a ::t3_chardata_t value. */
+/** Bitmask to leave only the background color in a ::t3_attr_t value. */
 #define T3_ATTR_BG_MASK (0x1ff << (T3_ATTR_COLOR_SHIFT + 9))
 
 /** Foreground color unspecified. */
@@ -187,8 +190,8 @@ enum {
 	T3_ACS_RARROW = '+', /**< Arrow pointing right. */
 	T3_ACS_BOARD = 'h', /**< Board of squares. */
 	T3_ACS_CKBOARD = 'a', /**< Checker board pattern (stipple). */
-	T3_ACS_BULLET = '~', /** < Bullet. */
-	T3_ACS_DIAMOND = '`', /** < Diamond. */
+	T3_ACS_BULLET = '~', /**< Bullet. */
+	T3_ACS_DIAMOND = '`', /**< Diamond. */
 	/* FIXME: add all the different known ACS chars */
 };
 
@@ -208,9 +211,9 @@ enum {
 #define T3_ERR_CHARSET_ERROR (-60)
 /** Error code: terminal feature detection has finished and the terminal should be updated. */
 #define T3_WARN_UPDATE_TERMINAL (-1)
+/*@}*/
 
 T3_WINDOW_API const char *t3_window_strerror(int error);
-/*@}*/
 
 /** @} */
 

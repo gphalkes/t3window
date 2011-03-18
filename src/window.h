@@ -23,13 +23,13 @@
 extern "C" {
 #endif
 
-/** Define a parent anchor point for a relation (see WinAnchor). */
+/** Define a parent anchor point for a relation (see t3_win_anchor_t). @ingroup t3window_other */
 #define T3_PARENT(_x) ((_x) << 3)
-/** Define a child anchor point a relation (see WinAnchor). */
+/** Define a child anchor point a relation (see t3_win_anchor_t). @ingroup t3window_other */
 #define T3_CHILD(_x) ((_x) << 6)
-/** Get a parent anchor point from a relation (see WinAnchor). */
+/** Get a parent anchor point from a relation (see t3_win_anchor_t). @ingroup t3window_other */
 #define T3_GETPARENT(_x) (((_x) >> 3) & 0x7)
-/** Get a child anchor point from a relation (see WinAnchor). */
+/** Get a child anchor point from a relation (see t3_win_anchor_t). @ingroup t3window_other */
 #define T3_GETCHILD(_x) (((_x) >> 6) & 0x7)
 
 /** Anchor points for defining relations between the positions of two windows.
@@ -37,8 +37,10 @@ extern "C" {
     The anchor points can be used to define the relative positioning of two
     windows. For example, using T3_PARENT(T3_ANCHOR_TOPRIGHT) | T3_CHILD(T3_ANCHOR_TOPLEFT)
 	allows positioning of one window left of another.
+
+	@ingroup t3window_other
 */
-enum WinAnchor {
+enum t3_win_anchor_t {
 	T3_ANCHOR_TOPLEFT,
 	T3_ANCHOR_TOPRIGHT,
 	T3_ANCHOR_BOTTOMLEFT,

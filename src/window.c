@@ -189,7 +189,7 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 /** Link a t3_window_t's position to the position of another t3_window_t.
     @param win The t3_window_t to set the anchor for.
     @param anchor The t3_window_t to link to.
-    @param relation The relation between this window and @p anchor (see ::WinAnchor).
+    @param relation The relation between this window and @p anchor (see ::t3_win_anchor_t).
 */
 void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
 	t3_window_t *ptr;

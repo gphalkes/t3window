@@ -14,6 +14,7 @@
 #ifndef T3_INTERNAL_H
 #define T3_INTERNAL_H
 
+#include <limits.h>
 #include "window_api.h"
 
 /** @typedef t3_chardata_t
