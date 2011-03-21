@@ -175,7 +175,7 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 	retval->height = height;
 	retval->parent = parent;
 	retval->anchor = parent;
-	retval->restrict = retval; /* if it points to itself, the window is unrestrictred. */
+	retval->restrict = NULL;
 	retval->depth = depth;
 
 	_insert_window(retval);
@@ -422,6 +422,7 @@ int t3_win_get_abs_x(t3_window_t *win) {
 			break;
 		case T3_ANCHOR_TOPCENTER:
 		case T3_ANCHOR_BOTTOMCENTER:
+		case T3_ANCHOR_CENTER:
 			result = t3_win_get_abs_x(win->anchor) + win->anchor->width / 2 + win->x;
 			break;
 		default:
@@ -437,6 +438,7 @@ int t3_win_get_abs_x(t3_window_t *win) {
 			break;
 		case T3_ANCHOR_TOPCENTER:
 		case T3_ANCHOR_BOTTOMCENTER:
+		case T3_ANCHOR_CENTER:
 			result -= (win->width / 2);
 			break;
 		default:;
@@ -476,6 +478,7 @@ int t3_win_get_abs_y(t3_window_t *win) {
 			break;
 		case T3_ANCHOR_CENTERLEFT:
 		case T3_ANCHOR_CENTERRIGHT:
+		case T3_ANCHOR_CENTER:
 			result = t3_win_get_abs_y(win->anchor) + (win->anchor->height / 2) + win->y;
 			break;
 		default:
@@ -491,6 +494,7 @@ int t3_win_get_abs_y(t3_window_t *win) {
 			break;
 		case T3_ANCHOR_CENTERLEFT:
 		case T3_ANCHOR_CENTERRIGHT:
+		case T3_ANCHOR_CENTER:
 			result -= win->height / 2;
 			break;
 		default:;
