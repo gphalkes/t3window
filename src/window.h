@@ -24,13 +24,13 @@ extern "C" {
 #endif
 
 /** Define a parent anchor point for a relation (see t3_win_anchor_t). @ingroup t3window_other */
-#define T3_PARENT(_x) ((_x) << 3)
+#define T3_PARENT(_x) ((_x) << 4)
 /** Define a child anchor point a relation (see t3_win_anchor_t). @ingroup t3window_other */
-#define T3_CHILD(_x) ((_x) << 6)
+#define T3_CHILD(_x) ((_x) << 8)
 /** Get a parent anchor point from a relation (see t3_win_anchor_t). @ingroup t3window_other */
-#define T3_GETPARENT(_x) (((_x) >> 3) & 0x7)
+#define T3_GETPARENT(_x) (((_x) >> 4) & 0xf)
 /** Get a child anchor point from a relation (see t3_win_anchor_t). @ingroup t3window_other */
-#define T3_GETCHILD(_x) (((_x) >> 6) & 0x7)
+#define T3_GETCHILD(_x) (((_x) >> 8) & 0xf)
 
 /** Anchor points for defining relations between the positions of two windows.
 
@@ -44,7 +44,12 @@ enum t3_win_anchor_t {
 	T3_ANCHOR_TOPLEFT,
 	T3_ANCHOR_TOPRIGHT,
 	T3_ANCHOR_BOTTOMLEFT,
-	T3_ANCHOR_BOTTOMRIGHT
+	T3_ANCHOR_BOTTOMRIGHT,
+	T3_ANCHOR_CENTER,
+	T3_ANCHOR_TOPCENTER,
+	T3_ANCHOR_BOTTOMCENTER,
+	T3_ANCHOR_CENTERLEFT,
+	T3_ANCHOR_CENTERRIGHT
 };
 
 /** An opaque struct representing a window which can be shown on the terminal.

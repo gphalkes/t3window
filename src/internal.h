@@ -55,6 +55,7 @@ struct t3_window_t {
 	line_data_t *lines; /* The contents of the t3_window_t. */
 	t3_window_t *parent; /* t3_window_t used for clipping. */
 	t3_window_t *anchor; /* t3_window_t for relative placment. */
+	t3_window_t *restrict; /* t3_window_t for restricting the placement of the window. */
 
 	/* Pointers for linking into depth sorted list. */
 	t3_window_t *next;

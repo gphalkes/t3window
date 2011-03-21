@@ -173,13 +173,9 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 	retval->y = y;
 	retval->width = width;
 	retval->height = height;
-	retval->paint_x = 0;
-	retval->paint_y = 0;
-	retval->shown = t3_false;
-	retval->default_attrs = 0;
 	retval->parent = parent;
 	retval->anchor = parent;
-	retval->relation = 0;
+	retval->restrict = retval; /* if it points to itself, the window is unrestrictred. */
 	retval->depth = depth;
 
 	_insert_window(retval);
@@ -194,15 +190,11 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
 	t3_window_t *ptr;
 
-	if (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT && T3_GETPARENT(relation) != T3_ANCHOR_TOPRIGHT &&
-			T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETPARENT(relation) != T3_ANCHOR_BOTTOMRIGHT) {
+	if (T3_GETPARENT(relation) < T3_ANCHOR_TOPLEFT || T3_GETPARENT(relation) > T3_ANCHOR_CENTERRIGHT)
 		return;
-	}
 
-	if (T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT && T3_GETCHILD(relation) != T3_ANCHOR_TOPRIGHT &&
-			T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMLEFT && T3_GETCHILD(relation) != T3_ANCHOR_BOTTOMRIGHT) {
+	if (T3_GETCHILD(relation) < T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) > T3_ANCHOR_CENTERRIGHT)
 		return;
-	}
 
 	/* Detect potential loops in anchor relations, and abort assignment. */
 	ptr = anchor;
@@ -251,6 +243,22 @@ void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr) {
 	if (win == NULL)
 		win = _t3_terminal_window;
 	win->default_attrs = attr;
+}
+
+/** Set the restrict window.
+    @param win The t3_window_t to set the restrict parameter for.
+    @param restrict The t3_window_t to restrict @p win to.
+
+    To restrict the window to the terminal, pass @c NULL in @p restrict. To
+    cancel restriction of the window position, pass @p win in @p restrict.
+*/
+void t3_win_set_restrict(t3_window_t *win, t3_window_t *restrict) {
+	if (restrict == NULL)
+		win->restrict = _t3_terminal_window;
+	else if (restrict == win)
+		win->restrict = NULL;
+	else
+		win->restrict = restrict;
 }
 
 /** Discard a t3_window_t.
@@ -403,12 +411,18 @@ int t3_win_get_abs_x(t3_window_t *win) {
 	switch (T3_GETPARENT(win->relation)) {
 		case T3_ANCHOR_TOPLEFT:
 		case T3_ANCHOR_BOTTOMLEFT:
-			result = win->x + t3_win_get_abs_x(win->anchor);
+		case T3_ANCHOR_CENTERLEFT:
+			result = t3_win_get_abs_x(win->anchor) + win->x;
 			break;
 		case T3_ANCHOR_TOPRIGHT:
 		case T3_ANCHOR_BOTTOMRIGHT:
+		case T3_ANCHOR_CENTERRIGHT:
 			/* If anchor == NULL, the relation is always T3_ANCHOR_TOPLEFT. */
 			result = t3_win_get_abs_x(win->anchor) + win->anchor->width + win->x;
+			break;
+		case T3_ANCHOR_TOPCENTER:
+		case T3_ANCHOR_BOTTOMCENTER:
+			result = t3_win_get_abs_x(win->anchor) + win->anchor->width / 2 + win->x;
 			break;
 		default:
 			result = win->x;
@@ -418,10 +432,27 @@ int t3_win_get_abs_x(t3_window_t *win) {
 	switch (T3_GETCHILD(win->relation)) {
 		case T3_ANCHOR_TOPRIGHT:
 		case T3_ANCHOR_BOTTOMRIGHT:
-			return result - win->width;
-		default:
-			return result;
+		case T3_ANCHOR_CENTERRIGHT:
+			result -= win->width;
+			break;
+		case T3_ANCHOR_TOPCENTER:
+		case T3_ANCHOR_BOTTOMCENTER:
+			result -= (win->width / 2);
+			break;
+		default:;
 	}
+
+	if (win->restrict != NULL) {
+		int left, right;
+		left = t3_win_get_abs_x(win->restrict);
+		right = left + win->restrict->width;
+
+		if (result + win->width > right)
+			result = right - win->width;
+		if (result < left)
+			left = 0;
+	}
+	return result;
 }
 
 /** Get a t3_window_t's absolute vertical position. */
@@ -434,12 +465,18 @@ int t3_win_get_abs_y(t3_window_t *win) {
 	switch (T3_GETPARENT(win->relation)) {
 		case T3_ANCHOR_TOPLEFT:
 		case T3_ANCHOR_TOPRIGHT:
-			result = win->y + t3_win_get_abs_y(win->anchor);
+		case T3_ANCHOR_TOPCENTER:
+			result = t3_win_get_abs_y(win->anchor) + win->y;
 			break;
 		case T3_ANCHOR_BOTTOMLEFT:
 		case T3_ANCHOR_BOTTOMRIGHT:
+		case T3_ANCHOR_BOTTOMCENTER:
 			/* If anchor == NULL, the relation is always T3_ANCHOR_TOPLEFT. */
 			result = t3_win_get_abs_y(win->anchor) + win->anchor->height + win->y;
+			break;
+		case T3_ANCHOR_CENTERLEFT:
+		case T3_ANCHOR_CENTERRIGHT:
+			result = t3_win_get_abs_y(win->anchor) + (win->anchor->height / 2) + win->y;
 			break;
 		default:
 			result = win->y;
@@ -449,10 +486,27 @@ int t3_win_get_abs_y(t3_window_t *win) {
 	switch (T3_GETCHILD(win->relation)) {
 		case T3_ANCHOR_BOTTOMLEFT:
 		case T3_ANCHOR_BOTTOMRIGHT:
-			return result - win->height;
-		default:
-			return result;
+		case T3_ANCHOR_BOTTOMCENTER:
+			result -= win->height;
+			break;
+		case T3_ANCHOR_CENTERLEFT:
+		case T3_ANCHOR_CENTERRIGHT:
+			result -= win->height / 2;
+			break;
+		default:;
 	}
+
+	if (win->restrict != NULL) {
+		int top, bottom;
+		top = t3_win_get_abs_y(win->restrict);
+		bottom = top + win->restrict->height;
+
+		if (result + win->height > bottom)
+			result = bottom - win->height;
+		if (result < top)
+			top = 0;
+	}
+	return result;
 }
 
 /** Position the cursor relative to a t3_window_t.
