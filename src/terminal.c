@@ -362,11 +362,13 @@ static void detect_ansi(void) {
 }
 
 static void send_test_string(const char *str) {
-	/* Move cursor to the begining of the line. Use cup if hpa is not available. */
+	/* Move cursor to the begining of the line. Use cup if hpa is not available.
+	   Also, make sure we use line 1, iso line 0, because xterm uses \e[1;<digit>R for
+	   some combinations of F3 with modifiers and high-numbered function keys. :-( */
 	if (hpa != NULL)
 		_t3_putp(_t3_tparm(hpa, 1, 0));
 	else
-		do_cup(0, 0);
+		do_cup(1, 0);
 
 	fputs(str, _t3_putp_file);
 	/* Send ANSI cursor reporting string. */
@@ -601,6 +603,14 @@ int t3_term_init(int fd, const char *term) {
 
 	if (!detection_done) {
 		detection_done = t3_true;
+		/* Make sure we use line 1, iso line 0, because xterm uses \e[1;<digit>R for
+		   some combinations of F3 with modifiers and high-numbered function keys. :-( */
+		if (hpa != NULL) {
+			if (vpa != NULL)
+				_t3_putp(_t3_tparm(vpa, 1, 1));
+			else
+				do_cup(1, 0);
+		}
 		/* FIXME: make sure that the following will always result in a two cell width for non-UTF-8 encodings. */
 		send_test_string("\xc3\xa5"); /* U+00E5 LATIN SMALL LETTER A WITH RING ABOVE */
 		/* Send a combining character sequence. */
