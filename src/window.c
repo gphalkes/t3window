@@ -182,7 +182,7 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 	retval->width = width;
 	retval->height = height;
 	retval->parent = parent;
-	retval->anchor = parent;
+	retval->anchor = NULL;
 	retval->restrict = NULL;
 	retval->depth = depth;
 
@@ -235,6 +235,9 @@ t3_bool t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
 		return t3_false;
 
 	if (T3_GETCHILD(relation) < T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) > T3_ANCHOR_CENTERRIGHT)
+		return t3_false;
+
+	if (anchor == NULL && (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
 		return t3_false;
 
 	if (anchor == win->anchor) {
@@ -472,7 +475,7 @@ int t3_win_get_abs_x(t3_window_t *win) {
 		case T3_ANCHOR_TOPLEFT:
 		case T3_ANCHOR_BOTTOMLEFT:
 		case T3_ANCHOR_CENTERLEFT:
-			result = t3_win_get_abs_x(win->anchor) + win->x;
+			result = t3_win_get_abs_x(win->anchor == NULL ? win->parent : win->anchor) + win->x;
 			break;
 		case T3_ANCHOR_TOPRIGHT:
 		case T3_ANCHOR_BOTTOMRIGHT:
@@ -483,6 +486,7 @@ int t3_win_get_abs_x(t3_window_t *win) {
 		case T3_ANCHOR_TOPCENTER:
 		case T3_ANCHOR_BOTTOMCENTER:
 		case T3_ANCHOR_CENTER:
+			/* If anchor == NULL, the relation is always T3_ANCHOR_TOPLEFT. */
 			result = t3_win_get_abs_x(win->anchor) + win->anchor->width / 2 + win->x;
 			break;
 		default:
@@ -528,7 +532,7 @@ int t3_win_get_abs_y(t3_window_t *win) {
 		case T3_ANCHOR_TOPLEFT:
 		case T3_ANCHOR_TOPRIGHT:
 		case T3_ANCHOR_TOPCENTER:
-			result = t3_win_get_abs_y(win->anchor) + win->y;
+			result = t3_win_get_abs_y(win->anchor == NULL ? win->parent : win->anchor) + win->y;
 			break;
 		case T3_ANCHOR_BOTTOMLEFT:
 		case T3_ANCHOR_BOTTOMRIGHT:
@@ -988,6 +992,7 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 
 		if (ptr->parent == NULL) {
 			parent_y = 0;
+			//FIXME: shouldn't this be the size of the terminal window???
 			parent_max_y = INT_MAX;
 			parent_x = 0;
 			parent_max_x = INT_MAX;
