@@ -61,9 +61,11 @@ T3_WINDOW_API t3_window_t *t3_win_new(t3_window_t *parent, int height, int width
 T3_WINDOW_API t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int y, int x, int depth);
 T3_WINDOW_API void t3_win_del(t3_window_t *win);
 
-T3_WINDOW_API void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation);
+T3_WINDOW_API t3_bool t3_win_set_parent(t3_window_t *win, t3_window_t *parent);
+T3_WINDOW_API t3_bool t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation);
 T3_WINDOW_API void t3_win_set_depth(t3_window_t *win, int depth);
 T3_WINDOW_API void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr);
+T3_WINDOW_API t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restrict);
 
 T3_WINDOW_API t3_bool t3_win_resize(t3_window_t *win, int height, int width);
 T3_WINDOW_API void t3_win_move(t3_window_t *win, int y, int x);

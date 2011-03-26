@@ -45,7 +45,7 @@ static t3_bool ensure_space(line_data_t *line, size_t n);
 /** Insert a window into the list of known windows.
     @param win The t3_window_t to insert.
 */
-static void _insert_window(t3_window_t *win) {
+static void insert_window(t3_window_t *win) {
 	t3_window_t **head_ptr, **tail_ptr;
 	t3_window_t *ptr;
 
@@ -84,7 +84,7 @@ static void _insert_window(t3_window_t *win) {
 	}
 }
 
-static void _remove_window(t3_window_t *win) {
+static void remove_window(t3_window_t *win) {
 	if (win->next == NULL) {
 		if (win->parent == NULL)
 			tail = win->prev;
@@ -104,6 +104,14 @@ static void _remove_window(t3_window_t *win) {
 	}
 }
 
+static t3_bool has_loops(t3_window_t *win, t3_window_t *start) {
+	return (win->parent == start ||
+			win->anchor == start ||
+			win->restrict == start ||
+			(win->parent != NULL && has_loops(win->parent, start)) ||
+			(win->anchor != NULL && has_loops(win->anchor, start)) ||
+			(win->restrict != NULL && has_loops(win->restrict, start)));
+}
 
 /** Create a new t3_window_t.
     @param parent t3_window_t used for clipping and relative positioning.
@@ -178,36 +186,71 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 	retval->restrict = NULL;
 	retval->depth = depth;
 
-	_insert_window(retval);
+	insert_window(retval);
 	return retval;
+}
+
+/** Change a t3_window_t's parent.
+    @param win The t3_window_t to set the parent for.
+    @param parent The t3_window_t to link to.
+    @return A boolean indicating whether the setting was successful.
+
+    This function will fail if setting the parent will cause a loop in the
+    window tree.
+*/
+t3_bool t3_win_set_parent(t3_window_t *win, t3_window_t *parent) {
+	t3_window_t *old_parent;
+
+	if (parent == win->parent)
+		return t3_true;
+
+	old_parent = win->parent;
+	win->parent = parent;
+	if (has_loops(win, win)) {
+		win->parent = old_parent;
+		return t3_false;
+	}
+
+	/* Reset parent, to allow remove_window to work. */
+	win->parent = old_parent;
+	remove_window(win);
+	win->parent = parent;
+	insert_window(win);
+	return t3_true;
 }
 
 /** Link a t3_window_t's position to the position of another t3_window_t.
     @param win The t3_window_t to set the anchor for.
     @param anchor The t3_window_t to link to.
     @param relation The relation between this window and @p anchor (see ::t3_win_anchor_t).
+    @return A boolean indicating whether the setting was successful.
+
+    This function will fail if either the @p relation is not valid, or setting
+    the anchor will cause a loop in the window tree.
 */
-void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
-	t3_window_t *ptr;
+t3_bool t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
+	t3_window_t *old_anchor;
 
 	if (T3_GETPARENT(relation) < T3_ANCHOR_TOPLEFT || T3_GETPARENT(relation) > T3_ANCHOR_CENTERRIGHT)
-		return;
+		return t3_false;
 
 	if (T3_GETCHILD(relation) < T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) > T3_ANCHOR_CENTERRIGHT)
-		return;
+		return t3_false;
 
-	/* Detect potential loops in anchor relations, and abort assignment. */
-	ptr = anchor;
-	while (ptr != NULL) {
-		if (ptr == win)
-			return;
-		/* Take into account that if no anchor is specified, the parent is the
-		   default anchor. */
-		ptr = ptr->anchor == NULL ? ptr->parent : ptr->anchor;
+	if (anchor == win->anchor) {
+		win->relation = relation;
+		return t3_true;
 	}
 
+	old_anchor = win->anchor;
 	win->anchor = anchor;
+	if (has_loops(win, win)) {
+		win->anchor = old_anchor;
+		return t3_false;
+	}
+
 	win->relation = relation;
+	return t3_true;
 }
 
 /** Change the depth of a t3_window_t.
@@ -215,9 +258,9 @@ void t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
     @param depth The new depth for the window.
 */
 void t3_win_set_depth(t3_window_t *win, int depth) {
-	_remove_window(win);
+	remove_window(win);
 	win->depth = depth;
-	_insert_window(win);
+	insert_window(win);
 }
 
 /** Check whether a window is show, both by the direct setting of the shown flag,
@@ -252,13 +295,30 @@ void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr) {
     To restrict the window to the terminal, pass @c NULL in @p restrict. To
     cancel restriction of the window position, pass @p win in @p restrict.
 */
-void t3_win_set_restrict(t3_window_t *win, t3_window_t *restrict) {
-	if (restrict == NULL)
-		win->restrict = _t3_terminal_window;
-	else if (restrict == win)
+t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restrict) {
+	t3_window_t *old_restict;
+
+	if (restrict == win) {
 		win->restrict = NULL;
-	else
+		return t3_true;
+	}
+
+	old_restict = win->restrict;
+	if (restrict == NULL) {
+		win->restrict = _t3_terminal_window;
+		/* Setting the restriction to the terminal window can not cause a loop. */
+		return t3_true;
+	} else {
+		if (restrict == win->restrict)
+			return t3_true;
 		win->restrict = restrict;
+	}
+
+	if (has_loops(win, win)) {
+		win->restrict = old_restict;
+		return t3_false;
+	}
+	return t3_true;
 }
 
 /** Discard a t3_window_t.
@@ -271,7 +331,7 @@ void t3_win_del(t3_window_t *win) {
 	if (win == NULL)
 		return;
 
-	_remove_window(win);
+	remove_window(win);
 
 	if (win->lines != NULL) {
 		for (i = 0; i < win->height; i++)
