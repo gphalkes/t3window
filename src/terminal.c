@@ -23,7 +23,6 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <limits.h>
-#include <langinfo.h>
 #include <charconv/charconv.h>
 
 #include "window.h"
@@ -47,7 +46,6 @@ TODO list:
 - km property indicates that 8th bit *may* be alt. Then smm and rmm may help.
   (it seems the smm and rmm properties are not often filled in though).
 - we need to do some checking which header files we need
-- allow alternative for langinfo.h/nl_langinfo
 */
 
 /** @addtogroup t3window_term */
@@ -551,7 +549,7 @@ int t3_term_init(int fd, const char *term) {
 		}
 	}
 
-	if (!_t3_init_output_convertor(nl_langinfo(CODESET)))
+	if (!_t3_init_output_convertor(charconv_get_codeset()))
 		return T3_ERR_CHARSET_ERROR;
 
 	set_alternate_chars_defaults();
@@ -707,7 +705,7 @@ static t3_bool process_position_report(int row, int column) {
 		default:
 			if (_t3_term_encoding == _T3_TERM_UNKNOWN) {
 				char squashed_name[10];
-				charconv_squash_name(nl_langinfo(CODESET), squashed_name, sizeof(squashed_name));
+				charconv_squash_name(charconv_get_codeset(), squashed_name, sizeof(squashed_name));
 				/* We know that it is not a UTF-8 terminal if we reach this, so
 				   switch to ASCII. */
 				if (strcmp(squashed_name, "utf8") == 0) {
