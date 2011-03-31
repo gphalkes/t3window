@@ -125,6 +125,7 @@ void _t3_output_buffer_print(void) {
 	//FIXME: check return value!
 	nfc_output_len = t3_unicode_to_nfc(output_buffer, output_buffer_idx, &nfc_output, &nfc_output_size);
 
+	//FIXME: for GB18030 we should also take the first option. However, it does need conversion...
 	if (output_convertor == NULL) {
 #if 1
 		size_t idx, codepoint_len, output_start;
@@ -137,17 +138,26 @@ void _t3_output_buffer_print(void) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_unicode_get(nfc_output + idx, &codepoint_len);
 			codepoint_info = t3_unicode_get_info(c, INT_MAX); //FIXME: depend on known working version!
-			if ((codepoint_info & T3_UNICODE_COMBINING_BIT) && !_t3_term_combining) {
+
+			if ((codepoint_info & T3_UNICODE_COMBINING_BIT) && (t3_unicode_get_info(c, _t3_term_combining) & T3_UNICODE_COMBINING_BIT)) {
 				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
 				/* For non-zero width combining characters, print a replacement character. */
 				if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 1)
 					print_replacement_character();
 				output_start = idx + codepoint_len;
 			}
-			if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 2 && !_t3_term_double_width) {
-				fwrite(nfc_output + output_start, 1, idx - output_start + codepoint_len, _t3_putp_file);
-				/* Add a space to compensate for the lack of double width characters. */
-				fputc(' ', _t3_putp_file);
+			if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 2 &&
+					T3_UNICODE_INFO_TO_WIDTH(t3_unicode_get_info(c, _t3_term_double_width)) == 1)
+			{
+				if (_t3_term_double_width < 0) {
+					fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
+					print_replacement_character();
+					print_replacement_character();
+				} else {
+					fwrite(nfc_output + output_start, 1, idx - output_start + codepoint_len, _t3_putp_file);
+					/* Add a space to compensate for the lack of double width characters. */
+					fputc(' ', _t3_putp_file);
+				}
 				output_start = idx + codepoint_len;
 			}
 		}
@@ -218,13 +228,18 @@ void _t3_output_buffer_print(void) {
     @ingroup t3window_term
     @param str The UTF-8 string representing the character to be displayed.
     @param str_len The length of @a str.
-    @return A @a DrawType indicating to what extent the terminal is able to draw
-        the character.
+    @return A @a boolean indicating to whether the terminal is able to draw
+        correctly the character.
 
     Note that @a str may contain combining characters, which will only be drawn
     correctly if a precomposed character is available or the terminal supports
     them. And even if the terminal supports combining characters they _may_ not
     be correctly rendered, depending on the combination of combining marks.
+
+    Moreover, the font the terminal is using may not have a glyph available
+    for the requested character. Therefore, if this function determines that
+    the character can be drawn, it may still not be correctly represented on
+    screen.
 */
 t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 	size_t nfc_output_len = t3_unicode_to_nfc(str, str_len, &nfc_output, &nfc_output_size);

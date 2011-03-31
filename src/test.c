@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <locale.h>
+#include <ctype.h>
 #include "window.h"
 
 #define ASSERT(_cond) do { if (!(_cond)) fatal("Assertion failed on line %s:%d: %s\n", __FILE__, __LINE__, #_cond); } while (0)
@@ -48,6 +49,19 @@ void callback(const char *str, int length, int width, t3_attr_t attr) {
 		t3_term_putc(str[i]);
 }
 
+int get_keychar(void) {
+	int result;
+
+	while (1) {
+		if ((result = t3_term_get_keychar(-1)) == 27)
+			while (!isalpha(result = t3_term_get_keychar(-1))) {}
+		else if (result == T3_WARN_UPDATE_TERMINAL)
+			t3_term_update();
+		else
+			return result;
+	}
+}
+
 int main(int argc, char *argv[]) {
 	t3_window_t *low, *high, *sub;
 
@@ -67,25 +81,25 @@ int main(int argc, char *argv[]) {
 	ASSERT(high = t3_win_new(NULL, 10, 10, 5, 10, 0));
 	t3_win_show(low);
 /* 	t3_term_update();
-	getchar(); */
+	get_keychar(); */
 
 	t3_win_set_paint(low, 0, 0);
 	t3_win_addstr(low, "0123456789-", 0);
 	t3_win_set_paint(low, 6, 0);
 	t3_win_addstr(low, "abＱc̃defghijk", 0);
 /* 	t3_term_update();
-	getchar(); */
+	get_keychar(); */
 
 	t3_term_show_cursor();
 	t3_win_set_cursor(low, 0, 0);
 	t3_win_show(high);
 /* 	t3_term_update();
-	getchar();
+	get_keychar();
  */
 	t3_win_set_paint(high, 0, 0);
 	t3_win_addstr(high, "ABCDEFGHIJK", 0);
 /* 	t3_term_update();
-	getchar();
+	get_keychar();
  */
 	t3_win_set_paint(high, 1, 0);
 	t3_win_addstr(high, "9876543210+", T3_ATTR_REVERSE | T3_ATTR_FG_RED);
@@ -96,30 +110,30 @@ int main(int argc, char *argv[]) {
 	t3_win_set_paint(high, 3, 0);
 	t3_win_addstr(high, "f", T3_ATTR_USER);
 /* 	t3_term_update();
-	getchar(); */
+	get_keychar(); */
 
 	t3_win_hide(high);
 /* 	t3_term_update();
-	getchar(); */
+	get_keychar(); */
 
 	t3_win_move(high, 5, 0);
 	t3_win_resize(high, 10, 8);
 	t3_win_show(high);
 /* 	t3_term_update();
-	getchar(); */
+	get_keychar(); */
 
 	t3_win_hide(high);
 /* 	t3_term_update();
-	getchar(); */
+	get_keychar(); */
 
 	t3_win_box(low, 0, 0, 10, 10, T3_ATTR_REVERSE);
 /* 	t3_term_update();
-	getchar(); */
+	get_keychar(); */
 
 	t3_win_hide(low);
 	//~ t3_win_show(high);
 /* 	t3_term_update();
-	getchar(); */
+	get_keychar(); */
 
 	ASSERT(sub = t3_win_new(low, 1, 20, 1, -6, -3));
 
@@ -128,11 +142,11 @@ int main(int argc, char *argv[]) {
 	t3_win_addstr(sub, "abcＱabcＱabcＱ", 0);
 	t3_win_show(sub);
 	t3_term_update();
-	getchar();
+	get_keychar();
 
 	t3_win_show(low);
 	t3_term_update();
-	getchar();
+	get_keychar();
 
 	return 0;
 }

@@ -24,10 +24,12 @@
 #include <assert.h>
 #include <limits.h>
 #include <charconv/charconv.h>
+#include <unicode/unicode.h>
 
 #include "window.h"
 #include "internal.h"
 #include "convert_output.h"
+
 
 /* The curses header file defines too many symbols that get in the way of our
    own, so we have a separate C file which exports only those functions that
@@ -149,9 +151,9 @@ static t3_bool detecting_terminal_capabilities = t3_true;
 static int last_key = -1, /**< Last keychar returned from ::t3_term_get_keychar. Used in ::t3_term_unget_keychar. */
 	stored_key = -1; /**< Location for storing "ungot" keys in ::t3_term_unget_keychar. */
 
-int _t3_term_encoding, /**< @internal Detected terminal encoding/mode. */
-	_t3_term_combining, /**< @internal Terminal combining capabilities. */
-	_t3_term_double_width; /**< @internal Terminal double width character support level. */
+int _t3_term_encoding = _T3_TERM_UNKNOWN, /**< @internal Detected terminal encoding/mode. */
+	_t3_term_combining = -1, /**< @internal Terminal combining capabilities. */
+	_t3_term_double_width = -1; /**< @internal Terminal double width character support level. */
 
 #define SET_CHARACTER(_idx, _utf, _ascii) do { \
 	if (t3_term_can_draw((_utf), strlen(_utf))) \
@@ -163,42 +165,42 @@ int _t3_term_encoding, /**< @internal Detected terminal encoding/mode. */
 /** Fill the defaults table with fall-back characters for the alternate character set.
     @param table The table to fill. */
 static void set_alternate_chars_defaults(void) {
-	SET_CHARACTER('}', "\302\243", "f"); /* U+00A3 POUND SIGN [1.1] */
-	SET_CHARACTER('.', "\342\226\274", "v"); /* U+25BC BLACK DOWN-POINTING TRIANGLE [1.1] */
-	SET_CHARACTER(',', "\342\227\200", "<"); /* U+25C0 BLACK LEFT-POINTING TRIANGLE [1.1] */
-	SET_CHARACTER('+', "\342\226\266", ">"); /* U+25B6 BLACK RIGHT-POINTING TRIANGLE [1.1] */
-	SET_CHARACTER('-', "\342\226\262", "^"); /* U+25B2 BLACK UP-POINTING TRIANGLE [1.1] */
-	SET_CHARACTER('h', "\342\226\222", "#"); /* U+2592 MEDIUM SHADE [1.1] */
-	SET_CHARACTER('~', "\302\267", "o"); /* U+00B7 MIDDLE DOT [1.1] */
-	SET_CHARACTER('a', "\342\226\222", ":"); /* U+2592 MEDIUM SHADE [1.1] */
-	SET_CHARACTER('f', "\302\260", "\\"); /* U+00B0 DEGREE SIGN [1.1] */
-	SET_CHARACTER('z', "\342\211\245", ">"); /* U+2265 GREATER-THAN OR EQUAL TO [1.1] */
-	SET_CHARACTER('{', "\317\200", "*"); /* U+03C0 GREEK SMALL LETTER PI [1.1] */
-	SET_CHARACTER('q', "\342\224\200", "-"); /* U+2500 BOX DRAWINGS LIGHT HORIZONTAL [1.1] */
+	SET_CHARACTER('}', "\xc2\xa3", "f"); /* U+00A3 POUND SIGN [1.1] */
+	SET_CHARACTER('.', "\xe2\x96\xbc", "v"); /* U+25BC BLACK DOWN-POINTING TRIANGLE [1.1] */
+	SET_CHARACTER(',', "\xe2\x97\x80", "<"); /* U+25C0 BLACK LEFT-POINTING TRIANGLE [1.1] */
+	SET_CHARACTER('+', "\xe2\x96\xb6", ">"); /* U+25B6 BLACK RIGHT-POINTING TRIANGLE [1.1] */
+	SET_CHARACTER('-', "\xe2\x96\xb2", "^"); /* U+25B2 BLACK UP-POINTING TRIANGLE [1.1] */
+	SET_CHARACTER('h', "\xe2\x96\x92", "#"); /* U+2592 MEDIUM SHADE [1.1] */
+	SET_CHARACTER('~', "\xc2\xb7", "o"); /* U+00B7 MIDDLE DOT [1.1] */
+	SET_CHARACTER('a', "\xe2\x96\x92", ":"); /* U+2592 MEDIUM SHADE [1.1] */
+	SET_CHARACTER('f', "\xc2\xb0", "\\"); /* U+00B0 DEGREE SIGN [1.1] */
+	SET_CHARACTER('z', "\xe2\x89\xa5", ">"); /* U+2265 GREATER-THAN OR EQUAL TO [1.1] */
+	SET_CHARACTER('{', "\xcf\x80", "*"); /* U+03C0 GREEK SMALL LETTER PI [1.1] */
+	SET_CHARACTER('q', "\xe2\x94\x80", "-"); /* U+2500 BOX DRAWINGS LIGHT HORIZONTAL [1.1] */
 	/* Should probably be something like a crossed box, for now keep #.
 	   - ncurses maps to SNOWMAN!
 	   - xterm shows 240B, which is not desirable either
 	*/
 	SET_CHARACTER('i', "#", "#");
-	SET_CHARACTER('n', "\342\224\274", "+"); /* U+253C BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL [1.1] */
-	SET_CHARACTER('y', "\342\211\244", "<"); /* U+2264 LESS-THAN OR EQUAL TO [1.1] */
-	SET_CHARACTER('m', "\342\224\224", "+"); /* U+2514 BOX DRAWINGS LIGHT UP AND RIGHT [1.1] */
-	SET_CHARACTER('j', "\342\224\230", "+"); /* U+2518 BOX DRAWINGS LIGHT UP AND LEFT [1.1] */
-	SET_CHARACTER('|', "\342\211\240", "!"); /* U+2260 NOT EQUAL TO [1.1] */
-	SET_CHARACTER('g', "\302\261", "#"); /* U+00B1 PLUS-MINUS SIGN [1.1] */
-	SET_CHARACTER('o', "\342\216\272", "~"); /* U+23BA HORIZONTAL SCAN LINE-1 [3.2] */
-	SET_CHARACTER('p', "\342\216\273", "-"); /* U+23BB HORIZONTAL SCAN LINE-3 [3.2] */
-	SET_CHARACTER('r', "\342\216\274", "-"); /* U+23BC HORIZONTAL SCAN LINE-7 [3.2] */
-	SET_CHARACTER('s', "\342\216\275", "_"); /* U+23BD HORIZONTAL SCAN LINE-9 [3.2] */
-	SET_CHARACTER('0', "\342\226\256", "#"); /* U+25AE BLACK VERTICAL RECTANGLE [1.1] */
-	SET_CHARACTER('w', "\342\224\254", "+"); /* U+252C BOX DRAWINGS LIGHT DOWN AND HORIZONTAL [1.1] */
-	SET_CHARACTER('u', "\342\224\244", "+"); /* U+2524 BOX DRAWINGS LIGHT VERTICAL AND LEFT [1.1] */
-	SET_CHARACTER('t', "\342\224\234", "+"); /* U+251C BOX DRAWINGS LIGHT VERTICAL AND RIGHT [1.1] */
-	SET_CHARACTER('v', "\342\224\264", "+"); /* U+2534 BOX DRAWINGS LIGHT UP AND HORIZONTAL [1.1] */
-	SET_CHARACTER('l', "\342\224\214", "+"); /* U+250C BOX DRAWINGS LIGHT DOWN AND RIGHT [1.1] */
-	SET_CHARACTER('k', "\342\224\220", "+"); /* U+2510 BOX DRAWINGS LIGHT DOWN AND LEFT [1.1] */
-	SET_CHARACTER('x', "\342\224\202", "|"); /* U+2502 BOX DRAWINGS LIGHT VERTICAL [1.1] */
-	SET_CHARACTER('`', "\342\227\206", "+"); /* U+25C6 BLACK DIAMOND [1.1] */
+	SET_CHARACTER('n', "\xe2\x94\xbc", "+"); /* U+253C BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL [1.1] */
+	SET_CHARACTER('y', "\xe2\x89\xa4", "<"); /* U+2264 LESS-THAN OR EQUAL TO [1.1] */
+	SET_CHARACTER('m', "\xe2\x94\x94", "+"); /* U+2514 BOX DRAWINGS LIGHT UP AND RIGHT [1.1] */
+	SET_CHARACTER('j', "\xe2\x94\x98", "+"); /* U+2518 BOX DRAWINGS LIGHT UP AND LEFT [1.1] */
+	SET_CHARACTER('|', "\xe2\x89\xa0", "!"); /* U+2260 NOT EQUAL TO [1.1] */
+	SET_CHARACTER('g', "\xc2\xb1", "#"); /* U+00B1 PLUS-MINUS SIGN [1.1] */
+	SET_CHARACTER('o', "\xe2\x8e\xba", "~"); /* U+23BA HORIZONTAL SCAN LINE-1 [3.2] */
+	SET_CHARACTER('p', "\xe2\x8e\xbb", "-"); /* U+23BB HORIZONTAL SCAN LINE-3 [3.2] */
+	SET_CHARACTER('r', "\xe2\x8e\xbc", "-"); /* U+23BC HORIZONTAL SCAN LINE-7 [3.2] */
+	SET_CHARACTER('s', "\xe2\x8e\xbd", "_"); /* U+23BD HORIZONTAL SCAN LINE-9 [3.2] */
+	SET_CHARACTER('0', "\xe2\x96\xae", "#"); /* U+25AE BLACK VERTICAL RECTANGLE [1.1] */
+	SET_CHARACTER('w', "\xe2\x94\xac", "+"); /* U+252C BOX DRAWINGS LIGHT DOWN AND HORIZONTAL [1.1] */
+	SET_CHARACTER('u', "\xe2\x94\xa4", "+"); /* U+2524 BOX DRAWINGS LIGHT VERTICAL AND LEFT [1.1] */
+	SET_CHARACTER('t', "\xe2\x94\x9c", "+"); /* U+251C BOX DRAWINGS LIGHT VERTICAL AND RIGHT [1.1] */
+	SET_CHARACTER('v', "\xe2\x94\xb4", "+"); /* U+2534 BOX DRAWINGS LIGHT UP AND HORIZONTAL [1.1] */
+	SET_CHARACTER('l', "\xe2\x94\x8c", "+"); /* U+250C BOX DRAWINGS LIGHT DOWN AND RIGHT [1.1] */
+	SET_CHARACTER('k', "\xe2\x94\x90", "+"); /* U+2510 BOX DRAWINGS LIGHT DOWN AND LEFT [1.1] */
+	SET_CHARACTER('x', "\xe2\x94\x82", "|"); /* U+2502 BOX DRAWINGS LIGHT VERTICAL [1.1] */
+	SET_CHARACTER('`', "\xe2\x97\x86", "+"); /* U+25C6 BLACK DIAMOND [1.1] */
 }
 
 /** Get fall-back character for alternate character set character (internal use only).
@@ -584,6 +586,24 @@ int t3_term_init(int fd, const char *term) {
 	/* FIXME: can we find a way to save the current terminal settings (attrs etc)? */
 	/* Start cursor positioning mode. */
 	do_smcup();
+
+	if (!detection_done) {
+		detection_done = t3_true;
+		/* Make sure we use line 1, iso line 0, because xterm uses \e[1;<digit>R for
+		   some combinations of F3 with modifiers and high-numbered function keys. :-( */
+		if (hpa != NULL) {
+			if (vpa != NULL)
+				_t3_putp(_t3_tparm(vpa, 1, 1));
+			else
+				do_cup(1, 0);
+		}
+		#define GENERATE_STRINGS
+		#include "terminal_detection.h"
+		#undef GENERATE_STRINGS
+		_t3_putp(clear);
+		fflush(_t3_putp_file);
+	}
+
 	/* Make sure the cursor is visible */
 	_t3_putp(cnorm);
 	do_cup(cursor_y, cursor_x);
@@ -598,38 +618,6 @@ int t3_term_init(int fd, const char *term) {
 	set_attrs(0);
 
 	_t3_init_output_buffer();
-
-	if (!detection_done) {
-		detection_done = t3_true;
-		/* Make sure we use line 1, iso line 0, because xterm uses \e[1;<digit>R for
-		   some combinations of F3 with modifiers and high-numbered function keys. :-( */
-		if (hpa != NULL) {
-			if (vpa != NULL)
-				_t3_putp(_t3_tparm(vpa, 1, 1));
-			else
-				do_cup(1, 0);
-		}
-		/* FIXME: make sure that the following will always result in a two cell width for non-UTF-8 encodings. */
-		send_test_string("\xc3\xa5"); /* U+00E5 LATIN SMALL LETTER A WITH RING ABOVE */
-		/* Send a combining character sequence. */
-		send_test_string("\x61\xcc\xa1"); /* U+0061 LATIN SMALL LETTER A / U+0321 COMBINING PALATALIZED HOOK BELOW */
-		/* Other test strings (from mined if available):
-			5.1: U+002E FULL STOP / U+0487 COMBINING CYRILLIC POKRYTIE [\x2e\xd2\x87]
-				 U+002E FULL STOP / U+1DCC COMBINING MACRON-BREVE [\x2e\xe1\xb7\x8c]  == width should be 2 ==
-			5.0: U+002E FULL STOP / U+1DC4 COMBINING MACRON-ACUTE [\x2e\xe1\xb7\x84]
-				 U+002E FULL STOP / U+1DC5 COMBINING GRAVE-MACRON [\x2e\xe1\xb7\x85]  == width should be 2 ==
-			4.1: U+002E FULL STOP / U+0358 COMBINING DOT ABOVE RIGHT [\x2e\xcd\x98]
-				 U+002E FULL STOP / U+0359 COMBINING ASTERISK BELOW [\x2e\xcd\x99]  == width should be 2 ==
-			4.0: U+002E FULL STOP / U+0350 COMBINING RIGHT ARROWHEAD ABOVE [\x2e\xcd\x90]
-				 U+002E FULL STOP / U+17B4 KHMER VOWEL INHERENT AQ [\x2e\xe1\x9e\xb4]  !!!! is Cf category, not combining !!!!
-				 U+002E FULL STOP / U+180E MONGOLIAN VOWEL SEPARATOR [\x2e\xe1\xa0\x8e] !!!! is Zs category, not combining !!!!
-				 == width should be 4 ==
-		*/
-		/* Send a double-width character. */
-		send_test_string("\xe5\x88\x88"); /* U+5208 CJK UNIFIED IDEOGRAPH-5208 */
-		_t3_putp(clear);
-		fflush(_t3_putp_file);
-	}
 
 	initialised = t3_true;
 	return T3_ERR_SUCCESS;
@@ -661,6 +649,65 @@ void t3_term_restore(void) {
 	}
 }
 
+static t3_bool finish_detection(void) {
+	t3_bool set_ascii = t3_false, need_redraw = t3_false;
+	const char *current_encoding = charconv_get_codeset());
+
+	/* If the currently set encoding should have been detected, just set to ASCII. */
+	switch (_t3_term_encoding) {
+		case _T3_TERM_UNKNOWN:
+		case _T3_TERM_GBK: // FIXME: once we can detect this better, handle as known encoding
+			if (charconv_equal(current_encoding, "utf8") || charconv_equal(current_encoding, "gb18030") ||
+					charconv_equal(current_encoding, "eucjp") || charconv_equal(current_encoding, "euctw") ||
+					charconv_equal(current_encoding, "euckr") || charconv_equal(current_encoding, "shiftjis"))
+				set_ascii = t3_true;
+			break;
+		case _T3_TERM_UTF8:
+			if (!charconv_equal(current_encoding, "utf8")) {
+				_t3_init_output_convertor("utf8");
+				need_redraw = t3_true;
+			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
+				need_redraw = t3_true;
+			}
+			break;
+		case _T3_TERM_CJK:
+			/* We would love to be able to say which encoding should have been set by the
+			   user, but we simply don't know which ones are valid. So just filter out those
+			   that are known to be invalid. */
+			if (charconv_equal(current_encoding, "utf8") || charconv_equal(current_encoding, "shiftjis"))
+				set_ascii = t3_true;
+			break;
+		case _T3_TERM_CJK_SHIFT_JIS:
+			if (!charconv_equal(current_encoding, "shiftjis")) {
+				_t3_init_output_convertor("shiftjis");
+				need_redraw = t3_true;
+			}
+			break;
+		case _T3_TERM_GB18030:
+			if (!charconv_equal(current_encoding, "gb18030")) {
+				_t3_init_output_convertor("gb18030");
+				need_redraw = t3_true;
+			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
+				need_redraw = t3_true;
+			}
+			break;
+		default:
+			break;
+	}
+
+	if (set_ascii) {
+		_t3_init_output_convertor("ASCII");
+		need_redraw = t3_true;
+	}
+
+	if (need_redraw) {
+		set_alternate_chars_defaults();
+		t3_win_set_paint(_t3_terminal_window, 0, 0);
+		t3_win_clrtobot(_t3_terminal_window);
+	}
+	return need_redraw;
+}
+
 /** Process a position report triggered by the initialization.
     @arg row The reported row.
     @arg column The reported column.
@@ -680,45 +727,15 @@ static t3_bool process_position_report(int row, int column) {
 		setvbuf(log, NULL, _IONBF, 100);
 	}
 #endif
-
 	(void) row;
-	(void) column;
-
 
 	column--;
 #ifdef T3_WINDOW_DEBUG
 	if (log) fprintf(log, "Position report %d: %d, %d\n", report_nr, row, column);
 #endif
-	switch (report_nr) {
-		case 0:
-			if (column == 1)
-				_t3_term_encoding = _T3_TERM_UTF8;
-			break;
-		case 1:
-			if (_t3_term_encoding == _T3_TERM_UTF8)
-				_t3_term_combining = column == 1;
-			break;
-		case 2:
-			if (_t3_term_encoding == _T3_TERM_UTF8)
-				_t3_term_double_width = column == 2;
-			/* FALLTHROUGH */
-		default:
-			if (_t3_term_encoding == _T3_TERM_UNKNOWN) {
-				char squashed_name[10];
-				charconv_squash_name(charconv_get_codeset(), squashed_name, sizeof(squashed_name));
-				/* We know that it is not a UTF-8 terminal if we reach this, so
-				   switch to ASCII. */
-				if (strcmp(squashed_name, "utf8") == 0) {
-					_t3_init_output_convertor("ASCII");
-					set_alternate_chars_defaults();
-					t3_win_set_paint(_t3_terminal_window, 0, 0);
-					t3_win_clrtobot(_t3_terminal_window);
-					result = t3_true;
-				}
-			}
-			detecting_terminal_capabilities = t3_false;
-			break;
-	}
+	#define GENERATE_CODE
+	#include "terminal_detection.h"
+	#undef GENERATE_CODE
 
 	if (report_nr < INT_MAX)
 		report_nr++;
