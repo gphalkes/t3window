@@ -23,7 +23,7 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <limits.h>
-#include <charconv/charconv.h>
+#include <transcript/transcript.h>
 #include <unicode/unicode.h>
 
 #include "window.h"
@@ -148,12 +148,21 @@ static int terminal_fd;
 /** Boolean indicating whether the terminal is currently detecting the terminal capabilities. */
 static t3_bool detecting_terminal_capabilities = t3_true;
 
+/** Store whether the terminal is actually the screen program.
+
+    If set, the terminal-capabilities detection will send extra pass-through
+	markers before and after the cursor position request to ensure we get
+	results. */
+static t3_bool terminal_is_screen;
+
 static int last_key = -1, /**< Last keychar returned from ::t3_term_get_keychar. Used in ::t3_term_unget_keychar. */
 	stored_key = -1; /**< Location for storing "ungot" keys in ::t3_term_unget_keychar. */
 
 int _t3_term_encoding = _T3_TERM_UNKNOWN, /**< @internal Detected terminal encoding/mode. */
 	_t3_term_combining = -1, /**< @internal Terminal combining capabilities. */
 	_t3_term_double_width = -1; /**< @internal Terminal double width character support level. */
+
+static char current_charset[80];
 
 #define SET_CHARACTER(_idx, _utf, _ascii) do { \
 	if (t3_term_can_draw((_utf), strlen(_utf))) \
@@ -372,7 +381,10 @@ static void send_test_string(const char *str) {
 
 	fputs(str, _t3_putp_file);
 	/* Send ANSI cursor reporting string. */
-	_t3_putp("\033[6n");
+	if (terminal_is_screen)
+		_t3_putp("\033P\033[6n\033\\");
+	else
+		_t3_putp("\033[6n");
 }
 
 /** Initialize the terminal.
@@ -551,14 +563,21 @@ int t3_term_init(int fd, const char *term) {
 		}
 	}
 
-	if (!_t3_init_output_convertor(charconv_get_codeset()))
-		return T3_ERR_CHARSET_ERROR;
+	if (!detection_done) {
+		const char *charset = transcript_get_codeset();
+		strncpy(current_charset, charset, sizeof(current_charset) - 1);
+		current_charset[sizeof(current_charset) - 1] = '\0';
+		if (!_t3_init_output_convertor(current_charset))
+			return T3_ERR_CHARSET_ERROR;
 
-	set_alternate_chars_defaults();
+		set_alternate_chars_defaults();
+	}
 
 	/* Create or resize terminal window */
 	if (_t3_terminal_window == NULL) {
-		/* FIXME: maybe someday we can make the window outside of the window stack. */
+		/* FIXME: maybe someday we can make the window outside of the window stack.
+		   For now it is easier to just call t3_win_new to make sure that it is
+		   initialised properly. [quick fix: call remove_window]*/
 		if ((_t3_terminal_window = t3_win_new(NULL, lines, columns, 0, 0, 0)) == NULL)
 			return T3_ERR_ERRNO;
 		if ((old_data.data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL)
@@ -597,6 +616,11 @@ int t3_term_init(int fd, const char *term) {
 			else
 				do_cup(1, 0);
 		}
+
+		if (term != NULL || (term = getenv("TERM")) != NULL)
+			if (strcmp(term , "screen") == 0)
+				terminal_is_screen = t3_true;
+
 		#define GENERATE_STRINGS
 		#include "terminal_detection.h"
 		#undef GENERATE_STRINGS
@@ -649,22 +673,40 @@ void t3_term_restore(void) {
 	}
 }
 
+/** Get the string describing the current character set used by the library.
+
+    The reason this function is provided, is that although the library initially
+    will use the result of @c transcript_get_codeset, the terminal-capabilities
+    detection may result in a different character set being used. After
+    receiving ::T3_WARN_UPDATE_TERMINAL from ::t3_term_get_keychar, this routine
+    may return a different value.
+*/
+const char *t3_term_get_codeset(void) {
+	return current_charset;
+}
+
+/** Complete the detection of terminal capabilities.
+
+	This routine handles changing the current encoding, if the results of the
+    terminal-capabilities detection indicate a need for it.
+*/
 static t3_bool finish_detection(void) {
 	t3_bool set_ascii = t3_false, need_redraw = t3_false;
-	const char *current_encoding = charconv_get_codeset());
+	const char *current_encoding = transcript_get_codeset();
 
 	/* If the currently set encoding should have been detected, just set to ASCII. */
 	switch (_t3_term_encoding) {
 		case _T3_TERM_UNKNOWN:
 		case _T3_TERM_GBK: // FIXME: once we can detect this better, handle as known encoding
-			if (charconv_equal(current_encoding, "utf8") || charconv_equal(current_encoding, "gb18030") ||
-					charconv_equal(current_encoding, "eucjp") || charconv_equal(current_encoding, "euctw") ||
-					charconv_equal(current_encoding, "euckr") || charconv_equal(current_encoding, "shiftjis"))
+			if (transcript_equal(current_encoding, "utf8") || transcript_equal(current_encoding, "gb18030") ||
+					transcript_equal(current_encoding, "eucjp") || transcript_equal(current_encoding, "euctw") ||
+					transcript_equal(current_encoding, "euckr") || transcript_equal(current_encoding, "shiftjis"))
 				set_ascii = t3_true;
 			break;
 		case _T3_TERM_UTF8:
-			if (!charconv_equal(current_encoding, "utf8")) {
+			if (!transcript_equal(current_encoding, "utf8")) {
 				_t3_init_output_convertor("utf8");
+				strcpy(current_charset, "UTF-8");
 				need_redraw = t3_true;
 			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
 				need_redraw = t3_true;
@@ -674,18 +716,20 @@ static t3_bool finish_detection(void) {
 			/* We would love to be able to say which encoding should have been set by the
 			   user, but we simply don't know which ones are valid. So just filter out those
 			   that are known to be invalid. */
-			if (charconv_equal(current_encoding, "utf8") || charconv_equal(current_encoding, "shiftjis"))
+			if (transcript_equal(current_encoding, "utf8") || transcript_equal(current_encoding, "shiftjis"))
 				set_ascii = t3_true;
 			break;
 		case _T3_TERM_CJK_SHIFT_JIS:
-			if (!charconv_equal(current_encoding, "shiftjis")) {
+			if (!transcript_equal(current_encoding, "shiftjis")) {
 				_t3_init_output_convertor("shiftjis");
+				strcpy(current_charset, "Shift_JIS");
 				need_redraw = t3_true;
 			}
 			break;
 		case _T3_TERM_GB18030:
-			if (!charconv_equal(current_encoding, "gb18030")) {
+			if (!transcript_equal(current_encoding, "gb18030")) {
 				_t3_init_output_convertor("gb18030");
+				strcpy(current_charset, "GB18030");
 				need_redraw = t3_true;
 			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
 				need_redraw = t3_true;
@@ -698,6 +742,7 @@ static t3_bool finish_detection(void) {
 	if (set_ascii) {
 		_t3_init_output_convertor("ASCII");
 		need_redraw = t3_true;
+		strcpy(current_charset, "ASCII");
 	}
 
 	if (need_redraw) {
@@ -1449,7 +1494,7 @@ t3_attr_t t3_term_get_ncv(void) {
 }
 
 /** Get the terminal capabilities.
-    @param caps The location to store the capabilites.
+    @param caps The location to store the capabilities.
     @param version The version of the library used when compiling (should be ::T3_WINDOW_VERSION).
 
     @note Do not call this function directly, but use ::t3_term_get_caps which automatically uses

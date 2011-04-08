@@ -12,11 +12,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 SOURCES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c window_shared.c
-LDFLAGS.libt3window.la := -shared -Lunicode -Lcharconv
+LDFLAGS.libt3window.la := -shared -Lunicode -Ltranscript
 CFLAGS.window := -D_XOPEN_SOURCE
 CFLAGS.misc := -DUSE_GETTEXT
-LDLIBS.libt3window.la := -lncurses -lt3unicode -lcharconv
-CFLAGS.convert_output := -Iunicode -Icharconv
+LDLIBS.libt3window.la := -lncurses -lt3unicode -ltranscript
+CFLAGS.convert_output := -Iunicode
 
 SOURCES.test := test.c
 LDFLAGS.test := -L.libs
@@ -40,6 +40,6 @@ test: | libt3window.la
 
 links:
 	@[ -L unicode ] || ln -s ../../unicode/src unicode
-	@[ -L charconv ] || ln -s ../../../charconv/src charconv
+	@[ -L transcript ] || ln -s ../../../transcript/src transcript
 
 .PHONY: links

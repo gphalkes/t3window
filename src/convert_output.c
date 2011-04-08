@@ -18,19 +18,19 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
+#include <transcript/transcript.h>
 
 #include "convert_output.h"
 #include "window.h"
 #include "internal.h"
 #include "unicode.h"
-#include "charconv.h"
 #include "curses_interface.h"
 
 #define CONV_BUFFER_LEN (160)
 
 static char *output_buffer;
 static size_t output_buffer_size, output_buffer_idx;
-static charconv_t *output_convertor = NULL;
+static transcript_t *output_convertor = NULL;
 
 static char *nfc_output;
 static size_t nfc_output_size;
@@ -57,16 +57,15 @@ t3_bool _t3_init_output_convertor(const char *encoding) {
 	char squashed_name[10];
 
 	if (output_convertor != NULL)
-		charconv_close_convertor(output_convertor);
+		transcript_close_convertor(output_convertor);
 
-	/* FIXME: use case-insensitive compare and check for other "spellings" of UTF-8 */
-	charconv_squash_name(encoding, squashed_name, sizeof(squashed_name));
+	transcript_normalize_name(encoding, squashed_name, sizeof(squashed_name));
 	if (strcmp(squashed_name, "utf8") == 0) {
 		output_convertor = NULL;
 		return t3_true;
 	}
 
-	if ((output_convertor = charconv_open_convertor(encoding, CHARCONV_UTF8, 0, NULL)) == NULL)
+	if ((output_convertor = transcript_open_convertor(encoding, TRANSCRIPT_UTF8, 0, NULL)) == NULL)
 		return t3_false;
 
 	convert_replacement_char(replacement_char);
@@ -172,8 +171,8 @@ void _t3_output_buffer_print(void) {
 		/* Convert UTF-8 sequence into current output encoding using t3_unicode_export. */
 		while (conversion_input_ptr < conversion_input_end) {
 			conversion_output_ptr = conversion_output;
-			switch (charconv_from_unicode(output_convertor, &conversion_input_ptr, conversion_input_end,
-					&conversion_output_ptr, conversion_output + CONV_BUFFER_LEN, CHARCONV_END_OF_TEXT))
+			switch (transcript_from_unicode(output_convertor, &conversion_input_ptr, conversion_input_end,
+					&conversion_output_ptr, conversion_output + CONV_BUFFER_LEN, TRANSCRIPT_END_OF_TEXT))
 			{
 				default: {
 					/* Conversion did not succeed on this character; print chars with length equal to char.
@@ -192,7 +191,7 @@ void _t3_output_buffer_print(void) {
 					/* Ensure that the conversion ends in the 'initial state', because after this we will
 					   be outputing replacement characters. */
 					conversion_output_ptr = conversion_output;
-					charconv_from_unicode_flush(output_convertor, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
+					transcript_from_unicode_flush(output_convertor, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
 					if (conversion_output_ptr != conversion_output)
 						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 
@@ -201,15 +200,15 @@ void _t3_output_buffer_print(void) {
 
 					break;
 				}
-				case CHARCONV_ILLEGAL_END:
+				case TRANSCRIPT_ILLEGAL_END:
 					/* This should only happen if there is an incomplete UTF-8 character at the end of
 					   the buffer. Not much we can do about that... */
 					break;
-				case CHARCONV_NO_SPACE:
+				case TRANSCRIPT_NO_SPACE:
 					/* Not enough space in output buffer. Flush current contents and continue. */
 					fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 					break;
-				case CHARCONV_SUCCESS:
+				case TRANSCRIPT_SUCCESS:
 					fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 					break;
 			}
@@ -217,7 +216,7 @@ void _t3_output_buffer_print(void) {
 		/* Ensure that the conversion ends in the 'initial state', because after this we will
 		   be outputing escape sequences. */
 		conversion_output_ptr = conversion_output;
-		charconv_from_unicode_flush(output_convertor, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
+		transcript_from_unicode_flush(output_convertor, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
 		if (conversion_output_ptr != conversion_output)
 			fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 	}
@@ -262,20 +261,20 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		/* Convert UTF-8 sequence into current output encoding using t3_unicode_export. */
 		while (conversion_input_ptr < conversion_input_end) {
 			conversion_output_ptr = conversion_output;
-			switch (charconv_from_unicode(output_convertor, &conversion_input_ptr, conversion_input_end,
-					&conversion_output_ptr, conversion_output + CONV_BUFFER_LEN, CHARCONV_END_OF_TEXT))
+			switch (transcript_from_unicode(output_convertor, &conversion_input_ptr, conversion_input_end,
+					&conversion_output_ptr, conversion_output + CONV_BUFFER_LEN, TRANSCRIPT_END_OF_TEXT))
 			{
 				default:
 					/* Reset conversion to initial state. */
-					charconv_from_unicode_reset(output_convertor);
+					transcript_from_unicode_reset(output_convertor);
 					return t3_false;
-				case CHARCONV_SUCCESS:
-				case CHARCONV_NO_SPACE:	/* Not enough space in output buffer. Restart conversion with remaining chars. */
+				case TRANSCRIPT_SUCCESS:
+				case TRANSCRIPT_NO_SPACE:	/* Not enough space in output buffer. Restart conversion with remaining chars. */
 					break;
 			}
 		}
 		/* Reset conversion to initial state. */
-		charconv_from_unicode_reset(output_convertor);
+		transcript_from_unicode_reset(output_convertor);
 		return t3_true;
 	}
 }
@@ -295,8 +294,8 @@ static void convert_replacement_char(uint32_t c) {
 	conversion_input_ptr = (const char *) &utf8_buffer;
 	conversion_output_ptr = replacement_char_str;
 
-	switch (charconv_from_unicode(output_convertor, &conversion_input_ptr, utf8_buffer + strlen(utf8_buffer),
-			&conversion_output_ptr, replacement_char_str + sizeof(replacement_char_str), CHARCONV_END_OF_TEXT))
+	switch (transcript_from_unicode(output_convertor, &conversion_input_ptr, utf8_buffer + strlen(utf8_buffer),
+			&conversion_output_ptr, replacement_char_str + sizeof(replacement_char_str), TRANSCRIPT_END_OF_TEXT))
 	{
 		default:
 			if (c != '?') {
@@ -308,7 +307,7 @@ static void convert_replacement_char(uint32_t c) {
 				replacement_char_length = 1;
 			}
 			return;
-		case CHARCONV_SUCCESS:
+		case TRANSCRIPT_SUCCESS:
 			replacement_char_length = conversion_output_ptr - replacement_char_str;
 			return;
 	}
