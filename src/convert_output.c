@@ -57,7 +57,7 @@ t3_bool _t3_init_output_convertor(const char *encoding) {
 	char squashed_name[10];
 
 	if (output_convertor != NULL)
-		transcript_close_convertor(output_convertor);
+		transcript_close_converter(output_convertor);
 
 	transcript_normalize_name(encoding, squashed_name, sizeof(squashed_name));
 	if (strcmp(squashed_name, "utf8") == 0) {
@@ -65,7 +65,7 @@ t3_bool _t3_init_output_convertor(const char *encoding) {
 		return t3_true;
 	}
 
-	if ((output_convertor = transcript_open_convertor(encoding, TRANSCRIPT_UTF8, 0, NULL)) == NULL)
+	if ((output_convertor = transcript_open_converter(encoding, TRANSCRIPT_UTF8, 0, NULL)) == NULL)
 		return t3_false;
 
 	convert_replacement_char(replacement_char);
@@ -294,22 +294,23 @@ static void convert_replacement_char(uint32_t c) {
 	conversion_input_ptr = (const char *) &utf8_buffer;
 	conversion_output_ptr = replacement_char_str;
 
-	switch (transcript_from_unicode(output_convertor, &conversion_input_ptr, utf8_buffer + strlen(utf8_buffer),
-			&conversion_output_ptr, replacement_char_str + sizeof(replacement_char_str), TRANSCRIPT_END_OF_TEXT))
+	if (transcript_from_unicode(output_convertor, &conversion_input_ptr, utf8_buffer + strlen(utf8_buffer),
+			&conversion_output_ptr, replacement_char_str + sizeof(replacement_char_str), TRANSCRIPT_END_OF_TEXT) == TRANSCRIPT_SUCCESS
+			&&
+			transcript_from_unicode_flush(output_convertor, &conversion_output_ptr,
+			replacement_char_str + sizeof(replacement_char_str)) == TRANSCRIPT_SUCCESS)
 	{
-		default:
-			if (c != '?') {
-				/* Fallback to question mark if for some reason it doesn't work. */
-				convert_replacement_char('?');
-			} else {
-				/* If all else fails, hope that the bare question mark prints. */
-				replacement_char_str[0] = '?';
-				replacement_char_length = 1;
-			}
-			return;
-		case TRANSCRIPT_SUCCESS:
 			replacement_char_length = conversion_output_ptr - replacement_char_str;
 			return;
+	}
+
+	if (c != '?') {
+		/* Fallback to question mark if for some reason it doesn't work. */
+		convert_replacement_char('?');
+	} else {
+		/* If all else fails, hope that the bare question mark prints. */
+		replacement_char_str[0] = '?';
+		replacement_char_length = 1;
 	}
 }
 
