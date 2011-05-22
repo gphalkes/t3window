@@ -67,7 +67,7 @@ static void insert_window(t3_window_t *win) {
 	for (ptr = *head_ptr; ptr != NULL && ptr->depth < win->depth; ptr = ptr->next) {}
 
 	if (ptr == NULL) {
-		win->prev = tail;
+		win->prev = *tail_ptr;
 		win->next = NULL;
 		(*tail_ptr)->next = win;
 		*tail_ptr = win;
