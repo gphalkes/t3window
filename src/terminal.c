@@ -145,8 +145,10 @@ static const char *default_alternate_chars[256];
 /** File descriptor of the terminal. */
 static int terminal_fd;
 
-/** Boolean indicating whether the terminal is currently detecting the terminal capabilities. */
+/** Boolean indicating whether the library is currently detecting the terminal capabilities. */
 static t3_bool detecting_terminal_capabilities = t3_true;
+/** Boolean indicating whether the terminal capbilities detection requires finishing. */
+static t3_bool detection_needs_finishing;
 
 /** Store whether the terminal is actually the screen program.
 
@@ -690,7 +692,7 @@ const char *t3_term_get_codeset(void) {
 	This routine handles changing the current encoding, if the results of the
     terminal-capabilities detection indicate a need for it.
 */
-static t3_bool finish_detection(void) {
+static void finish_detection(void) {
 	t3_bool set_ascii = t3_false, need_redraw = t3_false;
 	const char *current_encoding = transcript_get_codeset();
 
@@ -750,7 +752,6 @@ static t3_bool finish_detection(void) {
 		t3_win_set_paint(_t3_terminal_window, 0, 0);
 		t3_win_clrtobot(_t3_terminal_window);
 	}
-	return need_redraw;
 }
 
 /** Process a position report triggered by the initialization.
@@ -764,7 +765,7 @@ static t3_bool finish_detection(void) {
 static t3_bool process_position_report(int row, int column) {
 	static int report_nr;
 	t3_bool result = t3_false;
-#define T3_WINDOW_DEBUG
+/* #define T3_WINDOW_DEBUG */
 #ifdef T3_WINDOW_DEBUG
 	static FILE *log;
 	if (!log) {
@@ -1266,8 +1267,13 @@ void t3_term_update_cursor(void) {
     ::t3_term_get_keychar.
 */
 void t3_term_update(void) {
-	int i, j;
 	t3_chardata_t new_attrs;
+	int i, j;
+
+	if (detection_needs_finishing) {
+		finish_detection();
+		detection_needs_finishing = t3_false;
+	}
 
 	if (new_show_cursor != show_cursor) {
 		/* If the cursor should now be invisible, hide it before drawing. If the

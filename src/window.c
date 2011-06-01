@@ -708,7 +708,8 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		if (i < win->lines[win->paint_y].length)
 			for (i++; i < win->lines[win->paint_y].length && _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
 
-		memmove(win->lines[win->paint_y].data + i + n, win->lines[win->paint_y].data + i, sizeof(t3_chardata_t) * (win->lines[win->paint_y].length - i));
+		memmove(win->lines[win->paint_y].data + i + n, win->lines[win->paint_y].data + i,
+			sizeof(t3_chardata_t) * (win->lines[win->paint_y].length - i));
 		memcpy(win->lines[win->paint_y].data + i, str, n * sizeof(t3_chardata_t));
 		win->lines[win->paint_y].length += n;
 	} else if (win->lines[win->paint_y].length == 0) {
@@ -725,8 +726,10 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 
 		if (!ensure_space(win->lines + win->paint_y, n + diff))
 			return t3_false;
-		for (i = diff; i > 0; i--)
-			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] = WIDTH_TO_META(1) | ' ' | _t3_term_attr_to_chardata(win->default_attrs);
+		for (i = diff; i > 0; i--) {
+			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] = WIDTH_TO_META(1) | ' ' |
+				_t3_term_attr_to_chardata(win->default_attrs);
+		}
 		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n * sizeof(t3_chardata_t));
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
@@ -736,7 +739,8 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 
 		if (!ensure_space(win->lines + win->paint_y, n + diff))
 			return t3_false;
-		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data, sizeof(t3_chardata_t) * win->lines[win->paint_y].length);
+		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data,
+			sizeof(t3_chardata_t) * win->lines[win->paint_y].length);
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
 		for (i = diff; i > 0; i--)
 			win->lines[win->paint_y].data[n++] = WIDTH_TO_META(1) | ' ' | _t3_term_attr_to_chardata(win->default_attrs);
@@ -751,7 +755,8 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
-		for (i = 0; i < win->lines[win->paint_y].length && pos_width + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
+		for (i = 0; i < win->lines[win->paint_y].length &&
+				pos_width + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
 			pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
 		start_replace = i;
 
@@ -922,7 +927,9 @@ int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_attr_t att
 
     See ::t3_win_addnstrrep for further information.
 */
-int t3_win_addstrrep(t3_window_t *win, const char *str, t3_attr_t attr, int rep) { return t3_win_addnstrrep(win, str, strlen(str), attr, rep); }
+int t3_win_addstrrep(t3_window_t *win, const char *str, t3_attr_t attr, int rep) {
+	return t3_win_addnstrrep(win, str, strlen(str), attr, rep);
+}
 
 /** Add a character to a t3_window_t with specified attributes and repetition.
     @param win The t3_window_t to add the string to.

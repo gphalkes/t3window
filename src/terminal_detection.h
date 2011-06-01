@@ -135,7 +135,8 @@ TEST("\xe3\x86\xb8",
 #if defined(GENERATE_CODE)
 	if (detecting_terminal_capabilities && test - 1 == report_nr) {
 		detecting_terminal_capabilities = t3_false;
-		result = finish_detection();
+		detection_needs_finishing = t3_true;
+		result = t3_true;
 	}
 }
 #endif
