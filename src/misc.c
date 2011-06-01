@@ -42,7 +42,7 @@ long t3_window_get_version(void) {
 const char *t3_window_strerror(int error) {
 	switch (error) {
 		default:
-			t3_window_strerror_base(error);
+			return t3_window_strerror_base(error);
 
 		case T3_ERR_NOT_A_TTY:
 			return _("in/output device is not a terminal");

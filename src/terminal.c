@@ -443,11 +443,11 @@ int t3_term_init(int fd, const char *term) {
 		char *acsc;
 
 		if ((error = _t3_setupterm(term, terminal_fd)) != 0) {
-			if (error == 1)
+			if (error == 3)
 				return T3_ERR_HARDCOPY_TERMINAL;
-			else if (error == -1)
+			else if (error == 1)
 				return T3_ERR_TERMINFODB_NOT_FOUND;
-			else if (error == 0)
+			else if (error == 2)
 				return T3_ERR_TERMINAL_TOO_LIMITED;
 			return T3_ERR_UNKNOWN;
 		}
