@@ -116,8 +116,8 @@ TEST("\xe3\x87\x9c",
 	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2)
 		_t3_term_double_width = T3_UNICODE_51;
 )
-/* [5.2] U+2189 VULGAR FRACTION ZERO THIRDS */
-TEST("\xe2\x86\x89",
+/* [5.2] U+3244 CIRCLED IDEOGRAPH QUESTION */
+TEST("\xe3\x89\x84",
 	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2)
 		_t3_term_double_width = T3_UNICODE_52;
 )

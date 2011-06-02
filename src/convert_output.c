@@ -131,14 +131,15 @@ void _t3_output_buffer_print(void) {
 		uint32_t c;
 		uint_fast8_t codepoint_info;
 		/* Filter out combining characters if the terminal is known not to support them (e.g. gnome-terminal). */
-		/* FIXME: make this dependent on the detected terminal capabilities. */
 		/* FIXME: should we filter out other zero-width characters? */
 		for (idx = 0, output_start = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_unicode_get(nfc_output + idx, &codepoint_len);
-			codepoint_info = t3_unicode_get_info(c, INT_MAX); //FIXME: depend on known working version!
+			codepoint_info = t3_unicode_get_info(c, INT_MAX);
 
-			if ((codepoint_info & T3_UNICODE_COMBINING_BIT) && (t3_unicode_get_info(c, _t3_term_combining) & T3_UNICODE_COMBINING_BIT)) {
+			if ((codepoint_info & T3_UNICODE_COMBINING_BIT) &&
+					!(t3_unicode_get_info(c, _t3_term_combining) & T3_UNICODE_COMBINING_BIT))
+			{
 				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
 				/* For non-zero width combining characters, print a replacement character. */
 				if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 1)
@@ -227,8 +228,8 @@ void _t3_output_buffer_print(void) {
     @ingroup t3window_term
     @param str The UTF-8 string representing the character to be displayed.
     @param str_len The length of @a str.
-    @return A @a boolean indicating to whether the terminal is able to draw
-        correctly the character.
+    @return A @a boolean indicating to whether the terminal is able to correctly
+        draw the character.
 
     Note that @a str may contain combining characters, which will only be drawn
     correctly if a precomposed character is available or the terminal supports
@@ -245,12 +246,18 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 
 	if (output_convertor == NULL) {
 		size_t idx, codepoint_len;
+		uint_fast8_t codepoint_info;
 		uint32_t c;
-		//FIXME: make this dependent on the detected terminal capabilities
 		for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_unicode_get(nfc_output + idx, &codepoint_len);
-			if (t3_unicode_get_info(c, INT_MAX) & T3_UNICODE_COMBINING_BIT) //FIXME: depend on known working version!
+			codepoint_info = t3_unicode_get_info(c, INT_MAX);
+
+			if ((codepoint_info & T3_UNICODE_COMBINING_BIT) &&
+					!(t3_unicode_get_info(c, _t3_term_combining) & T3_UNICODE_COMBINING_BIT))
+				return t3_false;
+			if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 2 &&
+					T3_UNICODE_INFO_TO_WIDTH(t3_unicode_get_info(c, _t3_term_double_width)) == 1)
 				return t3_false;
 		}
 		return t3_true;
