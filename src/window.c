@@ -185,6 +185,7 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 	retval->anchor = NULL;
 	retval->restrictw = NULL;
 	retval->depth = depth;
+	retval->cached_pos_line = -1;
 
 	insert_window(retval);
 	return retval;
@@ -388,6 +389,8 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 		/* Chop lines to maximum width */
 		/* FIXME: should we also try to resize the lines (as in realloc)? */
 		int paint_x = win->paint_x, paint_y = win->paint_y;
+
+		win->cached_pos_line = -1;
 
 		for (i = 0; i < height; i++) {
 			t3_win_set_paint(win, i, width);
@@ -676,6 +679,12 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		extra_spaces = win->width - win->paint_x - width;
 	n = k;
 
+	if (win->cached_pos_line != win->paint_y || win->paint_x < win->cached_pos_width) {
+		win->cached_pos_line = win->paint_y;
+		win->cached_pos = 0;
+		win->cached_pos_width = win->lines[win->paint_y].start;
+	}
+
 	if (width == 0) {
 		int pos_width;
 		/* Combining characters. */
@@ -689,11 +698,11 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		if (!ensure_space(win->lines + win->paint_y, n))
 			return t3_false;
 
-		pos_width = win->lines[win->paint_y].start;
+		pos_width = win->cached_pos_width;
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
-		for (i = 0; i < win->lines[win->paint_y].length; i++) {
+		for (i = win->cached_pos; i < win->lines[win->paint_y].length; i++) {
 			pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
 			if (pos_width >= win->paint_x)
 				break;
@@ -749,16 +758,20 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		win->lines[win->paint_y].start = win->paint_x;
 	} else {
 		/* Character (partly) overwrite existing chars. */
-		int pos_width = win->lines[win->paint_y].start;
+		int pos_width = win->cached_pos_width;
 		int next_pos_width;
 		size_t start_replace = 0, start_space_meta, start_spaces, end_replace, end_space_meta, end_spaces;
 		int sdiff;
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
-		for (i = 0; i < win->lines[win->paint_y].length &&
+		for (i = win->cached_pos; i < win->lines[win->paint_y].length &&
 				(next_pos_width = pos_width + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i])) <= win->paint_x; i++)
 			pos_width = next_pos_width;
+
+		win->cached_pos = i;
+		win->cached_pos_width = pos_width;
+
 		start_replace = i;
 
 		/* If the character only partially overlaps, we replace the first part with

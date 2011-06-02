@@ -49,6 +49,9 @@ struct t3_window_t {
 	int width, height; /* Height and width of the t3_window_t */
 	int depth; /* Depth in stack. Higher values are deeper and thus obscured by Windows with lower depth. */
 	int relation; /* Relation of this t3_window_t to parent. See window.h for values. */
+	int cached_pos_line;
+	int cached_pos;
+	int cached_pos_width;
 	t3_chardata_t default_attrs; /* Default attributes to be combined with drawing attributes.
 	                           Mostly useful for background specification. */
 	t3_bool shown; /* Indicates whether this t3_window_t is visible. */
