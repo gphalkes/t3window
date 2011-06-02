@@ -742,6 +742,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n * sizeof(t3_chardata_t));
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
+		win->cached_pos_line = -1;
 	} else if (win->paint_x + width <= win->lines[win->paint_y].start) {
 		/* Add characters before existing characters. */
 		int diff = win->lines[win->paint_y].start - (win->paint_x + width);
