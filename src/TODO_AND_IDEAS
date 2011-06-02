@@ -4,6 +4,13 @@ High Priority
   codepoint. So if something in the range 0x1160 - 0x11FF is encountered, it
   should be dropped, regardless of the terminal type.
 - gettext
+- users should be able to disable the terminal capability detection. For
+  example, for some versions of gnome-terminal it is probably better to simply
+  disable drawing of combining characters.
+- perhaps a limit to unicode level of what the terminal can draw (everything
+  else will be replaced by replacement char), which can be controlled by the
+  user, is desirable. This can prevent corruptions like the gnome-terminal one
+  where some characters are drawn 2 cells wide, while only occupying 1.
 
 Low Priority
 ============
