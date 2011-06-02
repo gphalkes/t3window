@@ -147,8 +147,19 @@ static int terminal_fd;
 
 /** Boolean indicating whether the library is currently detecting the terminal capabilities. */
 static t3_bool detecting_terminal_capabilities = t3_true;
-/** Boolean indicating whether the terminal capbilities detection requires finishing. */
-static t3_bool detection_needs_finishing;
+/** Boolean indicating whether the terminal capbilities detection requires finishing.
+
+    This variable is the only variable on which a race-condition can occur
+	(provided that only the ::t3_term_get_keychar function is called from a
+	separate thread). The @c _t3_term_(encoding|combining|double_width) values
+    are also accessed from two different threads, but only written from one. And
+    the updates to those are such that using an old value temporarily is not a
+    problem.
+
+    Note that to prevent interference with adjecent variables, we use a @c long,
+    instead of a ::t3_bool.
+*/
+static long detection_needs_finishing;
 
 /** Store whether the terminal is actually the screen program.
 
