@@ -192,6 +192,7 @@ enum {
 	T3_ACS_CKBOARD = 'a', /**< Checker board pattern (stipple). */
 	T3_ACS_BULLET = '~', /**< Bullet. */
 	T3_ACS_DIAMOND = '`', /**< Diamond. */
+	T3_ACS_BLOCK = '0' /**< Solid block. */
 	/* FIXME: add all the different known ACS chars */
 };
 

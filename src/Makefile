@@ -27,7 +27,6 @@ export LD_LIBRARY_PATH
 
 LTTARGETS := libt3window.la
 TARGETS := test
-
 #================================================#
 # NO RULES SHOULD BE DEFINED BEFORE THIS INCLUDE #
 #================================================#

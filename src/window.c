@@ -107,10 +107,10 @@ static void remove_window(t3_window_t *win) {
 static t3_bool has_loops(t3_window_t *win, t3_window_t *start) {
 	return (win->parent == start ||
 			win->anchor == start ||
-			win->restrict == start ||
+			win->restrictw == start ||
 			(win->parent != NULL && has_loops(win->parent, start)) ||
 			(win->anchor != NULL && has_loops(win->anchor, start)) ||
-			(win->restrict != NULL && has_loops(win->restrict, start)));
+			(win->restrictw != NULL && has_loops(win->restrictw, start)));
 }
 
 /** Create a new t3_window_t.
@@ -183,7 +183,7 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 	retval->height = height;
 	retval->parent = parent;
 	retval->anchor = NULL;
-	retval->restrict = NULL;
+	retval->restrictw = NULL;
 	retval->depth = depth;
 
 	insert_window(retval);
@@ -291,34 +291,34 @@ void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr) {
 	win->default_attrs = attr;
 }
 
-/** Set the restrict window.
-    @param win The t3_window_t to set the restrict parameter for.
-    @param restrict The t3_window_t to restrict @p win to.
+/** Set the restrictw window.
+    @param win The t3_window_t to set the restrictw parameter for.
+    @param restrictw The t3_window_t to restrictw @p win to.
 
-    To restrict the window to the terminal, pass @c NULL in @p restrict. To
-    cancel restriction of the window position, pass @p win in @p restrict.
+    To restrictw the window to the terminal, pass @c NULL in @p restrictw. To
+    cancel restriction of the window position, pass @p win in @p restrictw.
 */
-t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restrict) {
+t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restrictw) {
 	t3_window_t *old_restict;
 
-	if (restrict == win) {
-		win->restrict = NULL;
+	if (restrictw == win) {
+		win->restrictw = NULL;
 		return t3_true;
 	}
 
-	old_restict = win->restrict;
-	if (restrict == NULL) {
-		win->restrict = _t3_terminal_window;
+	old_restict = win->restrictw;
+	if (restrictw == NULL) {
+		win->restrictw = _t3_terminal_window;
 		/* Setting the restriction to the terminal window can not cause a loop. */
 		return t3_true;
 	} else {
-		if (restrict == win->restrict)
+		if (restrictw == win->restrictw)
 			return t3_true;
-		win->restrict = restrict;
+		win->restrictw = restrictw;
 	}
 
 	if (has_loops(win, win)) {
-		win->restrict = old_restict;
+		win->restrictw = old_restict;
 		return t3_false;
 	}
 	return t3_true;
@@ -508,10 +508,10 @@ int t3_win_get_abs_x(t3_window_t *win) {
 		default:;
 	}
 
-	if (win->restrict != NULL) {
+	if (win->restrictw != NULL) {
 		int left, right;
-		left = t3_win_get_abs_x(win->restrict);
-		right = left + win->restrict->width;
+		left = t3_win_get_abs_x(win->restrictw);
+		right = left + win->restrictw->width;
 
 		if (result + win->width > right)
 			result = right - win->width;
@@ -564,10 +564,10 @@ int t3_win_get_abs_y(t3_window_t *win) {
 		default:;
 	}
 
-	if (win->restrict != NULL) {
+	if (win->restrictw != NULL) {
 		int top, bottom;
-		top = t3_win_get_abs_y(win->restrict);
-		bottom = top + win->restrict->height;
+		top = t3_win_get_abs_y(win->restrictw);
+		bottom = top + win->restrictw->height;
 
 		if (result + win->height > bottom)
 			result = bottom - win->height;
@@ -750,14 +750,15 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 	} else {
 		/* Character (partly) overwrite existing chars. */
 		int pos_width = win->lines[win->paint_y].start;
+		int next_pos_width;
 		size_t start_replace = 0, start_space_meta, start_spaces, end_replace, end_space_meta, end_spaces;
 		int sdiff;
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
 		for (i = 0; i < win->lines[win->paint_y].length &&
-				pos_width + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
-			pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
+				(next_pos_width = pos_width + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i])) <= win->paint_x; i++)
+			pos_width = next_pos_width;
 		start_replace = i;
 
 		/* If the character only partially overlaps, we replace the first part with
@@ -982,14 +983,6 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	terminal->lines[line].length = 0;
 	terminal->lines[line].start = 0;
 
-	if (terminal->default_attrs != 0) {
-		/* Fill the line with spaces in the background color. */
-		terminal->paint_x = 0;
-		result &= t3_win_addch(terminal, ' ', 0) == 0;
-		terminal->paint_x = terminal->width - 1;
-		result &= t3_win_addch(terminal, ' ', 0) == 0;
-	}
-
 	for (ptr = tail; ptr != NULL; ptr = _get_previous_window(ptr)) {
 		if (ptr->lines == NULL)
 			continue;
@@ -1096,15 +1089,6 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 			else
 				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, parent_max_x - x - draw->start - draw->width) == 0;
 		}
-
-/*		terminal->paint_x = t3_win_get_abs_x(ptr);
-		if (ptr->default_attrs == 0)
-			terminal->paint_x += draw->start;
-		else
-			result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, draw->start) == 0;
-		result &= _win_add_chardata(terminal, draw->data, draw->length);
-		if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width)
-			result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width) == 0;*/
 	}
 
 	/* If a line does not start at position 0, just make it do so. This makes the whole repainting
@@ -1112,6 +1096,11 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	if (terminal->lines[line].start != 0) {
 		t3_chardata_t space = ' ' | WIDTH_TO_META(1);
 		terminal->paint_x = 0;
+		result &= _win_add_chardata(terminal, &space, 1);
+	}
+	if (terminal->lines[line].width != terminal->width) {
+		t3_chardata_t space = ' ' | WIDTH_TO_META(1);
+		terminal->paint_y = terminal->width - 1;
 		result &= _win_add_chardata(terminal, &space, 1);
 	}
 
