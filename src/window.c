@@ -679,7 +679,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		extra_spaces = win->width - win->paint_x - width;
 	n = k;
 
-	if (win->cached_pos_line != win->paint_y || win->paint_x < win->cached_pos_width) {
+	if (win->cached_pos_line != win->paint_y || win->cached_pos_width >= win->paint_x) {
 		win->cached_pos_line = win->paint_y;
 		win->cached_pos = 0;
 		win->cached_pos_width = win->lines[win->paint_y].start;
@@ -729,6 +729,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width = width;
+		win->cached_pos_line = -1;
 	} else if (win->lines[win->paint_y].start + win->lines[win->paint_y].width <= win->paint_x) {
 		/* Add characters after existing characters. */
 		int diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
@@ -1068,7 +1069,7 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 				terminal->paint_x = parent_x;
 				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, start - parent_x + x) == 0;
 			}
-		} else if (x < parent_x) {
+		} else /* if (x < parent_x) */ {
 			terminal->paint_x = parent_x;
 			for (paint_x = x + draw->start;
 				paint_x + _T3_CHARDATA_TO_WIDTH(draw->data[data_start]) <= terminal->paint_x && data_start < draw->length;
