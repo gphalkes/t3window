@@ -704,9 +704,9 @@ const char *t3_term_get_codeset(void) {
     terminal-capabilities detection indicate a need for it.
 */
 static void finish_detection(void) {
-	t3_bool set_ascii = t3_false, need_redraw = t3_false;
+	t3_bool set_ascii = t3_false;
 	const char *current_encoding = transcript_get_codeset();
-
+#warning FIXME: need to somehow set the current_codeset from t3_term_get_keychar while doing the actual set switch elsewhere
 	/* If the currently set encoding should have been detected, just set to ASCII. */
 	switch (_t3_term_encoding) {
 		case _T3_TERM_UNKNOWN:
@@ -720,9 +720,9 @@ static void finish_detection(void) {
 			if (!transcript_equal(current_encoding, "utf8")) {
 				_t3_init_output_convertor("utf8");
 				strcpy(current_charset, "UTF-8");
-				need_redraw = t3_true;
+				detection_needs_finishing = t3_true;
 			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
-				need_redraw = t3_true;
+				detection_needs_finishing = t3_true;
 			}
 			break;
 		case _T3_TERM_CJK:
@@ -736,16 +736,16 @@ static void finish_detection(void) {
 			if (!transcript_equal(current_encoding, "shiftjis")) {
 				_t3_init_output_convertor("shiftjis");
 				strcpy(current_charset, "Shift_JIS");
-				need_redraw = t3_true;
+				detection_needs_finishing = t3_true;
 			}
 			break;
 		case _T3_TERM_GB18030:
 			if (!transcript_equal(current_encoding, "gb18030")) {
 				_t3_init_output_convertor("gb18030");
 				strcpy(current_charset, "GB18030");
-				need_redraw = t3_true;
+				detection_needs_finishing = t3_true;
 			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
-				need_redraw = t3_true;
+				detection_needs_finishing = t3_true;
 			}
 			break;
 		default:
@@ -754,14 +754,8 @@ static void finish_detection(void) {
 
 	if (set_ascii) {
 		_t3_init_output_convertor("ASCII");
-		need_redraw = t3_true;
+		detection_needs_finishing = t3_true;
 		strcpy(current_charset, "ASCII");
-	}
-
-	if (need_redraw) {
-		set_alternate_chars_defaults();
-		t3_win_set_paint(_t3_terminal_window, 0, 0);
-		t3_win_clrtobot(_t3_terminal_window);
 	}
 }
 
@@ -1282,7 +1276,9 @@ void t3_term_update(void) {
 	int i, j;
 
 	if (detection_needs_finishing) {
-		finish_detection();
+		set_alternate_chars_defaults();
+		t3_win_set_paint(_t3_terminal_window, 0, 0);
+		t3_win_clrtobot(_t3_terminal_window);
 		detection_needs_finishing = t3_false;
 	}
 
