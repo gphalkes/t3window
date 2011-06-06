@@ -1044,6 +1044,11 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 		if (y > line || y + ptr->height <= line || line < parent_y || line >= parent_max_y)
 			continue;
 
+		if (parent_x < 0)
+			parent_x = 0;
+		if (parent_max_x > terminal->width)
+			parent_max_x = terminal->width;
+
 		draw = ptr->lines + line - y;
 		x = t3_win_get_abs_x(ptr);
 
@@ -1109,13 +1114,13 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 	/* If a line does not start at position 0, just make it do so. This makes the whole repainting
 	   bit a lot easier. */
 	if (terminal->lines[line].start != 0) {
-		t3_chardata_t space = ' ' | WIDTH_TO_META(1);
+		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(terminal->default_attrs);
 		terminal->paint_x = 0;
 		result &= _win_add_chardata(terminal, &space, 1);
 	}
-	if (terminal->lines[line].width != terminal->width) {
-		t3_chardata_t space = ' ' | WIDTH_TO_META(1);
-		terminal->paint_y = terminal->width - 1;
+	if (terminal->lines[line].width + terminal->lines[line].start < terminal->width) {
+		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(terminal->default_attrs);
+		terminal->paint_x = terminal->width - 1;
 		result &= _win_add_chardata(terminal, &space, 1);
 	}
 
