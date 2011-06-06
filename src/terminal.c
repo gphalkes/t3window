@@ -1018,23 +1018,11 @@ t3_bool t3_term_resize(void) {
 
 	lines = wsz.ws_row;
 	columns = wsz.ws_col;
-	if (columns > _t3_terminal_window->width || lines != _t3_terminal_window->height) {
-		int i;
-
+	if (columns < _t3_terminal_window->width || lines != _t3_terminal_window->height) {
 		/* Clear the cache of the terminal contents and the actual terminal. This
 		   is necessary because shrinking the terminal tends to cause all kinds of
 		   weird corruption of the on screen state. */
-		for (i = 0; i < _t3_terminal_window->height; i++) {
-			t3_win_set_paint(_t3_terminal_window, i, 0);
-			t3_win_clrtoeol(_t3_terminal_window);
-		}
-		_t3_putp(clear);
-		/* The clear action moves the cursor, so we need to reposition the cursor.
-		   Therefore, we force a cursor reposition by changing the current idea
-		   of where the cursor is to something where it should not be after the
-		   update. */
-		if (new_show_cursor && show_cursor)
-			cursor_x = new_cursor_x + 1;
+		t3_term_redraw();
 	}
 	return t3_win_resize(_t3_terminal_window, lines, columns);
 }
