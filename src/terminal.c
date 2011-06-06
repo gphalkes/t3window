@@ -1280,15 +1280,17 @@ void t3_term_update(void) {
 		detection_needs_finishing = t3_false;
 	}
 
-	if (new_show_cursor != show_cursor) {
-		/* If the cursor should now be invisible, hide it before drawing. If the
-		   cursor should now be visible, leave it invisible until after drawing. */
-		if (!new_show_cursor)
+	if (civis != NULL) {
+		if (new_show_cursor != show_cursor) {
+			/* If the cursor should now be invisible, hide it before drawing. If the
+			   cursor should now be visible, leave it invisible until after drawing. */
+			if (!new_show_cursor)
+				_t3_putp(civis);
+		} else if (show_cursor) {
+			if (new_cursor_y == cursor_y && new_cursor_x == cursor_x)
+				_t3_putp(sc);
 			_t3_putp(civis);
-	} else if (show_cursor) {
-		if (new_cursor_y == cursor_y && new_cursor_x == cursor_x)
-			_t3_putp(sc);
-		_t3_putp(civis);
+		}
 	}
 
 	/* There may be another optimization possibility here: if the new line is
@@ -1390,24 +1392,30 @@ done: /* Add empty statement to shut up compilers */ ;
 
 	set_attrs(0);
 
-	if (new_show_cursor != show_cursor) {
-		/* If the cursor should now be visible, move it to the right position and
-		   show it. Otherewise, it was already hidden at the start of this routine. */
-		if (new_show_cursor) {
-			do_cup(new_cursor_y, new_cursor_x);
+	if (civis == NULL) {
+		show_cursor = new_show_cursor;
+		if (!show_cursor)
+			do_cup(_t3_terminal_window->height, _t3_terminal_window->width);
+	} else {
+		if (new_show_cursor != show_cursor) {
+			/* If the cursor should now be visible, move it to the right position and
+			   show it. Otherwise, it was already hidden at the start of this routine. */
+			if (new_show_cursor) {
+				do_cup(new_cursor_y, new_cursor_x);
+				cursor_y = new_cursor_y;
+				cursor_x = new_cursor_x;
+				_t3_putp(cnorm);
+			}
+			show_cursor = new_show_cursor;
+		} else if (show_cursor) {
+			if (new_cursor_y == cursor_y && new_cursor_x == cursor_x && rc != NULL)
+				_t3_putp(rc);
+			else
+				do_cup(new_cursor_y, new_cursor_x);
 			cursor_y = new_cursor_y;
 			cursor_x = new_cursor_x;
 			_t3_putp(cnorm);
 		}
-		show_cursor = new_show_cursor;
-	} else if (show_cursor) {
-		if (new_cursor_y == cursor_y && new_cursor_x == cursor_x && rc != NULL)
-			_t3_putp(rc);
-		else
-			do_cup(new_cursor_y, new_cursor_x);
-		cursor_y = new_cursor_y;
-		cursor_x = new_cursor_x;
-		_t3_putp(cnorm);
 	}
 
 	fflush(_t3_putp_file);
