@@ -1315,18 +1315,22 @@ void t3_term_update(void) {
 				goto done;
 			}
 			assert(old_idx >= 0);
-			for (new_idx++; new_idx < _t3_terminal_window->lines[i].length && _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[new_idx]) == 0; new_idx++) {}
+			for (new_idx++; new_idx < _t3_terminal_window->lines[i].length &&
+					_T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[new_idx]) == 0; new_idx++) {}
 			for (old_idx++; old_idx < old_data.length &&
-				_T3_CHARDATA_TO_WIDTH(old_data.data[old_idx]) == 0; old_idx++) {}
+					_T3_CHARDATA_TO_WIDTH(old_data.data[old_idx]) == 0; old_idx++) {}
 		}
 
 		/* Find the first character that is different */
 		for (j = 0; j < new_idx && j < old_idx && _t3_terminal_window->lines[i].data[j] == old_data.data[j]; j++)
-			width += _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]);
+				width += _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]);
 
 		/* Go back to the last non-zero-width character, because that is the one we want to print first. */
-		if ((j < new_idx && _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) == 0) || (j < old_idx && _T3_CHARDATA_TO_WIDTH(old_data.data[j]) == 0)) {
-			for (; j > 0 && (_T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) == 0 || _T3_CHARDATA_TO_WIDTH(old_data.data[j]) == 0); j--) {}
+		if ((j < new_idx && _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) == 0) ||
+				(j < old_idx && _T3_CHARDATA_TO_WIDTH(old_data.data[j]) == 0))
+		{
+			for (; j > 0 && (_T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]) == 0 ||
+					_T3_CHARDATA_TO_WIDTH(old_data.data[j]) == 0); j--) {}
 			width -= _T3_CHARDATA_TO_WIDTH(_t3_terminal_window->lines[i].data[j]);
 		}
 
