@@ -1018,12 +1018,22 @@ t3_bool t3_term_resize(void) {
 
 	lines = wsz.ws_row;
 	columns = wsz.ws_col;
+	/* FIXME: the optimization is currently disabled, because t3_win_resize doesn't
+	   clear the data. In t3_term_update we don't take into account that the data
+	   that used to be there is not valid, so the only way we can currently simply
+	   redraw on every action, unless the resize didn't do anything. */
+	if (columns == _t3_terminal_window->width && lines == _t3_terminal_window->height)
+		return t3_true;
+
+	t3_term_redraw();
+	#if 0
 	if (columns < _t3_terminal_window->width || lines != _t3_terminal_window->height) {
 		/* Clear the cache of the terminal contents and the actual terminal. This
 		   is necessary because shrinking the terminal tends to cause all kinds of
 		   weird corruption of the on screen state. */
 		t3_term_redraw();
 	}
+	#endif
 	return t3_win_resize(_t3_terminal_window, lines, columns);
 }
 
