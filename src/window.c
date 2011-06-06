@@ -519,7 +519,7 @@ int t3_win_get_abs_x(t3_window_t *win) {
 		if (result + win->width > right)
 			result = right - win->width;
 		if (result < left)
-			left = 0;
+			result = 0;
 	}
 	return result;
 }
@@ -575,7 +575,7 @@ int t3_win_get_abs_y(t3_window_t *win) {
 		if (result + win->height > bottom)
 			result = bottom - win->height;
 		if (result < top)
-			top = 0;
+			result = 0;
 	}
 	return result;
 }
