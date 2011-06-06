@@ -706,10 +706,11 @@ const char *t3_term_get_codeset(void) {
 static void finish_detection(void) {
 	t3_bool set_ascii = t3_false;
 	const char *current_encoding = transcript_get_codeset();
-#warning FIXME: need to somehow set the current_codeset from t3_term_get_keychar while doing the actual set switch elsewhere
+
 	/* If the currently set encoding should have been detected, just set to ASCII. */
 	switch (_t3_term_encoding) {
 		case _T3_TERM_UNKNOWN:
+		case _T3_TERM_SINGLE_BYTE:
 		case _T3_TERM_GBK: // FIXME: once we can detect this better, handle as known encoding
 			if (transcript_equal(current_encoding, "utf8") || transcript_equal(current_encoding, "gb18030") ||
 					transcript_equal(current_encoding, "eucjp") || transcript_equal(current_encoding, "euctw") ||
@@ -718,7 +719,6 @@ static void finish_detection(void) {
 			break;
 		case _T3_TERM_UTF8:
 			if (!transcript_equal(current_encoding, "utf8")) {
-				_t3_init_output_convertor("utf8");
 				strcpy(current_charset, "UTF-8");
 				detection_needs_finishing = t3_true;
 			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
@@ -734,14 +734,12 @@ static void finish_detection(void) {
 			break;
 		case _T3_TERM_CJK_SHIFT_JIS:
 			if (!transcript_equal(current_encoding, "shiftjis")) {
-				_t3_init_output_convertor("shiftjis");
 				strcpy(current_charset, "Shift_JIS");
 				detection_needs_finishing = t3_true;
 			}
 			break;
 		case _T3_TERM_GB18030:
 			if (!transcript_equal(current_encoding, "gb18030")) {
-				_t3_init_output_convertor("gb18030");
 				strcpy(current_charset, "GB18030");
 				detection_needs_finishing = t3_true;
 			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
@@ -753,9 +751,8 @@ static void finish_detection(void) {
 	}
 
 	if (set_ascii) {
-		_t3_init_output_convertor("ASCII");
-		detection_needs_finishing = t3_true;
 		strcpy(current_charset, "ASCII");
+		detection_needs_finishing = t3_true;
 	}
 }
 
@@ -770,11 +767,11 @@ static void finish_detection(void) {
 static t3_bool process_position_report(int row, int column) {
 	static int report_nr;
 	t3_bool result = t3_false;
-/* #define T3_WINDOW_DEBUG */
+#define T3_WINDOW_DEBUG
 #ifdef T3_WINDOW_DEBUG
 	static FILE *log;
 	if (!log) {
-		log = fopen("libt3window.log", "w");
+		log = fopen("libt3windowlog.txt", "w");
 		setvbuf(log, NULL, _IONBF, 100);
 	}
 #endif
@@ -1276,6 +1273,7 @@ void t3_term_update(void) {
 	int i, j;
 
 	if (detection_needs_finishing) {
+		_t3_init_output_convertor(current_charset);
 		set_alternate_chars_defaults();
 		t3_win_set_paint(_t3_terminal_window, 0, 0);
 		t3_win_clrtobot(_t3_terminal_window);
