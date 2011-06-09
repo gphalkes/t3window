@@ -68,7 +68,7 @@ struct t3_window_t {
 	t3_window_t *tail;
 };
 
-T3_WINDOW_LOCAL t3_bool _t3_win_refresh_term_line(struct t3_window_t *terminal, int line);
+T3_WINDOW_LOCAL t3_bool _t3_win_refresh_term_line(int line);
 T3_WINDOW_LOCAL t3_chardata_t _t3_term_attr_to_chardata(t3_attr_t attr);
 T3_WINDOW_LOCAL int _t3_term_get_default_acs(int idx);
 T3_WINDOW_LOCAL void _t3_remove_window(t3_window_t *win);

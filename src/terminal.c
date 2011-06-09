@@ -1269,7 +1269,7 @@ void t3_term_update(void) {
 	for (i = 0; i < lines; i++) {
 		int new_idx, old_idx = _t3_terminal_window->lines[i].length, width = 0;
 		SWAP_LINES(old_data, _t3_terminal_window->lines[i]);
-		_t3_win_refresh_term_line(_t3_terminal_window, i);
+		_t3_win_refresh_term_line(i);
 
 		new_idx = _t3_terminal_window->lines[i].length;
 

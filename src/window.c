@@ -387,7 +387,6 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 
 	if (width < win->width) {
 		/* Chop lines to maximum width */
-		/* FIXME: should we also try to resize the lines (as in realloc)? */
 		int paint_x = win->paint_x, paint_y = win->paint_y;
 
 		win->cached_pos_line = -1;
@@ -619,21 +618,21 @@ static t3_bool ensure_space(line_data_t *line, size_t n) {
 	int newsize;
 	t3_chardata_t *resized;
 
-	/* FIXME: ensure that n + line->length will fit in int */
-	if (n > INT_MAX)
+	if (n > INT_MAX || INT_MAX - (int) n < line->length)
 		return t3_false;
 
-	if ((unsigned) line->allocated > line->length + n)
+	if (line->allocated > line->length + (int) n)
 		return t3_true;
 
 	newsize = line->allocated;
 
 	do {
-		newsize *= 2;
 		/* Sanity check for overflow of allocated variable. Prevents infinite loops. */
-		if (!(newsize > line->length))
-			return -1;
-	} while ((unsigned) newsize - line->length < n);
+		if (newsize > INT_MAX / 2)
+			newsize = INT_MAX;
+		else
+			newsize *= 2;
+	} while (newsize - line->length < (int) n);
 
 	if ((resized = realloc(line->data, sizeof(t3_chardata_t) * newsize)) == NULL)
 		return t3_false;
@@ -862,7 +861,7 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 	int width;
 
 	attr = t3_term_combine_attrs(attr, win->default_attrs);
-	/* FIXME this works because t3_attr_t is the same as t3_chardata_t! */
+	/* WARNING: when changing the internal representation of attributes, this must also be changed!!! */
 	attr = _t3_term_attr_to_chardata(attr) & _T3_ATTR_MASK;
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
@@ -982,21 +981,17 @@ static t3_window_t *_get_previous_window(t3_window_t *ptr) {
     @param line The line to redraw.
     @return A boolean indicating whether redrawing succeeded without memory errors.
 */
-t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
+t3_bool _t3_win_refresh_term_line(int line) {
 	line_data_t *draw;
 	t3_window_t *ptr;
 	int y, x, parent_y, parent_x, parent_max_y, parent_max_x;
 	int data_start, length, paint_x;
 	t3_bool result = t3_true;
 
-
-	/* FIXME: the terminal is now available as _t3_terminal_window, so we don't have to pass
-		it anymore. */
-	/* FIXME: check return value of called functions for memory allocation errors. */
-	terminal->paint_y = line;
-	terminal->lines[line].width = 0;
-	terminal->lines[line].length = 0;
-	terminal->lines[line].start = 0;
+	_t3_terminal_window->paint_y = line;
+	_t3_terminal_window->lines[line].width = 0;
+	_t3_terminal_window->lines[line].length = 0;
+	_t3_terminal_window->lines[line].start = 0;
 
 	for (ptr = tail; ptr != NULL; ptr = _get_previous_window(ptr)) {
 		if (ptr->lines == NULL)
@@ -1007,10 +1002,9 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 
 		if (ptr->parent == NULL) {
 			parent_y = 0;
-			//FIXME: shouldn't this be the size of the terminal window???
-			parent_max_y = INT_MAX;
+			parent_max_y = _t3_terminal_window->height;
 			parent_x = 0;
-			parent_max_x = INT_MAX;
+			parent_max_x = _t3_terminal_window->width;
 		} else {
 			t3_window_t *parent = ptr->parent;
 			parent_y = INT_MIN;
@@ -1046,8 +1040,8 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 
 		if (parent_x < 0)
 			parent_x = 0;
-		if (parent_max_x > terminal->width)
-			parent_max_x = terminal->width;
+		if (parent_max_x > _t3_terminal_window->width)
+			parent_max_x = _t3_terminal_window->width;
 
 		draw = ptr->lines + line - y;
 		x = t3_win_get_abs_x(ptr);
@@ -1066,62 +1060,62 @@ t3_bool _t3_win_refresh_term_line(t3_window_t *terminal, int line) {
 				start = draw->start;
 
 			if (ptr->default_attrs == 0) {
-				terminal->paint_x = x + start;
+				_t3_terminal_window->paint_x = x + start;
 			} else if (x >= parent_x) {
-				terminal->paint_x = x;
-				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, start) == 0;
+				_t3_terminal_window->paint_x = x;
+				result &= t3_win_addchrep(_t3_terminal_window, ' ', ptr->default_attrs, start) == 0;
 			} else {
-				terminal->paint_x = parent_x;
-				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, start - parent_x + x) == 0;
+				_t3_terminal_window->paint_x = parent_x;
+				result &= t3_win_addchrep(_t3_terminal_window, ' ', ptr->default_attrs, start - parent_x + x) == 0;
 			}
 		} else /* if (x < parent_x) */ {
-			terminal->paint_x = parent_x;
+			_t3_terminal_window->paint_x = parent_x;
 			for (paint_x = x + draw->start;
-				paint_x + _T3_CHARDATA_TO_WIDTH(draw->data[data_start]) <= terminal->paint_x && data_start < draw->length;
+				paint_x + _T3_CHARDATA_TO_WIDTH(draw->data[data_start]) <= _t3_terminal_window->paint_x && data_start < draw->length;
 				paint_x += _T3_CHARDATA_TO_WIDTH(draw->data[data_start]), data_start++) {}
 			/* Add a space for the multi-cell character that is crossed by the parent clipping. */
-			if (data_start < draw->length && paint_x < terminal->paint_x) {
+			if (data_start < draw->length && paint_x < _t3_terminal_window->paint_x) {
 				/* WARNING: when changing the internal representation of attributes, this must also be changed!!! */
-				result &= t3_win_addch(terminal, ' ', (draw->data[data_start] & _T3_ATTR_MASK) >> _T3_ATTR_SHIFT) == 0;
+				result &= t3_win_addch(_t3_terminal_window, ' ', (draw->data[data_start] & _T3_ATTR_MASK) >> _T3_ATTR_SHIFT) == 0;
 				for (data_start++;
 					data_start < draw->length && _T3_CHARDATA_TO_WIDTH(draw->data[data_start]) == 0;
 					data_start++) {}
 			}
 		}
 
-		paint_x = terminal->paint_x;
+		paint_x = _t3_terminal_window->paint_x;
 		for (length = data_start;
 			length < draw->length && paint_x + _T3_CHARDATA_TO_WIDTH(draw->data[length]) <= parent_max_x;
 			paint_x += _T3_CHARDATA_TO_WIDTH(draw->data[length]), length++) {}
 
-		result &= _win_add_chardata(terminal, draw->data + data_start, length - data_start);
+		result &= _win_add_chardata(_t3_terminal_window, draw->data + data_start, length - data_start);
 
 		/* Add a space for the multi-cell character that is crossed by the parent clipping. */
 		if (length < draw->length && paint_x == parent_max_x - 1)
 			/* WARNING: when changing the internal representation of attributes, this must also be changed!!! */
-			result &= t3_win_addch(terminal, ' ', (draw->data[length] & _T3_ATTR_MASK) >> _T3_ATTR_SHIFT) == 0;
+			result &= t3_win_addch(_t3_terminal_window, ' ', (draw->data[length] & _T3_ATTR_MASK) >> _T3_ATTR_SHIFT) == 0;
 
 		if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width &&
 				x + draw->start + draw->width < parent_max_x)
 		{
 			if (x + ptr->width <= parent_max_x)
-				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width) == 0;
+				result &= t3_win_addchrep(_t3_terminal_window, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width) == 0;
 			else
-				result &= t3_win_addchrep(terminal, ' ', ptr->default_attrs, parent_max_x - x - draw->start - draw->width) == 0;
+				result &= t3_win_addchrep(_t3_terminal_window, ' ', ptr->default_attrs, parent_max_x - x - draw->start - draw->width) == 0;
 		}
 	}
 
 	/* If a line does not start at position 0, just make it do so. This makes the whole repainting
 	   bit a lot easier. */
-	if (terminal->lines[line].start != 0) {
-		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(terminal->default_attrs);
-		terminal->paint_x = 0;
-		result &= _win_add_chardata(terminal, &space, 1);
+	if (_t3_terminal_window->lines[line].start != 0) {
+		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(_t3_terminal_window->default_attrs);
+		_t3_terminal_window->paint_x = 0;
+		result &= _win_add_chardata(_t3_terminal_window, &space, 1);
 	}
-	if (terminal->lines[line].width + terminal->lines[line].start < terminal->width) {
-		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(terminal->default_attrs);
-		terminal->paint_x = terminal->width - 1;
-		result &= _win_add_chardata(terminal, &space, 1);
+	if (_t3_terminal_window->lines[line].width + _t3_terminal_window->lines[line].start < _t3_terminal_window->width) {
+		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(_t3_terminal_window->default_attrs);
+		_t3_terminal_window->paint_x = _t3_terminal_window->width - 1;
+		result &= _win_add_chardata(_t3_terminal_window, &space, 1);
 	}
 
 	return result;
@@ -1138,7 +1132,8 @@ void t3_win_clrtoeol(t3_window_t *win) {
 		win->lines[win->paint_y].start = 0;
 	} else if (win->paint_x < win->lines[win->paint_y].start + win->lines[win->paint_y].width) {
 		int sumwidth = win->lines[win->paint_y].start, i;
-		for (i = 0; i < win->lines[win->paint_y].length && sumwidth + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
+		for (i = 0; i < win->lines[win->paint_y].length &&
+				sumwidth + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
 			sumwidth += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
 
 		if (sumwidth < win->paint_x) {
