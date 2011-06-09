@@ -11,20 +11,32 @@ High Priority
   else will be replaced by replacement char), which can be controlled by the
   user, is desirable. This can prevent corruptions like the gnome-terminal one
   where some characters are drawn 2 cells wide, while only occupying 1.
+- split files to be more manageble
 
 Low Priority
 ============
 - Allow re-detection of capabilities if the client asks for it.
-- Do we need to change anything for non-ascii based encodings? I.e., what if the
-  terminal uses UTF-16? The escape sequences we send then probably need to be
-  converted to the output character set before sending, because otherwise the
-  terminal can't understand them. [One thing to acount for is that the C
-  standard specifies that the basic execution character set must have single
-  byte encoding. So UTF-16 shouldn't occur. This doesn't mean it is ASCII
-  though. It might be EBCDIC. Also take into account ssh sessions from ASCII to
-  EBCDIC based machines!]
+- Do we need to change anything for non-ascii based encodings? One thing to
+  account for is that the C standard specifies that the basic execution
+  character set must have single byte encoding. So UTF-16 shouldn't occur. This
+  doesn't mean it is ASCII though. It might be EBCDIC. Also take into account
+  ssh sessions from ASCII to EBCDIC based machines!
 - Finish UTF-8 detection/CJK detection
 - zero-width characters at start of line?
+- We can actually do the different detections interactively. The sequence of
+  actions would be:
+		- set attributes to 0
+		- move cursor to postion 0
+		- print the test sequence
+		- move cursor to position 0
+		- send the clear line seq
+		- clear the known terminal output for line 0
+		- update terminal line 0
+  It would be best to combine as many test strings as possible.
+
+  Note that doing the update on terminal line 0 requires that we take multi-
+  threading into account fully, rather than the way we do it now.
+
 - 256 color mode for xterm (and others). Coding this in the ATTR values is
   going to be somewhat difficult, because there aren't sufficient bits it the
   t3_chardata_t type left. Perhaps we should change the user mode to have a number

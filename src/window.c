@@ -84,7 +84,7 @@ static void insert_window(t3_window_t *win) {
 	}
 }
 
-static void remove_window(t3_window_t *win) {
+void _t3_remove_window(t3_window_t *win) {
 	if (win->next == NULL) {
 		if (win->parent == NULL)
 			tail = win->prev;
@@ -212,9 +212,9 @@ t3_bool t3_win_set_parent(t3_window_t *win, t3_window_t *parent) {
 		return t3_false;
 	}
 
-	/* Reset parent, to allow remove_window to work. */
+	/* Reset parent, to allow _t3_remove_window to work. */
 	win->parent = old_parent;
-	remove_window(win);
+	_t3_remove_window(win);
 	win->parent = parent;
 	insert_window(win);
 	return t3_true;
@@ -262,7 +262,7 @@ t3_bool t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
     @param depth The new depth for the window.
 */
 void t3_win_set_depth(t3_window_t *win, int depth) {
-	remove_window(win);
+	_t3_remove_window(win);
 	win->depth = depth;
 	insert_window(win);
 }
@@ -335,7 +335,7 @@ void t3_win_del(t3_window_t *win) {
 	if (win == NULL)
 		return;
 
-	remove_window(win);
+	_t3_remove_window(win);
 
 	if (win->lines != NULL) {
 		for (i = 0; i < win->height; i++)
@@ -546,7 +546,7 @@ int t3_win_get_abs_y(t3_window_t *win) {
 		case T3_ANCHOR_CENTERLEFT:
 		case T3_ANCHOR_CENTERRIGHT:
 		case T3_ANCHOR_CENTER:
-			result = t3_win_get_abs_y(win->anchor) + (win->anchor->height / 2) + win->y;
+			result = t3_win_get_abs_y(win->anchor) + win->anchor->height / 2 + win->y;
 			break;
 		default:
 			result = win->y;

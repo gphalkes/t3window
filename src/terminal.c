@@ -350,8 +350,22 @@ static void detect_ansi(void) {
 		return;
 
 	if (rev != NULL) {
-		if (streq(rev, "\033[7m"))
-			ansi_attrs |= _T3_ATTR_REVERSE;
+		if (streq(rev, "\033[7m")) {
+			/* On many terminals smso is also reverse video. If it is, we can
+			   verify that rmso removes the reverse video. Otherwise, we just
+			   assume that if rev matches ANSI reverse video, the inverse ANSI
+			   sequence also works. */
+			char *smso = get_ti_string("smso");
+			if (streq(smso, rev)) {
+				char *rmso = get_ti_string("rmso");
+				if (streq(rmso, "\033[27m"))
+					ansi_attrs |= _T3_ATTR_REVERSE;
+				free(rmso);
+			} else {
+				ansi_attrs |= _T3_ATTR_REVERSE;
+			}
+			free(smso);
+		}
 	} else {
 		non_existent |= _T3_ATTR_REVERSE;
 	}
@@ -487,8 +501,6 @@ int t3_term_init(int fd, const char *term) {
 				reset_required_mask |= _T3_ATTR_UNDERLINE;
 		}
 		bold = get_ti_string("bold");
-		/* FIXME: we could get smso and rmso for the purpose of ANSI detection. On many
-		   terminals smso == rev and rmso = exit rev */
 		rev = get_ti_string("rev");
 		blink = get_ti_string("blink");
 		dim = get_ti_string("dim");
@@ -588,14 +600,13 @@ int t3_term_init(int fd, const char *term) {
 
 	/* Create or resize terminal window */
 	if (_t3_terminal_window == NULL) {
-		/* FIXME: maybe someday we can make the window outside of the window stack.
-		   For now it is easier to just call t3_win_new to make sure that it is
-		   initialised properly. [quick fix: call remove_window]*/
 		if ((_t3_terminal_window = t3_win_new(NULL, lines, columns, 0, 0, 0)) == NULL)
 			return T3_ERR_ERRNO;
 		if ((old_data.data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL)
 			return T3_ERR_ERRNO;
 		old_data.allocated = INITIAL_ALLOC;
+		/* Remove terminal window from the window stack. */
+		_t3_remove_window(_t3_terminal_window);
 	} else {
 		if (!t3_win_resize(_t3_terminal_window, lines, columns))
 			return T3_ERR_ERRNO;
@@ -615,7 +626,6 @@ int t3_term_init(int fd, const char *term) {
 	if (tcsetattr(terminal_fd, TCSADRAIN, &new_params) < 0)
 		return T3_ERR_ERRNO;
 
-	/* FIXME: can we find a way to save the current terminal settings (attrs etc)? */
 	/* Start cursor positioning mode. */
 	do_smcup();
 
@@ -767,51 +777,16 @@ static void finish_detection(void) {
 static t3_bool process_position_report(int row, int column) {
 	static int report_nr;
 	t3_bool result = t3_false;
-#define T3_WINDOW_DEBUG
-#ifdef T3_WINDOW_DEBUG
-	static FILE *log;
-	if (!log) {
-		log = fopen("libt3windowlog.txt", "w");
-		setvbuf(log, NULL, _IONBF, 100);
-	}
-#endif
 	(void) row;
 
 	column--;
-#ifdef T3_WINDOW_DEBUG
-	if (log) fprintf(log, "Position report %d: %d, %d\n", report_nr, row, column);
-#endif
 	#define GENERATE_CODE
 	#include "terminal_detection.h"
 	#undef GENERATE_CODE
 
 	if (report_nr < INT_MAX)
 		report_nr++;
-
-#ifdef T3_WINDOW_DEBUG
-	if (!detecting_terminal_capabilities) {
-		if (log) {
-			fprintf(log, "_t3_term_encoding: %d\n", _t3_term_encoding);
-			fprintf(log, "_t3_term_combining: %d\n", _t3_term_combining);
-			fprintf(log, "_t3_term_double_width: %d\n", _t3_term_double_width);
-		}
-		fclose(log);
-		log = NULL;
-	}
-#endif
 	return result;
-
-	/*FIXME: we can actually do the different detections interactively, but then we have to split
-		t3_term_update. The sequence of actions would be:
-		- set attributes to 0
-		- move cursor to postion 0
-		- print the test sequence
-		- move cursor to position 0
-		- send the clear line seq
-		- clear the known terminal output for line 0
-		- update terminal line 0
-	It would be best to combine as many test strings as possible.
-	*/
 }
 
 /** @internal Check if a characters is a digit, in a locale independent way. */
@@ -1018,22 +993,17 @@ t3_bool t3_term_resize(void) {
 
 	lines = wsz.ws_row;
 	columns = wsz.ws_col;
-	/* FIXME: the optimization is currently disabled, because t3_win_resize doesn't
-	   clear the data. In t3_term_update we don't take into account that the data
-	   that used to be there is not valid, so the only way we can currently simply
-	   redraw on every action, unless the resize didn't do anything. */
+
 	if (columns == _t3_terminal_window->width && lines == _t3_terminal_window->height)
 		return t3_true;
 
-	t3_term_redraw();
-	#if 0
 	if (columns < _t3_terminal_window->width || lines != _t3_terminal_window->height) {
 		/* Clear the cache of the terminal contents and the actual terminal. This
 		   is necessary because shrinking the terminal tends to cause all kinds of
 		   weird corruption of the on screen state. */
 		t3_term_redraw();
 	}
-	#endif
+
 	return t3_win_resize(_t3_terminal_window, lines, columns);
 }
 
@@ -1061,7 +1031,6 @@ static void set_attrs_non_ansi(t3_chardata_t new_attrs) {
 					new_attrs & _T3_ATTR_BOLD,
 					0,
 					0,
-					/* FIXME: UTF-8 terminals may need different handling */
 					new_attrs & _T3_ATTR_ACS));
 				attrs = new_attrs & ~(_T3_ATTR_FG_MASK | _T3_ATTR_BG_MASK);
 				attrs_basic_non_ansi = attrs & ~ansi_attrs;
@@ -1448,8 +1417,6 @@ void t3_term_putp(const char *str) {
 	_t3_putp(str);
 }
 
-/* FIXME: this isn't exactly the cleanest way to do this, but for now it works and
-   avoids code duplication */
 /** Calculate the cell width of a string.
     @param str The string to calculate the width of.
     @return The width of the string in character cells.
@@ -1458,15 +1425,22 @@ void t3_term_putp(const char *str) {
     on the terminal screen. This function is provided to calculate that value.
 */
 int t3_term_strwidth(const char *str) {
-	t3_window_t *win = t3_win_new(NULL, 1, INT_MAX, 0, 0, 0);
-	int result;
+	size_t bytes_read, n = strlen(str);
+	int width, retval = 0;
+	uint32_t c;
+	uint8_t char_info;
 
-	t3_win_set_paint(win, 0, 0);
-	t3_win_addstr(win, str, 0);
-	result = win->paint_x;
-	t3_win_del(win);
+	for (; n > 0; n -= bytes_read, str += bytes_read) {
+		bytes_read = n;
+		c = t3_unicode_get(str, &bytes_read);
 
-	return result;
+		char_info = t3_unicode_get_info(c, INT_MAX);
+		width = T3_UNICODE_INFO_TO_WIDTH(char_info);
+		if (width < 0)
+			continue;
+		retval += width;
+	}
+	return retval;
 }
 
 /** Check if a character is available in the alternate character set (internal use mostly).
@@ -1491,7 +1465,6 @@ t3_bool t3_term_acs_available(int idx) {
 	the color attributes from @p b if both specify colors.
 */
 t3_attr_t t3_term_combine_attrs(t3_attr_t a, t3_attr_t b) {
-	/* FIXME: take ncv into account */
 	t3_chardata_t result = b | (a & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK));
 	if ((a & T3_ATTR_FG_MASK) != 0)
 		result = ((result & ~(T3_ATTR_FG_MASK)) | (a & T3_ATTR_FG_MASK)) & ~ncv;
