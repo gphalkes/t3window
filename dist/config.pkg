@@ -1,0 +1,62 @@
+# Copyright (C) 2011 G.P. Halkes
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3, as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+EXTENSIONS="c libtool pkgconfig verbose_compile"
+
+LTSHARED=1
+
+config() {
+	check_message "Checking for libLIBTRANSCRIPT pkg-config... "
+	LIBTRANSCRIPT_FLAGS="`pkg-config --cflags libtranscript`"
+	if [ $? -ne 0 ] ; then
+		check_message_result "no"
+		error "!! libtranscript is required to compile libt3window"
+	fi
+	check_message_result "yes"
+
+	LIBTRANSCRIPT_LIBS="`pkg-config --libs libLIBTRANSCRIPT`"
+
+	cat > .config <<EOF
+#include <transcript/transcript.h>
+
+int main(int argc, char *argv[]) {
+	transcript_error_t error;
+	transcript_t *handle = transcript_open_converter("utf-8", transcript_utf8, 0, &error);
+	return 0;
+}
+EOF
+	clean .config.o
+	test_link "libtranscript" "TESTFLAGS=${LIBTRANSCRIPT_FLAGS}" "TESTLIBS=${LIBTRANSCRIPT_LIBS}" || error "!! libtranscript is required to compile libt3window"
+
+	LIBT3UNICODE_FLAGS="`pkg-config --cflags libt3unicode`"
+	if [ $? -ne 0 ] ; then
+		check_message_result "no"
+		error "!! libt3unicode is required to compile libt3window"
+	fi
+	check_message_result "yes"
+
+	LIBT3UNICODE_LIBS="`pkg-config --libs libt3unicode`"
+
+	cat > .config <<EOF
+#include <unicode/unicode.h>
+
+int main(int argc, char *argv[]) {
+	t3_unicode_get_version();
+	return 0;
+}
+EOF
+	clean .config.o
+	test_link "libt3unicode" "TESTFLAGS=${LIBT3UNICODE_FLAGS}" "TESTLIBS=${LIBT3UNICODE_LIBS}" || error "!! libt3unicode is required to compile libt3window"
+
+	create_makefile "CONFIGFLAGS=${LIBT3UNICODE_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${LIBT3UNICODE_LIBS} ${LIBT3UNICODE_LIBS}"
+}

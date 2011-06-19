@@ -1,0 +1,11 @@
+prefix=<PREFIX>
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libt3window
+Description: libt3window terminal windowing library
+Version: <VERSION>
+URL: http://os.ghalkes.nl/t3/libt3window.html
+Requires.private: libtranscript libt3unicode
+Cflags: -I${includedir}/t3
+Libs: -L${libdir} -lt3window

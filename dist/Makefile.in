@@ -1,0 +1,68 @@
+# Copyright (C) 2011 G.P. Halkes
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3, as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+.POSIX:
+# C-compiler flags
+CFLAGS=-O2
+
+# The libtool executable
+LIBTOOL=libtool
+
+# Installation prefix
+prefix=/usr/local
+
+# Install program to use (should provide -m and -d options)
+INSTALL=install
+
+# Miscelaneous install paths
+libdir=$(prefix)/lib
+docdir=$(prefix)/share/doc/libt3unicode-<VERSION>
+includedir=$(prefix)/include
+pkgconfigdir=$(libdir)/pkgconfig
+
+SILENCELT=--silent
+SILENTCCLT=@echo '[CCLT]' $< ;
+SILENTLDLT=@echo '[LDLT]' $@ ;
+
+OBJECTS=<OBJECTS>
+
+all: src/libt3unicode.la
+
+.PHONY: all clean dist-clean install
+.SUFFIXES: .c .o .lo .la .mo .po
+
+clean:
+	rm -rf src/*.lo src/generated/*.lo src/.libs src/generated/.libs src/libt3unicode.la
+
+dist-clean: clean
+	rm -rf Makefile config.log libt3unicode.pc
+
+.c.lo:
+	$(SILENTCCLT) $(LIBTOOL) $(SILENCELT) --mode=compile --tag=CC $(CC) -shared $(CFLAGS) -Isrc -DT3_UNICODE_BUILD_DSO -c -o $@ $<
+
+src/libt3unicode.la: $(OBJECTS)
+	$(SILENTLDLT) $(LIBTOOL) $(SILENCELT) --mode=link --tag=CC $(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -lltdl -rpath $(libdir)
+
+libt3unicode.pc: libt3unicode.pc.in
+	@echo '/^prefix=/c\' > .sedscript
+	@echo 'prefix=$(prefix)' >> .sedscript
+	sed -f .sedscript $< > $@
+
+install: all libt3unicode.pc
+	$(INSTALL) `echo src/.libs/libt3unicode* | sed 's/[^ ]*\.la[^ ]*//g'` $(libdir)
+	$(INSTALL) -d $(includedir)/t3/unicode
+	$(INSTALL) src/unicode.h src/unicode_api.h src/unicode_infobits.h $(includedir)/t3/unicode
+	$(INSTALL) -d $(docdir)/API/search
+	find doc/API -type f | xargs -IX $(INSTALL) X $(docdir)/X
+	$(INSTALL) COPYING $(docdir)
+	$(INSTALL) -d $(pkgconfigdir)
+	$(INSTALL) libt3unicode.pc $(pkgconfigdir)

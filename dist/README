@@ -1,0 +1,69 @@
+Introduction
+============
+
+The libt3window library provides functions for manipulating the terminal and
+for creating (possibly overlapping) windows on a terminal. libt3window can be
+used instead of (n)curses for drawing on the terminal. libt3window provides
+the following features:
+
+  - (Overlapping) windows for drawing. Overlapping windows hide windows deeper
+	in the window stack.
+  - Clipping of windows to the size of the parent window.
+  - UTF-8 used internally, which is converted to the terminal encoding before
+    output. libt3window depends on libt3unicode for UTF-8 processing and
+	libtranscript for character set conversion.
+  - Provides easy access to the most needed terminal functionality.
+  - Small code size.
+
+libt3window is part of the Tilde Terminal Toolkit (T3)
+[http://os.ghalkes.nl/t3/]
+
+
+Prerequisites and installation
+==============================
+
+libt3window requires the libtool utility to be compiled. Furthermore, it
+requires (n)curses for access to the terminfo database, libtranscript and
+libt3unicode.
+
+There are two ways in which to compile libt3window:
+
+Using the configure script:
+---
+
+$ ./configure
+or
+$ ./configure --prefix=/usr
+(see ./configure --help for more tuning options)
+$ make all
+$ make install
+(assumes working install program)
+
+Manually editing the Makefile to suit your computer:
+---
+
+$ cp Makefile.in Makefile
+
+Edit the values for the different variables, using the comments in the
+Makefile for guidance, to suit your environment.
+
+$ make all
+$ make install
+(assumes working install program)
+
+The Makefiles in the distribution should work on all POSIX compatible make's.
+They have been tested using both GNU make and BSD make.
+
+
+Reporting bugs
+==============
+
+If you think you have found a bug, please check that you are using the latest
+version of libt3window [http://os.ghalkes.nl/t3/libt3window.html]. When
+reporting bugs, please include a minimal example that demonstrates the problem.
+
+
+Author
+======
+
+Gertjan Halkes <libt3window@ghalkes.nl>
