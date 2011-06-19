@@ -11,20 +11,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-EXTENSIONS="c libtool pkgconfig verbose_compile"
+EXTENSIONS="c libtool pkgconfig verbose_compile pkgconfig_dep"
 
 LTSHARED=1
 
 config() {
-	check_message "Checking for libLIBTRANSCRIPT pkg-config... "
-	LIBTRANSCRIPT_FLAGS="`pkg-config --cflags libtranscript`"
-	if [ $? -ne 0 ] ; then
-		check_message_result "no"
-		error "!! libtranscript is required to compile libt3window"
-	fi
-	check_message_result "yes"
-
-	LIBTRANSCRIPT_LIBS="`pkg-config --libs libLIBTRANSCRIPT`"
+	pkgconfig libtranscript LIBTRANSCRIPT || error "!! libtranscript is required to compile libt3window"
 
 	cat > .config <<EOF
 #include <transcript/transcript.h>
@@ -36,16 +28,9 @@ int main(int argc, char *argv[]) {
 }
 EOF
 	clean .config.o
-	test_link "libtranscript" "TESTFLAGS=${LIBTRANSCRIPT_FLAGS}" "TESTLIBS=${LIBTRANSCRIPT_LIBS}" || error "!! libtranscript is required to compile libt3window"
+	test_link "libtranscript compile" "TESTFLAGS=${LIBTRANSCRIPT_FLAGS}" "TESTLIBS=${LIBTRANSCRIPT_LIBS}" || error "!! libtranscript is required to compile libt3window"
 
-	LIBT3UNICODE_FLAGS="`pkg-config --cflags libt3unicode`"
-	if [ $? -ne 0 ] ; then
-		check_message_result "no"
-		error "!! libt3unicode is required to compile libt3window"
-	fi
-	check_message_result "yes"
-
-	LIBT3UNICODE_LIBS="`pkg-config --libs libt3unicode`"
+	pkgconfig libt3unicode LIBT3UNICODE || error "!! libt3unicode is required to compile libt3window"
 
 	cat > .config <<EOF
 #include <unicode/unicode.h>
@@ -56,7 +41,7 @@ int main(int argc, char *argv[]) {
 }
 EOF
 	clean .config.o
-	test_link "libt3unicode" "TESTFLAGS=${LIBT3UNICODE_FLAGS}" "TESTLIBS=${LIBT3UNICODE_LIBS}" || error "!! libt3unicode is required to compile libt3window"
+	test_link "libt3unicode compile" "TESTFLAGS=${LIBT3UNICODE_FLAGS}" "TESTLIBS=${LIBT3UNICODE_LIBS}" || error "!! libt3unicode is required to compile libt3window"
 
-	create_makefile "CONFIGFLAGS=${LIBT3UNICODE_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${LIBT3UNICODE_LIBS} ${LIBT3UNICODE_LIBS}"
+	create_makefile "CONFIGFLAGS=${LIBTRANSCRIPT_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${LIBTRANSCRIPT_LIBS} ${LIBT3UNICODE_LIBS}"
 }

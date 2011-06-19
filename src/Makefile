@@ -13,7 +13,6 @@
 
 SOURCES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c window_shared.c
 LDFLAGS.libt3window.la := -shared -Lunicode -Ltranscript
-CFLAGS.window := -D_XOPEN_SOURCE
 CFLAGS.misc := -DUSE_GETTEXT
 LDLIBS.libt3window.la := -lncurses -lt3unicode -ltranscript
 CFLAGS.convert_output := -Iunicode
@@ -34,6 +33,8 @@ include ../../makesys/rules.mk
 #================================================#
 T3NAME := window
 include ../../t3shared/rules.mk
+
+CFLAGS += -Iunicode
 
 test: | libt3window.la
 

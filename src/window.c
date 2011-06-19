@@ -17,11 +17,11 @@
 #include <string.h>
 #include <wchar.h>
 #include <ctype.h>
+#include <unicode.h>
 
 #include "window.h"
 #include "internal.h"
 
-#include "unicode/unicode.h"
 
 /* TODO list:
 - _T3_ATTR_ACS should only be allowed on chars below 128 etc. Otherwise interpretation

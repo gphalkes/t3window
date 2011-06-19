@@ -24,7 +24,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <transcript/transcript.h>
-#include <unicode/unicode.h>
+#include <unicode.h>
 
 #include "window.h"
 #include "internal.h"

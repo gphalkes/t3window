@@ -19,11 +19,11 @@
 #include <string.h>
 #include <errno.h>
 #include <transcript/transcript.h>
+#include <unicode.h>
 
 #include "convert_output.h"
 #include "window.h"
 #include "internal.h"
-#include "unicode.h"
 #include "curses_interface.h"
 
 #define CONV_BUFFER_LEN (160)

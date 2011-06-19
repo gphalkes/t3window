@@ -25,7 +25,7 @@ INSTALL=install
 
 # Miscelaneous install paths
 libdir=$(prefix)/lib
-docdir=$(prefix)/share/doc/libt3unicode-<VERSION>
+docdir=$(prefix)/share/doc/libt3window-<VERSION>
 includedir=$(prefix)/include
 pkgconfigdir=$(libdir)/pkgconfig
 
@@ -35,34 +35,41 @@ SILENTLDLT=@echo '[LDLT]' $@ ;
 
 OBJECTS=<OBJECTS>
 
-all: src/libt3unicode.la
+all: src/libt3window.la
 
 .PHONY: all clean dist-clean install
 .SUFFIXES: .c .o .lo .la .mo .po
 
 clean:
-	rm -rf src/*.lo src/generated/*.lo src/.libs src/generated/.libs src/libt3unicode.la
+	rm -rf src/*.lo src/generated/*.lo src/.libs src/generated/.libs src/libt3window.la
 
 dist-clean: clean
-	rm -rf Makefile config.log libt3unicode.pc
+	rm -rf Makefile config.log libt3window.pc
 
 .c.lo:
-	$(SILENTCCLT) $(LIBTOOL) $(SILENCELT) --mode=compile --tag=CC $(CC) -shared $(CFLAGS) -Isrc -DT3_UNICODE_BUILD_DSO -c -o $@ $<
+	$(SILENTCCLT) $(LIBTOOL) $(SILENCELT) --mode=compile --tag=CC $(CC) -shared $(CFLAGS) $(CONFIGFLAGS) -Isrc -DT3_WINDOW_BUILD_DSO -c -o $@ $<
 
-src/libt3unicode.la: $(OBJECTS)
-	$(SILENTLDLT) $(LIBTOOL) $(SILENCELT) --mode=link --tag=CC $(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -lltdl -rpath $(libdir)
+src/libt3window.la: $(OBJECTS)
+	$(SILENTLDLT) $(LIBTOOL) $(SILENCELT) --mode=link --tag=CC $(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) $(CONFIGLIBS) -lltdl -rpath $(libdir)
 
-libt3unicode.pc: libt3unicode.pc.in
+libt3window.pc: libt3window.pc.in
 	@echo '/^prefix=/c\' > .sedscript
 	@echo 'prefix=$(prefix)' >> .sedscript
 	sed -f .sedscript $< > $@
 
-install: all libt3unicode.pc
-	$(INSTALL) `echo src/.libs/libt3unicode* | sed 's/[^ ]*\.la[^ ]*//g'` $(libdir)
-	$(INSTALL) -d $(includedir)/t3/unicode
-	$(INSTALL) src/unicode.h src/unicode_api.h src/unicode_infobits.h $(includedir)/t3/unicode
+install: all libt3window.pc
+	$(LIBTOOL) --mode=install $(INSTALL) -s src/libt3window.la $(libdir)
+	chmod 0644 $(libdir)/libt3window.la
+	$(INSTALL) -d $(includedir)/t3/window
+	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_infobits.h $(includedir)/t3/window
 	$(INSTALL) -d $(docdir)/API/search
-	find doc/API -type f | xargs -IX $(INSTALL) X $(docdir)/X
-	$(INSTALL) COPYING $(docdir)
+	( cd doc ; find doc/API -type f ) | xargs -IX $(INSTALL) -m0644 doc/X $(docdir)/X
+	$(INSTALL) -m0644 COPYING $(docdir)
 	$(INSTALL) -d $(pkgconfigdir)
-	$(INSTALL) libt3unicode.pc $(pkgconfigdir)
+	$(INSTALL) -m0644 libt3window.pc $(pkgconfigdir)
+
+uninstall:
+	$(LIBTOOL) --mode=uninstall rm $(libdir)/libt3window.la
+	rm -rf $(includedir)/t3/window
+	rm -rf $(docdir)
+	rm -f $(pkgconfigdir)/libt3window.pc
