@@ -14,13 +14,20 @@
 /** @file */
 
 #include <termios.h>
+#ifdef HAS_SELECT_H
+#include <sys/select.h>
+#else
+#include <sys/time.h>
+#include <sys/types.h>
+#endif
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/select.h>
+#if defined(HAS_WINSIZE_IOCTL) || defined(HAS_SIZE_IOCTL)
 #include <sys/ioctl.h>
+#endif
 #include <assert.h>
 #include <limits.h>
 #include <transcript/transcript.h>
@@ -238,6 +245,17 @@ static const char *get_default_acs(int idx) {
 static void set_attrs(t3_chardata_t new_attrs);
 static t3_attr_t chardata_to_attr(t3_chardata_t chardata);
 
+#ifndef HAS_STRDUP
+static char *strdup_impl(const char *str) {
+	char *result = malloc(strlen(str) + 1);
+	if (result == NULL)
+		return NULL;
+	return strcpy(result, str);
+}
+#else
+#define strdup_impl strdup
+#endif
+
 /** Get a terminfo string.
     @param name The name of the requested terminfo string.
     @return The value of the string @p name, or @a NULL if not available.
@@ -249,7 +267,7 @@ static char *get_ti_string(const char *name) {
 	if (result == (char *) 0 || result == (char *) -1)
 		return NULL;
 
-	return strdup(result);
+	return strdup_impl(result);
 }
 
 /** Move cursor to screen position.
@@ -438,7 +456,11 @@ static void send_test_string(const char *str) {
 */
 int t3_term_init(int fd, const char *term) {
 	static t3_bool detection_done;
+#if defined(HAS_WINSIZE_IOCTL)
 	struct winsize wsz;
+#elif defined(HAS_SIZE_IOCTL)
+	struct ttysize wsz;
+#endif
 	char *enacs;
 	struct termios new_params;
 	int ncv_int;
@@ -576,10 +598,18 @@ int t3_term_init(int fd, const char *term) {
 	}
 
 	/* Get terminal size. First try ioctl, then environment, then terminfo. */
+#if defined(HAS_WINSIZE_IOCTL)
 	if (ioctl(terminal_fd, TIOCGWINSZ, &wsz) == 0) {
 		lines = wsz.ws_row;
 		columns = wsz.ws_col;
-	} else {
+	} else
+#elif defined(HAS_SIZE_IOCTL)
+	if (ioctl(terminal_fd, TIOCGSIZE, &wsz) == 0) {
+		lines = wsz.ts_lines;
+		columns = wsz.ts_cols;
+	} else
+#endif
+	{
 		char *lines_env = getenv("LINES");
 		char *columns_env = getenv("COLUMNS");
 		if (lines_env == NULL || columns_env == NULL || (lines = atoi(lines_env)) == 0 || (columns = atoi(columns_env)) == 0) {
@@ -986,6 +1016,7 @@ void t3_term_get_size(int *height, int *width) {
     ::t3_term_get_size can be called to retrieve the new terminal size.
 */
 t3_bool t3_term_resize(void) {
+#ifdef HAS_WINSIZE_IOCTL
 	struct winsize wsz;
 
 	if (ioctl(terminal_fd, TIOCGWINSZ, &wsz) < 0)
@@ -1005,6 +1036,9 @@ t3_bool t3_term_resize(void) {
 	}
 
 	return t3_win_resize(_t3_terminal_window, lines, columns);
+#else
+	return t3_true;
+#endif
 }
 
 /** Set the non-ANSI terminal drawing attributes.

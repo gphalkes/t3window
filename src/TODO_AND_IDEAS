@@ -36,6 +36,7 @@ Low Priority
 
   Note that doing the update on terminal line 0 requires that we take multi-
   threading into account fully, rather than the way we do it now.
+- implement WIOCGETD alternative to TCIOGWINSZ ioctl
 
 - 256 color mode for xterm (and others). Coding this in the ATTR values is
   going to be somewhat difficult, because there aren't sufficient bits it the

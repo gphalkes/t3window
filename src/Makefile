@@ -35,6 +35,8 @@ T3NAME := window
 include ../../t3shared/rules.mk
 
 CFLAGS += -Iunicode
+CFLAGS += -DHAS_WINSIZE_IOCTL
+CFLAGS += -DHAS_SELECT_H
 
 test: | libt3window.la
 

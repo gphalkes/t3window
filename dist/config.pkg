@@ -11,37 +11,153 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-EXTENSIONS="c libtool pkgconfig verbose_compile pkgconfig_dep"
-
+EXTENSIONS="c libtool pkgconfig verbose_compile pkgconfig_dep gettext"
 LTSHARED=1
+DEFAULT_LINGUAS=nl
 
-config() {
-	pkgconfig libtranscript LIBTRANSCRIPT || error "!! libtranscript is required to compile libt3window"
-
-	cat > .config <<EOF
-#include <transcript/transcript.h>
+test_select() {
+	DESC="$1"
+	shift
+	clean_c
+	for HEADER in "$@"
+	do
+		echo "#include <${HEADER}>"
+	done > .config.c
+	cat >> .config.c <<EOF
+#include <stdlib.h>
 
 int main(int argc, char *argv[]) {
-	transcript_error_t error;
-	transcript_t *handle = transcript_open_converter("utf-8", transcript_utf8, 0, &error);
+	fd_set test;
+	FD_ZERO(&test);
+	FD_SET(0, &test);
+	FD_ISSET(0, &test);
+	FD_CLR(0, &test);
+	select(1, &test, NULL, NULL, NULL);
+	return;
+}
+EOF
+	test_link "${DESC}"
+}
+
+config() {
+	clean_c
+	cat > .config.c << EOF
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+	struct termios attrs;
+	FILE *foo = fdopen(argc, "r");
+	isatty(argc);
+	tcgetattr(argc, &attrs);
+	tcsetattr(argc, TCSADRAIN, &attrs);
 	return 0;
 }
 EOF
-	clean .config.o
-	test_link "libtranscript compile" "TESTFLAGS=${LIBTRANSCRIPT_FLAGS}" "TESTLIBS=${LIBTRANSCRIPT_LIBS}" || error "!! libtranscript is required to compile libt3window"
+	test_link "required functions (fdopen/isatty/tcgetattr/tcsetattr)" || error "!! A required function is not available. See config.log for details."
 
-	pkgconfig libt3unicode LIBT3UNICODE || error "!! libt3unicode is required to compile libt3window"
+	clean_c
+	cat > .config.c <<EOF
+#include <sys/ioctl.h>
+int main(int argc, char *argv[]) {
+	struct winsize wsz;
+	ioctl(argc, TIOCGWINSZ, &wsz);
+	return 0;
+}
+EOF
+	if test_link "TIOCGWINSZ ioctl" ; then
+		CONFIGFLAGS="${CONFIGFLAGS} -DHAS_WINSIZE_IOCTL"
+	else
+	clean_c
+		cat > .config.c <<EOF
+#include <sys/ioctl.h>
+int main(int argc, char *argv[]) {
+	struct ttysize wsz;
+	ioctl(argc, TIOCGSIZE, &wsz);
+	return 0;
+}
+EOF
+		test_link "TIOCGSIZE ioctl" && CONFIGFLAGS="${CONFIGFLAGS} -DHAS_SIZE_IOCTL"
+	fi
 
-	cat > .config <<EOF
-#include <unicode/unicode.h>
+	if test_select "select in <sys/select.h>" "sys/select.h" ; then
+		CONFIGFLAGS="${CONFIGFLAGS} -DHAS_SELECT_H"
+	else
+		test_select "select in <unistd.h>" "sys/time.h" "sys/types.h" "unistd.h" || error "!! Can not find required select function."
+	fi
+
+	clean_c
+	cat > .config.c <<EOF
+#include <string.h>
+
+int main(int argc, char *argv[]) {
+	strdup(argv[0]);
+	return 0;
+}
+EOF
+	test_link "strdup" && CONFIGFLAGS="${CONFIGFLAGS} -DHAS_STRDUP"
+
+	clean_c
+	cat > .config.c <<EOF
+#include <stdio.h>
+#include <stdlib.h>
+#include <curses.h>
+
+int main(int argc, char *argv[]) {
+	int args[9], error, fd;
+
+	if (setupterm(NULL, fd, &error) == OK) {
+		tigetstr("cup");
+		tigetnum("colors");
+		tigetflag("km");
+		tputs("\033[0m", 1, putchar);
+		tparm("\033[0m", args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
+	}
+	return 0;
+}
+EOF
+	if test_compile "curses header file" ; then
+		if test_link "curses library" "TESTLIBS=-lcurses" ; then
+			CURSESLIBS="-lcurses"
+		else
+			if test_link "ncurses library" "TESTLIBS=-lncurses" ; then
+				CURSESLIBS="-lncurses"
+			else
+				error "!! Can not find curses library. The curses library is required to compile libt3window."
+			fi
+		fi
+	else
+		error "!! Can not find curses library. The curses library is required to compile libt3window."
+	fi
+
+	pkgconfig libtranscript LIBTRANSCRIPT || error "!! Can not find libtranscript. libtranscript is required to compile libt3window."
+
+	clean_c
+	cat > .config.c <<EOF
+#include <transcript/transcript.h>
+
+int main(int argc, char *argv[]) {
+	transcript_get_version();
+	return 0;
+}
+EOF
+	test_link "libtranscript compile" "TESTFLAGS=${LIBTRANSCRIPT_FLAGS}" "TESTLIBS=${LIBTRANSCRIPT_LIBS}" || \
+		error "!! Can not find libtranscript. libtranscript is required to compile libt3window."
+
+	pkgconfig libt3unicode LIBT3UNICODE || error "!! Can not find libt3unicode. libt3unicode is required to compile libt3window."
+
+	clean_c
+	cat > .config.c <<EOF
+#include <unicode.h>
 
 int main(int argc, char *argv[]) {
 	t3_unicode_get_version();
 	return 0;
 }
 EOF
-	clean .config.o
-	test_link "libt3unicode compile" "TESTFLAGS=${LIBT3UNICODE_FLAGS}" "TESTLIBS=${LIBT3UNICODE_LIBS}" || error "!! libt3unicode is required to compile libt3window"
+	test_link "libt3unicode compile" "TESTFLAGS=${LIBT3UNICODE_FLAGS}" "TESTLIBS=${LIBT3UNICODE_LIBS}" || \
+		error "!! Can not find libt3unicode. libt3unicode is required to compile libt3window."
 
 	create_makefile "CONFIGFLAGS=${LIBTRANSCRIPT_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${LIBTRANSCRIPT_LIBS} ${LIBT3UNICODE_LIBS}"
 }

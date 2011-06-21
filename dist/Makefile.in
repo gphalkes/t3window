@@ -14,13 +14,27 @@
 # C-compiler flags
 CFLAGS=-O2
 
+# Gettext configuration
+# GETTEXTFLAGS should contain -DUSE_GETTEXT to enable gettext translations
+# GETTEXTLIBS should contain all link flags to allow linking with gettext, if
+# it has been enabled. The GNU libc already contains the gettext library, so
+# there is no need to add any flags. Otherwise, -lintl is usually required, and
+# sometimes -liconv as well.
+# LOCALEDIR: the directory where the locale dependant files should be installed.
+# LINGUAS: translations to be installed. Look in po directory for available
+#  translations.
+GETTEXTFLAGS=
+GETTEXTLIBS=
+LOCALEDIR=$(prefix)/share/locale
+LINGUAS=
+
 # The libtool executable
 LIBTOOL=libtool
 
 # Installation prefix
 prefix=/usr/local
 
-# Install program to use (should provide -m and -d options)
+# Install program to use (should be BSD install compatible)
 INSTALL=install
 
 # Miscelaneous install paths
@@ -37,8 +51,9 @@ OBJECTS=<OBJECTS>
 
 all: src/libt3window.la
 
-.PHONY: all clean dist-clean install
+.PHONY: all clean dist-clean install uninstall
 .SUFFIXES: .c .o .lo .la .mo .po
+.IGNORE: uninstall
 
 clean:
 	rm -rf src/*.lo src/generated/*.lo src/.libs src/generated/.libs src/libt3window.la
@@ -47,10 +62,10 @@ dist-clean: clean
 	rm -rf Makefile config.log libt3window.pc
 
 .c.lo:
-	$(SILENTCCLT) $(LIBTOOL) $(SILENCELT) --mode=compile --tag=CC $(CC) -shared $(CFLAGS) $(CONFIGFLAGS) -Isrc -DT3_WINDOW_BUILD_DSO -c -o $@ $<
+	$(SILENTCCLT) $(LIBTOOL) $(SILENCELT) --mode=compile --tag=CC $(CC) -shared $(CFLAGS) $(CONFIGFLAGS) $(GETTEXTFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -Isrc -DT3_WINDOW_BUILD_DSO -c -o $@ $<
 
 src/libt3window.la: $(OBJECTS)
-	$(SILENTLDLT) $(LIBTOOL) $(SILENCELT) --mode=link --tag=CC $(CC) -shared $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) $(CONFIGLIBS) -lltdl -rpath $(libdir)
+	$(SILENTLDLT) $(LIBTOOL) $(SILENCELT) --mode=link --tag=CC $(CC) -shared -version-info <VERSIONINFO> $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) $(CONFIGLIBS) $(GETTEXTLIBS) -lltdl -rpath $(libdir)
 
 libt3window.pc: libt3window.pc.in
 	@echo '/^prefix=/c\' > .sedscript
