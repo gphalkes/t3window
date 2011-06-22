@@ -432,6 +432,26 @@ static void send_test_string(const char *str) {
 		_t3_putp("\033[6n");
 }
 
+static int isreset_single(const char *str, const char *reset_string) {
+	do {
+		/* Note: we don't have to check *reset_string for 0, because then it will
+		   automatically be either unequal to *str, or *str will also be 0 which
+		   will already have been checked. */
+		for (; *str != 0 && *reset_string == *str; str++, reset_string++) {}
+		if (*str == '$' && str[1] == '<') {
+			str += 2;
+			for (; *str != 0 && *str != '>'; str++) {}
+			if (*str == '>')
+				str++;
+		}
+	} while (*str != 0 && *reset_string == *str);
+	return *str == *reset_string;
+}
+
+static int isreset(const char *str) {
+	return (sgr0 != NULL && streq(str, sgr0)) || isreset_single(str, "\033[m") || isreset_single(str, "\033[0m");
+}
+
 /** Initialize the terminal.
     @param fd The file descriptor of the terminal or -1 for default/last used.
     @param term The name of the terminal, or @c NULL to use the @c TERM environment variable.
@@ -518,8 +538,10 @@ int t3_term_init(int fd, const char *term) {
 			hpa = get_ti_string("hpa");
 
 		sgr = get_ti_string("sgr");
+		sgr0 = get_ti_string("sgr0");
+
 		if ((smul = get_ti_string("smul")) != NULL) {
-			if ((rmul = get_ti_string("rmul")) == NULL || streq(rmul, "\033[m"))
+			if ((rmul = get_ti_string("rmul")) == NULL || isreset(rmul))
 				reset_required_mask |= _T3_ATTR_UNDERLINE;
 		}
 		bold = get_ti_string("bold");
@@ -527,8 +549,13 @@ int t3_term_init(int fd, const char *term) {
 		blink = get_ti_string("blink");
 		dim = get_ti_string("dim");
 		smacs = get_ti_string("smacs");
-		if (smacs != NULL && ((rmacs = get_ti_string("rmacs")) == NULL || streq(rmul, "\033[m")))
+		if (smacs != NULL && ((rmacs = get_ti_string("rmacs")) == NULL || isreset(rmacs)))
 			reset_required_mask |= T3_ATTR_ACS;
+
+		/* If rmul and rmacs are the same, there is a good chance it simply
+		   resets everything. */
+		if (rmul != NULL && rmacs != NULL && streq(rmul, rmacs))
+			reset_required_mask |= T3_ATTR_UNDERLINE | T3_ATTR_ACS;
 
 		if ((setaf = get_ti_string("setaf")) == NULL)
 			setf = get_ti_string("setf");
@@ -553,7 +580,6 @@ int t3_term_init(int fd, const char *term) {
 
 		detect_ansi();
 
-		sgr0 = get_ti_string("sgr0");
 		/* If sgr0 and sgr are not defined, don't go into modes in reset_required_mask. */
 		if (sgr0 == NULL && sgr == NULL) {
 			reset_required_mask = 0;

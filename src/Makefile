@@ -37,6 +37,7 @@ include ../../t3shared/rules.mk
 CFLAGS += -Iunicode
 CFLAGS += -DHAS_WINSIZE_IOCTL
 CFLAGS += -DHAS_SELECT_H
+CFLAGS += -DHAS_STRDUP
 
 test: | libt3window.la
 

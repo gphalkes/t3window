@@ -241,7 +241,6 @@ T3_WINDOW_API int t3_term_strwidth(const char *str);
 
 T3_WINDOW_API t3_attr_t t3_term_combine_attrs(t3_attr_t a, t3_attr_t b);
 T3_WINDOW_API t3_attr_t t3_term_get_ncv(void);
-T3_WINDOW_API t3_attr_t t3_term_get_supported_attrs(void);
 
 /** These are implemented in convert_output.c */
 T3_WINDOW_API t3_bool t3_term_can_draw(const char *str, size_t str_len);

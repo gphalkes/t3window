@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 EOF
-	test_link "required functions (fdopen/isatty/tcgetattr/tcsetattr)" || error "!! A required function is not available. See config.log for details."
+	test_link "fdopen/isatty/tcgetattr/tcsetattr" || error "!! Some required functionality is not available. See config.log for details."
 
 	clean_c
 	cat > .config.c <<EOF
@@ -159,5 +159,5 @@ EOF
 	test_link "libt3unicode compile" "TESTFLAGS=${LIBT3UNICODE_FLAGS}" "TESTLIBS=${LIBT3UNICODE_LIBS}" || \
 		error "!! Can not find libt3unicode. libt3unicode is required to compile libt3window."
 
-	create_makefile "CONFIGFLAGS=${LIBTRANSCRIPT_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${LIBTRANSCRIPT_LIBS} ${LIBT3UNICODE_LIBS}"
+	create_makefile "CONFIGFLAGS=${CONFIGFLAGS} ${LIBTRANSCRIPT_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${CONFIGLIBS} ${LIBTRANSCRIPT_LIBS} ${LIBT3UNICODE_LIBS}"
 }
