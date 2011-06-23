@@ -247,10 +247,13 @@ static t3_attr_t chardata_to_attr(t3_chardata_t chardata);
 
 #ifndef HAS_STRDUP
 static char *strdup_impl(const char *str) {
-	char *result = malloc(strlen(str) + 1);
-	if (result == NULL)
+	char *result;
+	size_t len = strlen(str) + 1;
+
+	if ((result = malloc(len)) == NULL)
 		return NULL;
-	return strcpy(result, str);
+	memcpy(result, str, len);
+	return result;
 }
 #else
 #define strdup_impl strdup
