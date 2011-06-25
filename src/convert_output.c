@@ -19,7 +19,7 @@
 #include <string.h>
 #include <errno.h>
 #include <transcript/transcript.h>
-#include <unicode.h>
+#include <t3unicode/unicode.h>
 
 #include "convert_output.h"
 #include "window.h"

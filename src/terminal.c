@@ -31,7 +31,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <transcript/transcript.h>
-#include <unicode.h>
+#include <t3unicode/unicode.h>
 
 #include "window.h"
 #include "internal.h"
