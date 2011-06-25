@@ -1,22 +1,15 @@
 syntax: glob
+src/t3unicode
 src/transcript
-src/charconv
 src/window_shared.c
 src/window_errors.h
 src/window_api.h
 src/libt3window.la
-src/unicode
-unicode/verify_proptables
-unicode/generate_proptables
-unicode/generated
 src/.deps
 src/.objects
 src/.libs
-src/libt3window.so
 src/test
 .backupfilter.hg
-unicode/.deps
-unicode/.objects
 doc/API
 doc/doxygen.conf
 doc/DoxygenLayout.xml
