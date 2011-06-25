@@ -11,8 +11,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 .POSIX:
+
 # C-compiler flags
 CFLAGS=-O2
+
+# Configuration flags and libraries. Include flags here to compile against the
+# (n)curses library
+CONFIGFLAGS=
+CONFIGLIBS=-lcurses
 
 # Gettext configuration
 # GETTEXTFLAGS should contain -DUSE_GETTEXT to enable gettext translations
@@ -75,8 +81,8 @@ libt3window.pc: libt3window.pc.in
 install: all libt3window.pc
 	$(LIBTOOL) --mode=install $(INSTALL) -s src/libt3window.la $(libdir)
 	chmod 0644 $(libdir)/libt3window.la
-	$(INSTALL) -d $(includedir)/t3/window
-	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_infobits.h $(includedir)/t3/window
+	$(INSTALL) -d $(includedir)/t3/window/t3window
+	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_errors.h src/terminal.h $(includedir)/t3/window/t3window
 	$(INSTALL) -d $(docdir)/API/search
 	( cd doc ; find doc/API -type f ) | xargs -IX $(INSTALL) -m0644 doc/X $(docdir)/X
 	$(INSTALL) -m0644 COPYING $(docdir)

@@ -30,10 +30,10 @@ int main(int argc, char *argv[]) {
 	fd_set test;
 	FD_ZERO(&test);
 	FD_SET(0, &test);
-	FD_ISSET(0, &test);
-	FD_CLR(0, &test);
+	if (FD_ISSET(0, &test))
+		FD_CLR(0, &test);
 	select(1, &test, NULL, NULL, NULL);
-	return;
+	return 0;
 }
 EOF
 	test_link "${DESC}"
@@ -118,10 +118,10 @@ int main(int argc, char *argv[]) {
 }
 EOF
 	if test_compile "curses header file" ; then
-		if test_link "curses library" "TESTLIBS=-lcurses" ; then
+		if test_link "curses library in -lcurses" "TESTLIBS=-lcurses" ; then
 			CURSESLIBS="-lcurses"
 		else
-			if test_link "ncurses library" "TESTLIBS=-lncurses" ; then
+			if test_link "ncurses library in -lncurses" "TESTLIBS=-lncurses" ; then
 				CURSESLIBS="-lncurses"
 			else
 				error "!! Can not find curses library. The curses library is required to compile libt3window."
@@ -130,8 +130,6 @@ EOF
 	else
 		error "!! Can not find curses library. The curses library is required to compile libt3window."
 	fi
-
-	pkgconfig libtranscript LIBTRANSCRIPT || error "!! Can not find libtranscript. libtranscript is required to compile libt3window."
 
 	clean_c
 	cat > .config.c <<EOF
@@ -142,10 +140,10 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 EOF
-	test_link "libtranscript compile" "TESTFLAGS=${LIBTRANSCRIPT_FLAGS}" "TESTLIBS=${LIBTRANSCRIPT_LIBS}" || \
+	pkgconfig libtranscript LIBTRANSCRIPT test_link || \
+		test_and_set test_link "libtranscript" LIBTRANSCRIPT "-I/usr/include/transcript" "-ltranscript" || \
+		test_and_set test_link "libtranscript" LIBTRANSCRIPT "-I/usr/local/include/transcript" "-L/usr/local/lib -ltranscript" || \
 		error "!! Can not find libtranscript. libtranscript is required to compile libt3window."
-
-	pkgconfig libt3unicode LIBT3UNICODE || error "!! Can not find libt3unicode. libt3unicode is required to compile libt3window."
 
 	clean_c
 	cat > .config.c <<EOF
@@ -156,8 +154,10 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 EOF
-	test_link "libt3unicode compile" "TESTFLAGS=${LIBT3UNICODE_FLAGS}" "TESTLIBS=${LIBT3UNICODE_LIBS}" || \
+	pkgconfig libt3unicode LIBT3UNICODE test_link || \
+		test_and_set test_link "libt3unicode" LIBT3UNICODE "-I/usr/include/t3/unicode" "-lt3unicode" || \
+		test_and_set test_link "libt3unicode" LIBT3UNICODE "-I/usr/local/include/t3/unicode" "-L/usr/local/lib -lt3unicode" || \
 		error "!! Can not find libt3unicode. libt3unicode is required to compile libt3window."
 
-	create_makefile "CONFIGFLAGS=${CONFIGFLAGS} ${LIBTRANSCRIPT_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${CONFIGLIBS} ${LIBTRANSCRIPT_LIBS} ${LIBT3UNICODE_LIBS}"
+	create_makefile "CONFIGFLAGS=${CONFIGFLAGS} ${LIBTRANSCRIPT_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${CONFIGLIBS} ${LIBTRANSCRIPT_LIBS} ${LIBT3UNICODE_LIBS} ${CURSESLIBS}"
 }
