@@ -147,7 +147,7 @@ EOF
 
 	clean_c
 	cat > .config.c <<EOF
-#include <unicode.h>
+#include <t3unicode/unicode.h>
 
 int main(int argc, char *argv[]) {
 	t3_unicode_get_version();
