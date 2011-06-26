@@ -291,6 +291,122 @@ static int isreset(const char *str) {
 	return (_t3_sgr0 != NULL && streq(str, _t3_sgr0)) || ti_streq(str, "\033[m") || ti_streq(str, "\033[0m");
 }
 
+/** Initialize the different control sequences that are used by libt3window. */
+static int init_sequences(const char *term) {
+	int error, ncv_int;
+	char *acsc;
+
+	if ((error = _t3_setupterm(term, _t3_terminal_fd)) != 0) {
+		if (error == 3)
+			return T3_ERR_HARDCOPY_TERMINAL;
+		else if (error == 1)
+			return T3_ERR_TERMINFODB_NOT_FOUND;
+		else if (error == 2)
+			return T3_ERR_TERMINAL_TOO_LIMITED;
+		return T3_ERR_UNKNOWN;
+	}
+
+	if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
+		if (smcup != NULL) {
+			free(smcup);
+			smcup = NULL;
+		}
+	}
+	if ((_t3_clear = get_ti_string("_t3_clear")) == NULL)
+		return T3_ERR_TERMINAL_TOO_LIMITED;
+
+	if ((_t3_cup = get_ti_string("cup")) == NULL) {
+		if ((_t3_hpa = get_ti_string("hpa")) == NULL || ((_t3_vpa = get_ti_string("vpa")) == NULL))
+			return T3_ERR_TERMINAL_TOO_LIMITED;
+	}
+	if (_t3_hpa == NULL)
+		_t3_hpa = get_ti_string("hpa");
+
+	_t3_sgr = get_ti_string("sgr");
+	_t3_sgr0 = get_ti_string("sgr0");
+
+	if ((_t3_smul = get_ti_string("smul")) != NULL) {
+		if ((_t3_rmul = get_ti_string("rmul")) == NULL || isreset(_t3_rmul))
+			_t3_reset_required_mask |= _T3_ATTR_UNDERLINE;
+	}
+	_t3_bold = get_ti_string("bold");
+	_t3_rev = get_ti_string("rev");
+	_t3_blink = get_ti_string("blink");
+	_t3_dim = get_ti_string("dim");
+	_t3_smacs = get_ti_string("smacs");
+	if (_t3_smacs != NULL && ((_t3_rmacs = get_ti_string("rmacs")) == NULL || isreset(_t3_rmacs)))
+		_t3_reset_required_mask |= T3_ATTR_ACS;
+
+	/* If rmul and rmacs are the same, there is a good chance it simply
+	   resets everything. */
+	if (_t3_rmul != NULL && _t3_rmacs != NULL && streq(_t3_rmul, _t3_rmacs))
+		_t3_reset_required_mask |= T3_ATTR_UNDERLINE | T3_ATTR_ACS;
+
+	if ((_t3_setaf = get_ti_string("setaf")) == NULL)
+		_t3_setf = get_ti_string("setf");
+
+	if ((_t3_setab = get_ti_string("setab")) == NULL)
+		_t3_setb = get_ti_string("setb");
+
+	if (_t3_setaf == NULL && _t3_setf == NULL && _t3_setab == NULL && _t3_setb == NULL) {
+		if ((_t3_scp = get_ti_string("scp")) != NULL) {
+			_t3_colors = _t3_tigetnum("colors");
+			_t3_pairs = _t3_tigetnum("pairs");
+		}
+	} else {
+		_t3_colors = _t3_tigetnum("colors");
+		_t3_pairs = _t3_tigetnum("pairs");
+	}
+
+	if (_t3_colors < 0) _t3_colors = 0;
+	if (_t3_pairs < 0) _t3_pairs = 0;
+
+	_t3_op = get_ti_string("op");
+
+	detect_ansi();
+
+	/* If sgr0 and sgr are not defined, don't go into modes in _t3_reset_required_mask. */
+	if (_t3_sgr0 == NULL && _t3_sgr == NULL) {
+		_t3_reset_required_mask = 0;
+		_t3_rev = NULL;
+		_t3_bold = NULL;
+		_t3_blink = NULL;
+		_t3_dim = NULL;
+		if (_t3_rmul == NULL) _t3_smul = NULL;
+		if (_t3_rmacs == NULL) _t3_smacs = NULL;
+	}
+
+	_t3_bce = _t3_tigetflag("bce");
+	if ((_t3_el = get_ti_string("el")) == NULL)
+		_t3_bce = t3_true;
+
+	if ((_t3_sc = get_ti_string("sc")) != NULL && (_t3_rc = get_ti_string("rc")) == NULL)
+		_t3_sc = NULL;
+
+	_t3_civis = get_ti_string("civis");
+	_t3_cnorm = get_ti_string("cnorm");
+
+	if ((acsc = get_ti_string("acsc")) != NULL) {
+		if (_t3_sgr != NULL || _t3_smacs != NULL) {
+			size_t i;
+			for (i = 0; i < strlen(acsc); i += 2)
+				_t3_alternate_chars[(unsigned int) acsc[i]] = acsc[i + 1];
+		}
+		free(acsc);
+	}
+
+	ncv_int = _t3_tigetnum("ncv");
+	if (ncv_int >= 0) {
+		if (ncv_int & (1<<1)) _t3_ncv |= T3_ATTR_UNDERLINE;
+		if (ncv_int & (1<<2)) _t3_ncv |= T3_ATTR_REVERSE;
+		if (ncv_int & (1<<3)) _t3_ncv |= T3_ATTR_BLINK;
+		if (ncv_int & (1<<4)) _t3_ncv |= T3_ATTR_DIM;
+		if (ncv_int & (1<<5)) _t3_ncv |= T3_ATTR_BOLD;
+		if (ncv_int & (1<<8)) _t3_ncv |= T3_ATTR_ACS;
+	}
+	return T3_ERR_SUCCESS;
+}
+
 /** Initialize the terminal.
     @param fd The file descriptor of the terminal or -1 for default/last used.
     @param term The name of the terminal, or @c NULL to use the @c TERM environment variable.
@@ -322,7 +438,6 @@ int t3_term_init(int fd, const char *term) {
 #endif
 	char *enacs;
 	struct termios new_params;
-	int ncv_int;
 
 	if (initialised)
 		return T3_ERR_SUCCESS;
@@ -347,118 +462,9 @@ int t3_term_init(int fd, const char *term) {
 	/* FIXME: we should check whether the same value is passed for term each time,
 	   or tell the user that only the first time is relevant. */
 	if (!seqs_initialised) {
-		int error;
-		char *acsc;
-
-		if ((error = _t3_setupterm(term, _t3_terminal_fd)) != 0) {
-			if (error == 3)
-				return T3_ERR_HARDCOPY_TERMINAL;
-			else if (error == 1)
-				return T3_ERR_TERMINFODB_NOT_FOUND;
-			else if (error == 2)
-				return T3_ERR_TERMINAL_TOO_LIMITED;
-			return T3_ERR_UNKNOWN;
-		}
-
-		if ((smcup = get_ti_string("smcup")) == NULL || (rmcup = get_ti_string("rmcup")) == NULL) {
-			if (smcup != NULL) {
-				free(smcup);
-				smcup = NULL;
-			}
-		}
-		if ((_t3_clear = get_ti_string("_t3_clear")) == NULL)
-			return T3_ERR_TERMINAL_TOO_LIMITED;
-
-		if ((_t3_cup = get_ti_string("cup")) == NULL) {
-			if ((_t3_hpa = get_ti_string("hpa")) == NULL || ((_t3_vpa = get_ti_string("vpa")) == NULL))
-				return T3_ERR_TERMINAL_TOO_LIMITED;
-		}
-		if (_t3_hpa == NULL)
-			_t3_hpa = get_ti_string("hpa");
-
-		_t3_sgr = get_ti_string("sgr");
-		_t3_sgr0 = get_ti_string("sgr0");
-
-		if ((_t3_smul = get_ti_string("smul")) != NULL) {
-			if ((_t3_rmul = get_ti_string("rmul")) == NULL || isreset(_t3_rmul))
-				_t3_reset_required_mask |= _T3_ATTR_UNDERLINE;
-		}
-		_t3_bold = get_ti_string("bold");
-		_t3_rev = get_ti_string("rev");
-		_t3_blink = get_ti_string("blink");
-		_t3_dim = get_ti_string("dim");
-		_t3_smacs = get_ti_string("smacs");
-		if (_t3_smacs != NULL && ((_t3_rmacs = get_ti_string("rmacs")) == NULL || isreset(_t3_rmacs)))
-			_t3_reset_required_mask |= T3_ATTR_ACS;
-
-		/* If rmul and rmacs are the same, there is a good chance it simply
-		   resets everything. */
-		if (_t3_rmul != NULL && _t3_rmacs != NULL && streq(_t3_rmul, _t3_rmacs))
-			_t3_reset_required_mask |= T3_ATTR_UNDERLINE | T3_ATTR_ACS;
-
-		if ((_t3_setaf = get_ti_string("setaf")) == NULL)
-			_t3_setf = get_ti_string("setf");
-
-		if ((_t3_setab = get_ti_string("setab")) == NULL)
-			_t3_setb = get_ti_string("setb");
-
-		if (_t3_setaf == NULL && _t3_setf == NULL && _t3_setab == NULL && _t3_setb == NULL) {
-			if ((_t3_scp = get_ti_string("scp")) != NULL) {
-				_t3_colors = _t3_tigetnum("colors");
-				_t3_pairs = _t3_tigetnum("pairs");
-			}
-		} else {
-			_t3_colors = _t3_tigetnum("colors");
-			_t3_pairs = _t3_tigetnum("pairs");
-		}
-
-		if (_t3_colors < 0) _t3_colors = 0;
-		if (_t3_pairs < 0) _t3_pairs = 0;
-
-		_t3_op = get_ti_string("op");
-
-		detect_ansi();
-
-		/* If sgr0 and sgr are not defined, don't go into modes in _t3_reset_required_mask. */
-		if (_t3_sgr0 == NULL && _t3_sgr == NULL) {
-			_t3_reset_required_mask = 0;
-			_t3_rev = NULL;
-			_t3_bold = NULL;
-			_t3_blink = NULL;
-			_t3_dim = NULL;
-			if (_t3_rmul == NULL) _t3_smul = NULL;
-			if (_t3_rmacs == NULL) _t3_smacs = NULL;
-		}
-
-		_t3_bce = _t3_tigetflag("bce");
-		if ((_t3_el = get_ti_string("el")) == NULL)
-			_t3_bce = t3_true;
-
-		if ((_t3_sc = get_ti_string("sc")) != NULL && (_t3_rc = get_ti_string("rc")) == NULL)
-			_t3_sc = NULL;
-
-		_t3_civis = get_ti_string("civis");
-		_t3_cnorm = get_ti_string("cnorm");
-
-		if ((acsc = get_ti_string("acsc")) != NULL) {
-			if (_t3_sgr != NULL || _t3_smacs != NULL) {
-				size_t i;
-				for (i = 0; i < strlen(acsc); i += 2)
-					_t3_alternate_chars[(unsigned int) acsc[i]] = acsc[i + 1];
-			}
-			free(acsc);
-		}
-
-		ncv_int = _t3_tigetnum("ncv");
-		if (ncv_int >= 0) {
-			if (ncv_int & (1<<1)) _t3_ncv |= T3_ATTR_UNDERLINE;
-			if (ncv_int & (1<<2)) _t3_ncv |= T3_ATTR_REVERSE;
-			if (ncv_int & (1<<3)) _t3_ncv |= T3_ATTR_BLINK;
-			if (ncv_int & (1<<4)) _t3_ncv |= T3_ATTR_DIM;
-			if (ncv_int & (1<<5)) _t3_ncv |= T3_ATTR_BOLD;
-			if (ncv_int & (1<<8)) _t3_ncv |= T3_ATTR_ACS;
-		}
-
+		int result;
+		if ((result = init_sequences(term)) != T3_ERR_SUCCESS)
+			return result;
 		seqs_initialised = t3_true;
 	}
 
