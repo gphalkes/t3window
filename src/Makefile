@@ -40,6 +40,7 @@ CFLAGS += -DHAS_STRDUP
 test: | libt3window.la
 
 links:
+	@[ -L t3window ] || ln -s . t3window
 	@[ -L t3unicode ] || ln -s ../../unicode/src t3unicode
 	@[ -L transcript ] || ln -s ../../../transcript/src transcript
 

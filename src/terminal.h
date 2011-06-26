@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 #include <limits.h>
-#include "window_api.h"
+#include <t3window/window_api.h>
 
 /** @addtogroup t3window_other */
 /** @{ */

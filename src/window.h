@@ -17,7 +17,7 @@
 /** @defgroup t3window_win Window manipulation functions. */
 
 #include <stdlib.h>
-#include "terminal.h"
+#include <t3window/terminal.h>
 
 #ifdef __cplusplus
 extern "C" {
