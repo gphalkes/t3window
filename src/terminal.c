@@ -14,12 +14,6 @@
 /** @file */
 
 #include <termios.h>
-#ifdef HAS_SELECT_H
-#include <sys/select.h>
-#else
-#include <sys/time.h>
-#include <sys/types.h>
-#endif
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -60,14 +54,6 @@ TODO list:
 /** @addtogroup t3window_term */
 /** @{ */
 
-/** @internal States for parsing cursor position reports. */
-typedef enum {
-	STATE_INITIAL,
-	STATE_ESC_SEEN,
-	STATE_ROW,
-	STATE_COLUMN
-} detection_state_t;
-
 /** @internal
     @brief Wrapper for strcmp which converts the return value to boolean. */
 #define streq(a,b) (strcmp((a), (b)) == 0)
@@ -83,7 +69,6 @@ typedef enum {
 static struct termios saved; /**< Terminal state as saved in ::t3_term_init */
 static t3_bool initialised, /**< Boolean indicating whether the terminal has been initialised. */
 	seqs_initialised; /**< Boolean indicating whether the terminal control sequences have been initialised. */
-static fd_set inset; /**< File-descriptor set used for select in ::t3_term_get_keychar. */
 
 static char *smcup, /**< Terminal control string: start cursor positioning mode. */
 	*rmcup, /**< Terminal control string: stop cursor positioning mode. */
@@ -150,10 +135,8 @@ static char alternate_chars[256];
 static const char *default_alternate_chars[256];
 
 /** File descriptor of the terminal. */
-static int terminal_fd;
+int _t3_terminal_fd;
 
-/** Boolean indicating whether the library is currently detecting the terminal capabilities. */
-static t3_bool detecting_terminal_capabilities = t3_true;
 /** Boolean indicating whether the terminal capbilities detection requires finishing.
 
     This variable is the only variable on which a race-condition can occur
@@ -166,7 +149,7 @@ static t3_bool detecting_terminal_capabilities = t3_true;
     Note that to prevent interference with adjecent variables, we use a @c long,
     instead of a ::t3_bool.
 */
-static long detection_needs_finishing;
+long _t3_detection_needs_finishing;
 
 /** Store whether the terminal is actually the screen program.
 
@@ -175,14 +158,16 @@ static long detection_needs_finishing;
 	results. */
 static t3_bool terminal_is_screen;
 
-static int last_key = -1, /**< Last keychar returned from ::t3_term_get_keychar. Used in ::t3_term_unget_keychar. */
-	stored_key = -1; /**< Location for storing "ungot" keys in ::t3_term_unget_keychar. */
-
 int _t3_term_encoding = _T3_TERM_UNKNOWN, /**< @internal Detected terminal encoding/mode. */
 	_t3_term_combining = -1, /**< @internal Terminal combining capabilities. */
 	_t3_term_double_width = -1; /**< @internal Terminal double width character support level. */
 
-static char current_charset[80];
+/** @internal Buffer holding the current character set.
+
+    The current character set may either have been retrieved from libtranscript,
+    or it was detected by the terminal capabilities detection code.
+*/
+char _t3_current_charset[80];
 
 #define SET_CHARACTER(_idx, _utf, _ascii) do { \
 	if (t3_term_can_draw((_utf), strlen(_utf))) \
@@ -418,6 +403,11 @@ static void detect_ansi(void) {
 		ansi_attrs &= ~(_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK);
 }
 
+/** Send a string for measuring it's on screen width.
+
+    This function moves the cursor to the top left position, writes the test
+    string, followed by a cursor position report request.
+*/
 static void send_test_string(const char *str) {
 	/* Move cursor to the begining of the line. Use cup if hpa is not available.
 	   Also, make sure we use line 1, iso line 0, because xterm uses \e[1;<digit>R for
@@ -435,7 +425,13 @@ static void send_test_string(const char *str) {
 		_t3_putp("\033[6n");
 }
 
-static int isreset_single(const char *str, const char *reset_string) {
+/** Check if a terminfo string equals another string.
+
+    Terminfo strings may contain timing/padding information, so a simple string
+    compare may not result in a correct result. This function ignores the
+    timing/padding information.
+*/
+static int ti_streq(const char *str, const char *reset_string) {
 	do {
 		/* Note: we don't have to check *reset_string for 0, because then it will
 		   automatically be either unequal to *str, or *str will also be 0 which
@@ -451,8 +447,13 @@ static int isreset_single(const char *str, const char *reset_string) {
 	return *str == *reset_string;
 }
 
+/** Check if a terminfo string resets all attributes.
+
+    This function checks @p str against @c sgr0 and the ANSI reset attribute
+    strings.
+*/
 static int isreset(const char *str) {
-	return (sgr0 != NULL && streq(str, sgr0)) || isreset_single(str, "\033[m") || isreset_single(str, "\033[0m");
+	return (sgr0 != NULL && streq(str, sgr0)) || ti_streq(str, "\033[m") || ti_streq(str, "\033[0m");
 }
 
 /** Initialize the terminal.
@@ -494,19 +495,19 @@ int t3_term_init(int fd, const char *term) {
 	if (fd >= 0) {
 		if ((_t3_putp_file = fdopen(fd, "w")) == NULL)
 			return T3_ERR_ERRNO;
-		terminal_fd = fd;
+		_t3_terminal_fd = fd;
 	} else if (_t3_putp_file == NULL) {
 		/* Unfortunately stdout is not a constant, and _putp_file can therefore not be
 		   initialized statically. */
-		terminal_fd = STDOUT_FILENO;
+		_t3_terminal_fd = STDOUT_FILENO;
 		_t3_putp_file = stdout;
 	}
 
-	if (!isatty(terminal_fd))
+	if (!isatty(_t3_terminal_fd))
 		return T3_ERR_NOT_A_TTY;
 
-	FD_ZERO(&inset);
-	FD_SET(terminal_fd, &inset);
+	FD_ZERO(&_t3_inset);
+	FD_SET(_t3_terminal_fd, &_t3_inset);
 
 	/* FIXME: we should check whether the same value is passed for term each time,
 	   or tell the user that only the first time is relevant. */
@@ -514,7 +515,7 @@ int t3_term_init(int fd, const char *term) {
 		int error;
 		char *acsc;
 
-		if ((error = _t3_setupterm(term, terminal_fd)) != 0) {
+		if ((error = _t3_setupterm(term, _t3_terminal_fd)) != 0) {
 			if (error == 3)
 				return T3_ERR_HARDCOPY_TERMINAL;
 			else if (error == 1)
@@ -628,12 +629,12 @@ int t3_term_init(int fd, const char *term) {
 
 	/* Get terminal size. First try ioctl, then environment, then terminfo. */
 #if defined(HAS_WINSIZE_IOCTL)
-	if (ioctl(terminal_fd, TIOCGWINSZ, &wsz) == 0) {
+	if (ioctl(_t3_terminal_fd, TIOCGWINSZ, &wsz) == 0) {
 		lines = wsz.ws_row;
 		columns = wsz.ws_col;
 	} else
 #elif defined(HAS_SIZE_IOCTL)
-	if (ioctl(terminal_fd, TIOCGSIZE, &wsz) == 0) {
+	if (ioctl(_t3_terminal_fd, TIOCGSIZE, &wsz) == 0) {
 		lines = wsz.ts_lines;
 		columns = wsz.ts_cols;
 	} else
@@ -649,9 +650,9 @@ int t3_term_init(int fd, const char *term) {
 
 	if (!detection_done) {
 		const char *charset = transcript_get_codeset();
-		strncpy(current_charset, charset, sizeof(current_charset) - 1);
-		current_charset[sizeof(current_charset) - 1] = '\0';
-		if (!_t3_init_output_convertor(current_charset))
+		strncpy(_t3_current_charset, charset, sizeof(_t3_current_charset) - 1);
+		_t3_current_charset[sizeof(_t3_current_charset) - 1] = '\0';
+		if (!_t3_init_output_convertor(_t3_current_charset))
 			return T3_ERR_CHARSET_ERROR;
 
 		set_alternate_chars_defaults();
@@ -671,7 +672,7 @@ int t3_term_init(int fd, const char *term) {
 			return T3_ERR_ERRNO;
 	}
 
-	if (tcgetattr(terminal_fd, &saved) < 0)
+	if (tcgetattr(_t3_terminal_fd, &saved) < 0)
 		return T3_ERR_ERRNO;
 
 	new_params = saved;
@@ -682,7 +683,7 @@ int t3_term_init(int fd, const char *term) {
 	new_params.c_cflag |= CS8;
 	new_params.c_cc[VMIN] = 1;
 
-	if (tcsetattr(terminal_fd, TCSADRAIN, &new_params) < 0)
+	if (tcsetattr(_t3_terminal_fd, TCSADRAIN, &new_params) < 0)
 		return T3_ERR_ERRNO;
 
 	/* Start cursor positioning mode. */
@@ -750,7 +751,7 @@ void t3_term_restore(void) {
 			attrs = 0;
 			fflush(_t3_putp_file);
 		}
-		tcsetattr(terminal_fd, TCSADRAIN, &saved);
+		tcsetattr(_t3_terminal_fd, TCSADRAIN, &saved);
 		initialised = t3_false;
 	}
 }
@@ -764,234 +765,7 @@ void t3_term_restore(void) {
     may return a different value.
 */
 const char *t3_term_get_codeset(void) {
-	return current_charset;
-}
-
-/** Complete the detection of terminal capabilities.
-
-	This routine handles changing the current encoding, if the results of the
-    terminal-capabilities detection indicate a need for it.
-*/
-static void finish_detection(void) {
-	t3_bool set_ascii = t3_false;
-	const char *current_encoding = transcript_get_codeset();
-
-	/* If the currently set encoding should have been detected, just set to ASCII. */
-	switch (_t3_term_encoding) {
-		case _T3_TERM_UNKNOWN:
-		case _T3_TERM_SINGLE_BYTE:
-		case _T3_TERM_GBK: // FIXME: once we can detect this better, handle as known encoding
-			if (transcript_equal(current_encoding, "utf8") || transcript_equal(current_encoding, "gb18030") ||
-					transcript_equal(current_encoding, "eucjp") || transcript_equal(current_encoding, "euctw") ||
-					transcript_equal(current_encoding, "euckr") || transcript_equal(current_encoding, "shiftjis"))
-				set_ascii = t3_true;
-			break;
-		case _T3_TERM_UTF8:
-			if (!transcript_equal(current_encoding, "utf8")) {
-				strcpy(current_charset, "UTF-8");
-				detection_needs_finishing = t3_true;
-			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
-				detection_needs_finishing = t3_true;
-			}
-			break;
-		case _T3_TERM_CJK:
-			/* We would love to be able to say which encoding should have been set by the
-			   user, but we simply don't know which ones are valid. So just filter out those
-			   that are known to be invalid. */
-			if (transcript_equal(current_encoding, "utf8") || transcript_equal(current_encoding, "shiftjis"))
-				set_ascii = t3_true;
-			break;
-		case _T3_TERM_CJK_SHIFT_JIS:
-			if (!transcript_equal(current_encoding, "shiftjis")) {
-				strcpy(current_charset, "Shift_JIS");
-				detection_needs_finishing = t3_true;
-			}
-			break;
-		case _T3_TERM_GB18030:
-			if (!transcript_equal(current_encoding, "gb18030")) {
-				strcpy(current_charset, "GB18030");
-				detection_needs_finishing = t3_true;
-			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
-				detection_needs_finishing = t3_true;
-			}
-			break;
-		default:
-			break;
-	}
-
-	if (set_ascii) {
-		strcpy(current_charset, "ASCII");
-		detection_needs_finishing = t3_true;
-	}
-}
-
-/** Process a position report triggered by the initialization.
-    @arg row The reported row.
-    @arg column The reported column.
-
-    The postion reports may generated as a response to the terminal
-    initialization. They are used to determine the used character set and
-    capabilities of the terminal.
-*/
-static t3_bool process_position_report(int row, int column) {
-	static int report_nr;
-	t3_bool result = t3_false;
-	(void) row;
-
-	column--;
-	#define GENERATE_CODE
-	#include "terminal_detection.h"
-	#undef GENERATE_CODE
-
-	if (report_nr < INT_MAX)
-		report_nr++;
-	return result;
-}
-
-/** @internal Check if a characters is a digit, in a locale independent way. */
-#define non_locale_isdigit(_c) (strchr("0123456789", _c) != NULL)
-
-/** Convert a digit character to an @c int value. */
-static int digit_value(int c) {
-	const char *digits = "0123456789";
-	return (int) (strchr(digits, c) - digits);
-}
-
-/** Handle a character read from the terminal to check for position reports.
-    @arg c The character read from the terminal.
-
-    The postion reports may generated as a response to the terminal
-    initialization. They are used to determine the used character set and
-    capabilities of the terminal.
-*/
-static t3_bool parse_position_reports(int c) {
-	static detection_state_t detection_state = STATE_INITIAL;
-	static int row, column;
-
-	switch (detection_state) {
-		case STATE_INITIAL:
-			if (c == 27) {
-				detection_state = STATE_ESC_SEEN;
-				row = 0;
-				column = 0;
-			}
-			break;
-		case STATE_ESC_SEEN:
-			if (c == '[') {
-				detection_state = STATE_ROW;
-				row = 0;
-			} else {
-				detection_state = STATE_INITIAL;
-			}
-			break;
-		case STATE_ROW:
-			if (non_locale_isdigit(c))
-				row = row * 10 + digit_value(c);
-			else if (c == ';')
-				detection_state = STATE_COLUMN;
-			else
-				detection_state = STATE_INITIAL;
-			break;
-		case STATE_COLUMN:
-			if (non_locale_isdigit(c)) {
-				column = column * 10 + digit_value(c);
-			} else if (c == 'R') {
-				detection_state = STATE_INITIAL;
-				return process_position_report(row, column);
-			} else {
-				detection_state = STATE_INITIAL;
-			}
-			break;
-		default:
-			detection_state = STATE_INITIAL;
-			break;
-	}
-	return t3_false;
-}
-
-/** Read a character from @c stdin, continueing after interrupts.
-    @retval A @c char read from stdin.
-    @retval T3_ERR_ERRNO if an error occurred.
-	@retval T3_ERR_EOF on end of file.
-*/
-static int safe_read_char(void) {
-	char c;
-	while (1) {
-		ssize_t retval = read(terminal_fd, &c, 1);
-		if (retval < 0 && errno == EINTR) {
-			continue;
-		} else if (retval >= 1) {
-			if (detecting_terminal_capabilities) {
-				if (parse_position_reports((int) c)) {
-					stored_key = c;
-					return T3_WARN_UPDATE_TERMINAL;
-				}
-			}
-			return (int) (unsigned char) c;
-		} else if (retval == 0) {
-			return T3_ERR_EOF;
-		}
-		return T3_ERR_ERRNO;
-	}
-}
-
-/** Get a key @c char from stdin with timeout.
-    @param msec The timeout in miliseconds, or a value <= 0 for indefinite wait.
-    @retval >=0 A @c char read from stdin.
-    @retval ::T3_ERR_ERRNO on error, with @c errno set to the error.
-    @retval ::T3_ERR_EOF on end of file.
-    @retval ::T3_ERR_TIMEOUT if there was no character to read within the specified timeout.
-    @retval ::T3_WARN_UPDATE_TERMINAL if the terminal-feature detection has finished
-    	and requires that the terminal is updated. @b Note: this is not an error,
-    	but a signal to update the terminal. To check for errors, use:
-    @code
-    	t3_term_get_keychar(msec) < T3_WARN_MIN
-    @endcode
-*/
-int t3_term_get_keychar(int msec) {
-	int retval;
-	fd_set _inset;
-	struct timeval timeout;
-
-	if (stored_key >= 0) {
-		last_key = stored_key;
-		stored_key = -1;
-		return last_key;
-	}
-
-	while (1) {
-		_inset = inset;
-		if (msec > 0) {
-			timeout.tv_sec = msec / 1000;
-			timeout.tv_usec = (msec % 1000) * 1000;
-		}
-
-		retval = select(terminal_fd + 1, &_inset, NULL, NULL, msec > 0 ? &timeout : NULL);
-
-		if (retval < 0) {
-			if (errno == EINTR)
-				continue;
-			return T3_ERR_ERRNO;
-		} else if (retval == 0) {
-			return T3_ERR_TIMEOUT;
-		} else {
-			return last_key = safe_read_char();
-		}
-	}
-}
-
-/** Push a @c char back for later retrieval with ::t3_term_get_keychar.
-    @param c The @c char to push back.
-    @return The @c char pushed back or ::T3_ERR_BAD_ARG.
-
-    Only a @c char just read from stdin with ::t3_term_get_keychar can be pushed back.
-*/
-int t3_term_unget_keychar(int c) {
-	if (c == last_key && c >= 0) {
-		stored_key = c;
-		return c;
-	}
-	return T3_ERR_BAD_ARG;
+	return _t3_current_charset;
 }
 
 /** Move cursor.
@@ -1048,7 +822,7 @@ t3_bool t3_term_resize(void) {
 #ifdef HAS_WINSIZE_IOCTL
 	struct winsize wsz;
 
-	if (ioctl(terminal_fd, TIOCGWINSZ, &wsz) < 0)
+	if (ioctl(_t3_terminal_fd, TIOCGWINSZ, &wsz) < 0)
 		return t3_true;
 
 	lines = wsz.ws_row;
@@ -1302,12 +1076,12 @@ void t3_term_update(void) {
 	t3_chardata_t new_attrs;
 	int i, j;
 
-	if (detection_needs_finishing) {
-		_t3_init_output_convertor(current_charset);
+	if (_t3_detection_needs_finishing) {
+		_t3_init_output_convertor(_t3_current_charset);
 		set_alternate_chars_defaults();
 		t3_win_set_paint(_t3_terminal_window, 0, 0);
 		t3_win_clrtobot(_t3_terminal_window);
-		detection_needs_finishing = t3_false;
+		_t3_detection_needs_finishing = t3_false;
 	}
 
 	if (civis != NULL) {

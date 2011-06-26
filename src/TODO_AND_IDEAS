@@ -3,7 +3,7 @@ High Priority
 - conjoining jamo should not be rendered separately, but only as a normalized
   codepoint. So if something in the range 0x1160 - 0x11FF is encountered, it
   should be dropped, regardless of the terminal type.
-- gettext
+- gettext translations
 - users should be able to disable the terminal capability detection. For
   example, for some versions of gnome-terminal it is probably better to simply
   disable drawing of combining characters.
