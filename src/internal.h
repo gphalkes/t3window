@@ -182,4 +182,50 @@ T3_WINDOW_LOCAL extern char _t3_current_charset[80];
 T3_WINDOW_LOCAL extern long _t3_detection_needs_finishing;
 T3_WINDOW_LOCAL extern int _t3_terminal_fd;
 T3_WINDOW_LOCAL extern fd_set _t3_inset;
+
+T3_WINDOW_LOCAL extern char *_t3_cup,
+	*_t3_sc,
+	*_t3_rc,
+	*_t3_clear,
+	*_t3_home,
+	*_t3_vpa,
+	*_t3_hpa,
+	*_t3_cud,
+	*_t3_cud1,
+	*_t3_cuf,
+	*_t3_cuf1,
+	*_t3_civis,
+	*_t3_cnorm,
+	*_t3_sgr,
+	*_t3_setaf,
+	*_t3_setab,
+	*_t3_op,
+	*_t3_smacs,
+	*_t3_rmacs,
+	*_t3_sgr0,
+	*_t3_smul,
+	*_t3_rmul,
+	*_t3_rev,
+	*_t3_bold,
+	*_t3_blink,
+	*_t3_dim,
+	*_t3_setf,
+	*_t3_setb,
+	*_t3_el,
+	*_t3_scp;
+T3_WINDOW_LOCAL extern int _t3_lines, _t3_columns;
+T3_WINDOW_LOCAL extern const char *_t3_default_alternate_chars[256];
+T3_WINDOW_LOCAL extern t3_chardata_t _t3_attrs, _t3_ansi_attrs,	_t3_reset_required_mask;
+T3_WINDOW_LOCAL extern t3_chardata_t _t3_ncv;
+T3_WINDOW_LOCAL extern t3_bool _t3_bce;
+T3_WINDOW_LOCAL extern int _t3_colors, _t3_pairs;
+T3_WINDOW_LOCAL extern char _t3_alternate_chars[256];
+T3_WINDOW_LOCAL extern line_data_t _t3_old_data;
+T3_WINDOW_LOCAL extern t3_bool _t3_show_cursor;
+T3_WINDOW_LOCAL extern int _t3_cursor_y, _t3_cursor_x;
+
+
+T3_WINDOW_LOCAL void _t3_do_cup(int line, int col);
+T3_WINDOW_LOCAL void _t3_set_alternate_chars_defaults(void);
+T3_WINDOW_LOCAL void _t3_set_attrs(t3_chardata_t new_attrs);
 #endif
