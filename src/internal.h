@@ -228,4 +228,7 @@ T3_WINDOW_LOCAL extern int _t3_cursor_y, _t3_cursor_x;
 T3_WINDOW_LOCAL void _t3_do_cup(int line, int col);
 T3_WINDOW_LOCAL void _t3_set_alternate_chars_defaults(void);
 T3_WINDOW_LOCAL void _t3_set_attrs(t3_chardata_t new_attrs);
+
+T3_WINDOW_LOCAL extern t3_window_t *_t3_head, *_t3_tail;
+T3_WINDOW_LOCAL t3_bool _t3_win_is_shown(t3_window_t *win);
 #endif

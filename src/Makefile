@@ -11,7 +11,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-SOURCES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c window_shared.c input.c terminal_init.c
+SOURCES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c window_shared.c \
+	input.c terminal_init.c window_paint.c
 LDFLAGS.libt3window.la := -shared -Lt3unicode -Ltranscript
 CFLAGS.misc := -DUSE_GETTEXT
 LDLIBS.libt3window.la := -lncurses -lt3unicode -ltranscript
