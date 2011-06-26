@@ -314,7 +314,7 @@ static int init_sequences(const char *term) {
 			smcup = NULL;
 		}
 	}
-	if ((_t3_clear = get_ti_string("_t3_clear")) == NULL)
+	if ((_t3_clear = get_ti_string("clear")) == NULL)
 		return T3_ERR_TERMINAL_TOO_LIMITED;
 
 	if ((_t3_cup = get_ti_string("cup")) == NULL) {
