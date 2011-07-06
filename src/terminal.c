@@ -650,7 +650,7 @@ void t3_term_update(void) {
 done: /* Add empty statement to shut up compilers */ ;
 	}
 
-	_t3_set_attrs(0);
+	/* _t3_set_attrs(0); */
 
 	if (_t3_civis == NULL) {
 		_t3_show_cursor = new_show_cursor;

@@ -1,5 +1,15 @@
 High Priority
 =============
+- set/reset linux console esc prefix meta handling
+
+KDGKBMETA
+Gets meta key handling mode. argp points to a long which is set to one of these:
+
+  K_METABIT 0x03 set high order bit
+  K_ESCPREFIX 0x04 escape prefix
+KDSKBMETA
+Sets meta key handling mode. argp is a long equal to one of the above values.
+
 - conjoining jamo should not be rendered separately, but only as a normalized
   codepoint. So if something in the range 0x1160 - 0x11FF is encountered, it
   should be dropped, regardless of the terminal type.
@@ -87,6 +97,11 @@ Low Priority
   The final feature is that the bits in the third word are aligned such that
   they require a minimum of masking and shifting [Unfortunately, the width bits
   are in the way for even less shifting]
+
+Ideas
+=====
+- The linux console can be requested to set the keyboard to unicode mode
+  (KDGKBMODE ioctl). This might be useful.
 
 Misc Information
 ================
