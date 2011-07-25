@@ -55,7 +55,7 @@ SILENTLDLT=@echo '[LDLT]' $@ ;
 
 OBJECTS=<OBJECTS>
 
-all: src/libt3window.la
+all: src/libt3window.la libt3window.pc
 
 .PHONY: all clean dist-clean install uninstall
 .SUFFIXES: .c .o .lo .la .mo .po
@@ -78,7 +78,7 @@ libt3window.pc: libt3window.pc.in
 	@echo 'prefix=$(prefix)' >> .sedscript
 	sed -f .sedscript $< > $@
 
-install: all libt3window.pc
+install: all
 	$(LIBTOOL) --mode=install $(INSTALL) -s src/libt3window.la $(libdir)
 	chmod 0644 $(libdir)/libt3window.la
 	$(INSTALL) -d $(includedir)/t3/window/t3window
