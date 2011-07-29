@@ -71,21 +71,25 @@ dist-clean: clean
 	$(SILENTCCLT) $(LIBTOOL) $(SILENCELT) --mode=compile --tag=CC $(CC) -shared $(CFLAGS) $(CONFIGFLAGS) $(GETTEXTFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -Isrc -DT3_WINDOW_BUILD_DSO -c -o $@ $<
 
 src/libt3window.la: $(OBJECTS)
-	$(SILENTLDLT) $(LIBTOOL) $(SILENCELT) --mode=link --tag=CC $(CC) -shared -version-info <VERSIONINFO> $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) $(CONFIGLIBS) $(GETTEXTLIBS) -lltdl -rpath $(libdir)
+	$(SILENTLDLT) $(LIBTOOL) $(SILENCELT) --mode=link --tag=CC $(CC) -shared -version-info <VERSIONINFO> $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) $(CONFIGLIBS) $(GETTEXTLIBS) -rpath $(libdir)
 
 libt3window.pc: libt3window.pc.in
-	@echo '/^prefix=/c\' > .sedscript
-	@echo 'prefix=$(prefix)' >> .sedscript
+	@{ echo '/^prefix=/c\' ; echo 'prefix=$(prefix)' ; } > .sedscript
+	@LIBDIR=$(libdir); if [ "$${LIBDIR#$(prefix)}" != "$${LIBDIR}" ] ; then LIBDIR="\$${prefix}$${LIBDIR#$(prefix)}" ; fi ; \
+		{ echo '/^libdir=/c\' ; echo "libdir=$${LIBDIR}" ; } >> .sedscript
+	@INCLUDEDIR=$(includedir); if [ "$${INCLUDEDIR#$(prefix)}" != "$${INCLUDEDIR}" ] ; then INCLUDEDIR="\$${prefix}$${INCLUDEDIR#$(prefix)}" ; fi ; \
+		{ echo '/^includedir=/c\' ; echo "includedir=$${INCLUDEDIR}" ; } >> .sedscript
 	sed -f .sedscript $< > $@
 
 install: all
-	$(LIBTOOL) --mode=install $(INSTALL) -s src/libt3window.la $(libdir)
+	$(INSTALL) -d $(libdir)
+	$(LIBTOOL) --mode=install $(INSTALL) -s -m0644 src/libt3window.la $(libdir)
 	chmod 0644 $(libdir)/libt3window.la
 	$(INSTALL) -d $(includedir)/t3/window/t3window
 	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_errors.h src/terminal.h $(includedir)/t3/window/t3window
 	$(INSTALL) -d $(docdir)/API/search
 	( cd doc ; find doc/API -type f ) | xargs -IX $(INSTALL) -m0644 doc/X $(docdir)/X
-	$(INSTALL) -m0644 COPYING $(docdir)
+	$(INSTALL) -m0644 COPYING README Changelog $(docdir)
 	$(INSTALL) -d $(pkgconfigdir)
 	$(INSTALL) -m0644 libt3window.pc $(pkgconfigdir)
 

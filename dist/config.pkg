@@ -14,6 +14,7 @@
 EXTENSIONS="c libtool pkgconfig verbose_compile pkgconfig_dep gettext"
 LTSHARED=1
 DEFAULT_LINGUAS=nl
+INSTALLDIRS="libdir docdir includedir"
 
 test_select() {
 	DESC="$1"
