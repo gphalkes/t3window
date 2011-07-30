@@ -30,13 +30,17 @@ FILE *_t3_putp_file; /**< @c FILE struct corresponding to the terminal. Used for
 	_name##_buffer[COPY_BUFFER_SIZE - 1] = 0;
 
 int _t3_setupterm(const char *term, int fd) {
+	char *term_ptr = NULL;
 	int error;
 
-	/* Copy the term name into a new buffer, because setupterm expects a char *
-	   not a const char *. */
-	COPY_BUFFER(term);
+	if (term != NULL) {
+		/* Copy the term name into a new buffer, because setupterm expects a char *
+		   not a const char *. */
+		COPY_BUFFER(term);
+		term_ptr = term_buffer;
+	}
 
-	if (setupterm(term_buffer, fd, &error) != OK)
+	if (setupterm(term_ptr, fd, &error) != OK)
 		return error + 2;
 	return 0;
 }
