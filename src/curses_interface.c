@@ -23,23 +23,43 @@
 
 FILE *_t3_putp_file; /**< @c FILE struct corresponding to the terminal. Used for tputs in ::_t3_putp. */
 
+#define COPY_BUFFER_SIZE 160
+#define COPY_BUFFER(_name) \
+	char _name##_buffer[COPY_BUFFER_SIZE]; \
+	strncpy(_name##_buffer, _name, COPY_BUFFER_SIZE); \
+	_name##_buffer[COPY_BUFFER_SIZE - 1] = 0;
+
 int _t3_setupterm(const char *term, int fd) {
 	int error;
-	if (setupterm(term, fd, &error) != OK)
+
+	/* Copy the term name into a new buffer, because setupterm expects a char *
+	   not a const char *. */
+	COPY_BUFFER(term);
+
+	if (setupterm(term_buffer, fd, &error) != OK)
 		return error + 2;
 	return 0;
 }
 
 char *_t3_tigetstr(const char *name) {
-	return tigetstr(name);
+	/* Copy the name into a new buffer, because tigetstr expects a char *
+	   not a const char *. */
+	COPY_BUFFER(name);
+	return tigetstr(name_buffer);
 }
 
 int _t3_tigetnum(const char *name) {
-	return tigetnum(name);
+	/* Copy the name into a new buffer, because tigetnum expects a char *
+	   not a const char *. */
+	COPY_BUFFER(name);
+	return tigetnum(name_buffer);
 }
 
 int _t3_tigetflag(const char *name) {
-	return tigetflag(name);
+	/* Copy the name into a new buffer, because tigetflag expects a char *
+	   not a const char *. */
+	COPY_BUFFER(name);
+	return tigetflag(name_buffer);
 }
 
 static int writechar(int c) {
