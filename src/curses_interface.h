@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include "window_api.h"
 
-T3_WINDOW_LOCAL FILE *_t3_putp_file;
+T3_WINDOW_LOCAL extern FILE *_t3_putp_file;
 
 T3_WINDOW_LOCAL int _t3_setupterm(const char *term, int fd);
 T3_WINDOW_LOCAL char *_t3_tigetstr(const char *name);
