@@ -588,13 +588,14 @@ void t3_term_restore(void) {
 		t3_win_set_paint(_t3_terminal_window, 0, 0);
 		t3_win_clrtobot(_t3_terminal_window);
 		if (seqs_initialised) {
-			do_rmcup();
 			/* Restore cursor to visible state. */
 			if (!_t3_show_cursor)
 				_t3_putp(_t3_cnorm);
 			/* Make sure attributes are reset */
 			_t3_set_attrs(0);
+			_t3_putp(_t3_clear);
 			_t3_attrs = 0;
+			do_rmcup();
 			fflush(_t3_putp_file);
 		}
 		tcsetattr(_t3_terminal_fd, TCSADRAIN, &saved);
