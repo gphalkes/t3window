@@ -242,12 +242,23 @@ void _t3_output_buffer_print(void) {
     screen.
 */
 t3_bool t3_term_can_draw(const char *str, size_t str_len) {
-	size_t nfc_output_len = t3_unicode_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
+	size_t nfc_output_len;
+
+	if (str_len > 1 || nfc_output == NULL) {
+		nfc_output_len = t3_unicode_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
+	} else {
+		nfc_output[0] = *str;
+		nfc_output_len = 1;
+	}
 
 	if (output_convertor == NULL) {
 		size_t idx, codepoint_len;
 		uint_fast8_t codepoint_info;
 		uint32_t c;
+
+		if (nfc_output_len == 1)
+			return t3_true;
+
 		for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_unicode_get(nfc_output + idx, &codepoint_len);

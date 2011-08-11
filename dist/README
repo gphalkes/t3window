@@ -18,6 +18,9 @@ the following features:
 libt3window is part of the Tilde Terminal Toolkit (T3)
 [http://os.ghalkes.nl/t3/]
 
+libt3window is licensed under the GNU General Public License version 3. See the
+file COPYING for details.
+
 
 Prerequisites and installation
 ==============================
