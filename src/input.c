@@ -196,7 +196,7 @@ static t3_bool parse_position_reports(int c) {
 static int safe_read_char(void) {
 	char c;
 	while (1) {
-		ssize_t retval = read(_t3_terminal_fd, &c, 1);
+		ssize_t retval = read(_t3_terminal_in_fd, &c, 1);
 		if (retval < 0 && errno == EINTR) {
 			continue;
 		} else if (retval >= 1) {
@@ -245,7 +245,7 @@ int t3_term_get_keychar(int msec) {
 			timeout.tv_usec = (msec % 1000) * 1000;
 		}
 
-		retval = select(_t3_terminal_fd + 1, &_inset, NULL, NULL, msec > 0 ? &timeout : NULL);
+		retval = select(_t3_terminal_in_fd + 1, &_inset, NULL, NULL, msec > 0 ? &timeout : NULL);
 
 		if (retval < 0) {
 			if (errno == EINTR)

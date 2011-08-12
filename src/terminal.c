@@ -128,8 +128,10 @@ char _t3_alternate_chars[256];
     provide a proper ACS character. */
 const char *_t3_default_alternate_chars[256];
 
-/** @internal File descriptor of the terminal. */
-int _t3_terminal_fd;
+/** @internal File descriptor of the terminal for input. */
+int _t3_terminal_in_fd;
+/** @internal File descriptor of the terminal for output. */
+int _t3_terminal_out_fd;
 
 /** @internal Boolean indicating whether the terminal capbilities detection requires finishing.
 
@@ -274,7 +276,7 @@ t3_bool t3_term_resize(void) {
 #ifdef HAS_WINSIZE_IOCTL
 	struct winsize wsz;
 
-	if (ioctl(_t3_terminal_fd, TIOCGWINSZ, &wsz) < 0)
+	if (ioctl(_t3_terminal_out_fd, TIOCGWINSZ, &wsz) < 0)
 		return t3_true;
 
 	_t3_lines = wsz.ws_row;

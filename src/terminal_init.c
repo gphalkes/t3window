@@ -298,7 +298,7 @@ static int init_sequences(const char *term) {
 	int error, ncv_int;
 	char *acsc;
 
-	if ((error = _t3_setupterm(term, _t3_terminal_fd)) != 0) {
+	if ((error = _t3_setupterm(term, _t3_terminal_out_fd)) != 0) {
 		if (error == 3)
 			return T3_ERR_HARDCOPY_TERMINAL;
 		else if (error == 1)
@@ -447,19 +447,21 @@ int t3_term_init(int fd, const char *term) {
 	if (fd >= 0) {
 		if ((_t3_putp_file = fdopen(fd, "w")) == NULL)
 			return T3_ERR_ERRNO;
-		_t3_terminal_fd = fd;
+		_t3_terminal_out_fd = fd;
+		_t3_terminal_in_fd = fd;
 	} else if (_t3_putp_file == NULL) {
 		/* Unfortunately stdout is not a constant, and _putp_file can therefore not be
 		   initialized statically. */
-		_t3_terminal_fd = STDOUT_FILENO;
+		_t3_terminal_out_fd = STDOUT_FILENO;
+		_t3_terminal_in_fd = STDIN_FILENO;
 		_t3_putp_file = stdout;
 	}
 
-	if (!isatty(_t3_terminal_fd))
+	if (!isatty(_t3_terminal_in_fd) || !isatty(_t3_terminal_out_fd))
 		return T3_ERR_NOT_A_TTY;
 
 	FD_ZERO(&_t3_inset);
-	FD_SET(_t3_terminal_fd, &_t3_inset);
+	FD_SET(_t3_terminal_in_fd, &_t3_inset);
 
 	/* FIXME: we should check whether the same value is passed for term each time,
 	   or tell the user that only the first time is relevant. */
@@ -472,12 +474,12 @@ int t3_term_init(int fd, const char *term) {
 
 	/* Get terminal size. First try ioctl, then environment, then terminfo. */
 #if defined(HAS_WINSIZE_IOCTL)
-	if (ioctl(_t3_terminal_fd, TIOCGWINSZ, &wsz) == 0) {
+	if (ioctl(_t3_terminal_out_fd, TIOCGWINSZ, &wsz) == 0) {
 		_t3_lines = wsz.ws_row;
 		_t3_columns = wsz.ws_col;
 	} else
 #elif defined(HAS_SIZE_IOCTL)
-	if (ioctl(_t3_terminal_fd, TIOCGSIZE, &wsz) == 0) {
+	if (ioctl(_t3_terminal_out_fd, TIOCGSIZE, &wsz) == 0) {
 		_t3_lines = wsz.ts_lines;
 		_t3_columns = wsz.ts_cols;
 	} else
@@ -515,7 +517,7 @@ int t3_term_init(int fd, const char *term) {
 			return T3_ERR_ERRNO;
 	}
 
-	if (tcgetattr(_t3_terminal_fd, &saved) < 0)
+	if (tcgetattr(_t3_terminal_in_fd, &saved) < 0)
 		return T3_ERR_ERRNO;
 
 	new_params = saved;
@@ -526,7 +528,7 @@ int t3_term_init(int fd, const char *term) {
 	new_params.c_cflag |= CS8;
 	new_params.c_cc[VMIN] = 1;
 
-	if (tcsetattr(_t3_terminal_fd, TCSADRAIN, &new_params) < 0)
+	if (tcsetattr(_t3_terminal_in_fd, TCSADRAIN, &new_params) < 0)
 		return T3_ERR_ERRNO;
 
 	/* Start cursor positioning mode. */
@@ -598,7 +600,7 @@ void t3_term_restore(void) {
 			do_rmcup();
 			fflush(_t3_putp_file);
 		}
-		tcsetattr(_t3_terminal_fd, TCSADRAIN, &saved);
+		tcsetattr(_t3_terminal_in_fd, TCSADRAIN, &saved);
 		initialised = t3_false;
 	}
 }

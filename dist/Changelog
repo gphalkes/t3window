@@ -1,2 +1,7 @@
+Version 0.1.2:
+	Bug fixes:
+	- Separate input and output file descriptor for stdin/stdout. Using stdout
+	  for input caused problems on some systems.
+
 Version 0.1.1:
 	Initial release
