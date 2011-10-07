@@ -32,7 +32,7 @@ TARGETS := test
 include ../../makesys/rules.mk
 #================================================#
 T3NAME := window
-include ../../t3shared/rules.mk
+include ../../shared/rules.mk
 
 CFLAGS += -DHAS_WINSIZE_IOCTL
 CFLAGS += -DHAS_SELECT_H
