@@ -493,6 +493,7 @@ int t3_term_init(int fd, const char *term) {
 		}
 	}
 
+	transcript_init();
 	if (!detection_done) {
 		const char *charset = transcript_get_codeset();
 		strncpy(_t3_current_charset, charset, sizeof(_t3_current_charset) - 1);
