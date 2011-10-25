@@ -38,6 +38,8 @@ CFLAGS += -DHAS_WINSIZE_IOCTL
 CFLAGS += -DHAS_SELECT_H
 CFLAGS += -DHAS_STRDUP
 
+all: | links
+
 test: | libt3window.la
 
 links:
