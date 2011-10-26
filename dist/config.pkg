@@ -141,9 +141,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 EOF
-	pkgconfig libtranscript LIBTRANSCRIPT test_link || \
-		test_and_set test_link "libtranscript" LIBTRANSCRIPT "-I/usr/include/transcript" "-ltranscript" || \
-		test_and_set test_link "libtranscript" LIBTRANSCRIPT "-I/usr/local/include/transcript" "-L/usr/local/lib -ltranscript" || \
+	pkgconfig libtranscript/0.2 LIBTRANSCRIPT test_link || \
 		error "!! Can not find libtranscript. libtranscript is required to compile libt3window."
 
 	clean_c
@@ -156,8 +154,6 @@ int main(int argc, char *argv[]) {
 }
 EOF
 	pkgconfig libt3unicode LIBT3UNICODE test_link || \
-		test_and_set test_link "libt3unicode" LIBT3UNICODE "-I/usr/include/t3/unicode" "-lt3unicode" || \
-		test_and_set test_link "libt3unicode" LIBT3UNICODE "-I/usr/local/include/t3/unicode" "-L/usr/local/lib -lt3unicode" || \
 		error "!! Can not find libt3unicode. libt3unicode is required to compile libt3window."
 
 	create_makefile "CONFIGFLAGS=${CONFIGFLAGS} ${LIBTRANSCRIPT_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${CONFIGLIBS} ${LIBTRANSCRIPT_LIBS} ${LIBT3UNICODE_LIBS} ${CURSESLIBS}"
