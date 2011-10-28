@@ -30,6 +30,9 @@ sed -i "/#define T3_WINDOW_VERSION/c #define T3_WINDOW_VERSION ${VERSION_BIN}" $
 OBJECTS="`echo \"${SOURCES} ${GENSOURCES} ${AUXSOURCES}\" | tr ' ' '\n' | sed -r 's%\.objects/%%' | egrep '^src/.*\.c$' | sed -r 's/\.c\>/.lo/g' | tr '\n' ' '`"
 
 #FIXME: somehow verify binary compatibility, and print an error if not compatible
+LIBVERSION="${VERSIONINFO%%:*}"
+
+sed -r -i "s%<LIBVERSION>%${LIBVERSION}%g" ${TOPDIR}/Makefile.in
 
 sed -r -i "s%<OBJECTS>%${OBJECTS}%g;
 s%<VERSIONINFO>%${VERSIONINFO}%g" ${TOPDIR}/Makefile.in

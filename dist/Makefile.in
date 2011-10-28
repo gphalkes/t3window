@@ -46,7 +46,7 @@ INSTALL=install
 
 # Miscelaneous install paths
 libdir=$(prefix)/lib
-docdir=$(prefix)/share/doc/libt3window-<VERSION>
+docdir=$(prefix)/share/doc/libt3window
 includedir=$(prefix)/include
 pkgconfigdir=$(libdir)/pkgconfig
 
@@ -82,20 +82,29 @@ libt3window.pc: libt3window.pc.in
 		{ echo '/^includedir=/c\' ; echo "includedir=$${INCLUDEDIR}" ; } >> .sedscript
 	sed -f .sedscript $< > $@
 
+# Macros to make DESTDIR support more readable
+_libdir=$(DESTDIR)$(libdir)
+_docdir=$(DESTDIR)$(docdir)
+_includedir=$(DESTDIR)$(includedir)
+_pkgconfigdir=$(DESTDIR)$(pkgconfigdir)
+_LOCALEDIR=$(DESTDIR)$(LOCALEDIR)
+
 install: all
-	$(INSTALL) -d $(libdir)
-	$(LIBTOOL) --mode=install $(INSTALL) -s -m0644 src/libt3window.la $(libdir)
-	chmod 0644 $(libdir)/libt3window.la
-	$(INSTALL) -d $(includedir)/t3/window/t3window
-	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_errors.h src/terminal.h $(includedir)/t3/window/t3window
-	$(INSTALL) -d $(docdir)/API/search
-	( cd doc ; find API -type f ) | while read X ; do $(INSTALL) -m0644 doc/$${X} $(docdir)/$${X} ; done
-	$(INSTALL) -m0644 COPYING README Changelog $(docdir)
-	$(INSTALL) -d $(pkgconfigdir)
-	$(INSTALL) -m0644 libt3window.pc $(pkgconfigdir)
+	$(INSTALL) -d $(_libdir)
+	$(LIBTOOL) --mode=install $(INSTALL) -s -m0644 src/libt3window.la $(_libdir)
+	chmod 0644 $(_libdir)/libt3window.la
+	$(INSTALL) -d $(_includedir)/t3/window/t3window
+	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_errors.h src/terminal.h $(_includedir)/t3/window/t3window
+	$(INSTALL) -d $(_docdir)/API/search
+	( cd doc ; find API -type f ) | while read X ; do $(INSTALL) -m0644 doc/$${X} $(_docdir)/$${X} ; done
+	$(INSTALL) -m0644 COPYING README Changelog $(_docdir)
+	$(INSTALL) -d $(_pkgconfigdir)
+	$(INSTALL) -m0644 libt3window.pc $(_pkgconfigdir)
 
 uninstall:
-	$(LIBTOOL) --mode=uninstall rm $(libdir)/libt3window.la
-	rm -rf $(includedir)/t3/window
-	rm -rf $(docdir)
-	rm -f $(pkgconfigdir)/libt3window.pc
+	$(LIBTOOL) --mode=uninstall rm $(_libdir)/libt3window.la
+	rm -rf $(_includedir)/t3/window
+	rm -rf $(_docdir)
+	rm -f $(_pkgconfigdir)/libt3window.pc
+
+# LIBVERSION=<LIBVERSION>
