@@ -15,10 +15,11 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <t3unicode/unicode.h>
+#include <unictype.h>
 
 #include "window.h"
 #include "internal.h"
+#include "utf8.h"
 
 /** @internal
     @brief The maximum size of a UTF-8 character in bytes. Used in ::t3_win_addnstr.
@@ -277,7 +278,6 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 	size_t bytes_read, i;
 	t3_chardata_t cd_buf[UTF8_MAX_BYTES + 1];
 	uint32_t c;
-	uint8_t char_info;
 	int retval = T3_ERR_SUCCESS;
 	int width;
 
@@ -287,11 +287,13 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
 		bytes_read = n;
-		c = t3_unicode_get(str, &bytes_read);
+		c = t3_utf8_get(str, &bytes_read);
 
-		char_info = t3_unicode_get_info(c, INT_MAX);
-		width = T3_UNICODE_INFO_TO_WIDTH(char_info);
-		if ((char_info & (T3_UNICODE_GRAPH_BIT | T3_UNICODE_SPACE_BIT)) == 0 || width < 0) {
+		width = _t3_window_wcwidth(c);
+		/* UC_CATEGORY_MASK_Cn is for unassigned/reserved code points. These are
+		   not necessarily unprintable. */
+		if (width < 0 || uc_is_general_category_withtable(c, (UC_CATEGORY_MASK_Cs |
+				UC_CATEGORY_MASK_Cf | UC_CATEGORY_MASK_Co | UC_CATEGORY_MASK_Cc))) {
 			retval = T3_ERR_NONPRINT;
 			continue;
 		}

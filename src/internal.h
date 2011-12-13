@@ -21,6 +21,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #endif
+#include <stdint.h>
+
 #include "window_api.h"
 
 /** @typedef t3_chardata_t
@@ -232,4 +234,7 @@ T3_WINDOW_LOCAL void _t3_set_attrs(t3_chardata_t new_attrs);
 
 T3_WINDOW_LOCAL extern t3_window_t *_t3_head, *_t3_tail;
 T3_WINDOW_LOCAL t3_bool _t3_win_is_shown(t3_window_t *win);
+
+T3_WINDOW_LOCAL int _t3_window_wcwidth(uint32_t c);
+
 #endif

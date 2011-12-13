@@ -22,9 +22,9 @@
 #include <sys/types.h>
 #endif
 #include <transcript/transcript.h>
-#include <t3unicode/unicode.h>
 #include "window.h"
 #include "internal.h"
+#include "generated/versions.h"
 
 /** @addtogroup t3window_term */
 /** @{ */

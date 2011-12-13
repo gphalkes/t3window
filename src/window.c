@@ -15,7 +15,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <t3unicode/unicode.h>
 
 #include "window.h"
 #include "internal.h"

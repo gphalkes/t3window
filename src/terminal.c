@@ -24,12 +24,11 @@
 #endif
 #include <assert.h>
 #include <limits.h>
-#include <t3unicode/unicode.h>
 
 #include "window.h"
 #include "internal.h"
 #include "convert_output.h"
-
+#include "utf8.h"
 /* The curses header file defines too many symbols that get in the way of our
    own, so we have a separate C file which exports only those functions that
    we actually use. */
@@ -718,14 +717,12 @@ int t3_term_strwidth(const char *str) {
 	size_t bytes_read, n = strlen(str);
 	int width, retval = 0;
 	uint32_t c;
-	uint8_t char_info;
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
 		bytes_read = n;
-		c = t3_unicode_get(str, &bytes_read);
+		c = t3_utf8_get(str, &bytes_read);
 
-		char_info = t3_unicode_get_info(c, INT_MAX);
-		width = T3_UNICODE_INFO_TO_WIDTH(char_info);
+		width = _t3_window_wcwidth(c);
 		if (width < 0)
 			continue;
 		retval += width;

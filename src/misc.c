@@ -13,6 +13,8 @@
 */
 #include <string.h>
 #include <errno.h>
+#include <stdint.h>
+#include <uniwidth.h>
 #ifdef USE_GETTEXT
 #include <libintl.h>
 #define _(x) dgettext("LIBT3", (x))
@@ -55,4 +57,19 @@ const char *t3_window_strerror(int error) {
 		case T3_ERR_CHARSET_ERROR:
 			return _("character-set conversion not available");
 	}
+}
+
+/** Get the width of a Unicode codepoint.
+
+    This function is a wrapper around uc_width, which takes into account that
+    for some characters uc_width returns a value that is different from what
+    terminals actually use.
+*/
+int _t3_window_wcwidth(uint32_t c) {
+	static const char nul;
+	if (c >= 0x1160 && c < 0x11fa)
+		return 0;
+	if (c == 0x00ad)
+		return 1;
+	return uc_width(c, &nul);
 }

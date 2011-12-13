@@ -23,13 +23,6 @@
 #endif
 #include <transcript/transcript.h>
 
-/*
-#include <errno.h>
-#include <string.h>
-#include <assert.h>
-#include <limits.h>
-#include <t3unicode/unicode.h>
-*/
 #include "window.h"
 #include "internal.h"
 #include "convert_output.h"

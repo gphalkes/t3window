@@ -19,12 +19,16 @@
 #include <string.h>
 #include <errno.h>
 #include <transcript/transcript.h>
-#include <t3unicode/unicode.h>
+#include <uninorm.h>
+#include <uniwidth.h>
+#include <unictype.h>
 
 #include "convert_output.h"
 #include "window.h"
 #include "internal.h"
 #include "curses_interface.h"
+#include "utf8.h"
+#include "generated/available_since.h"
 
 #define CONV_BUFFER_LEN (160)
 
@@ -118,37 +122,40 @@ t3_bool t3_term_puts(const char *s) {
     @brief Print the characters in the output buffer.
 */
 void _t3_output_buffer_print(void) {
+	char *tmp_nfc_output;
 	size_t nfc_output_len;
 	if (output_buffer_idx == 0)
 		return;
-	//FIXME: check return value!
-	nfc_output_len = t3_unicode_to_nfc(output_buffer, output_buffer_idx, &nfc_output, &nfc_output_size);
+
+	nfc_output_len = nfc_output_size;
+	tmp_nfc_output = (char *) u8_normalize(UNINORM_NFC, (const uint8_t *) output_buffer, output_buffer_idx, (uint8_t *) nfc_output, &nfc_output_len);
+	if (tmp_nfc_output != nfc_output) {
+		free(nfc_output);
+		nfc_output = tmp_nfc_output;
+		nfc_output_size = nfc_output_len;
+	}
 
 	//FIXME: for GB18030 we should also take the first option. However, it does need conversion...
 	if (output_convertor == NULL) {
 #if 1
 		size_t idx, codepoint_len, output_start;
 		uint32_t c;
-		uint_fast8_t codepoint_info;
+		uint_fast8_t available_since;
 		/* Filter out combining characters if the terminal is known not to support them (e.g. gnome-terminal). */
 		/* FIXME: should we filter out other zero-width characters? */
 		for (idx = 0, output_start = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
-			c = t3_unicode_get(nfc_output + idx, &codepoint_len);
-			codepoint_info = t3_unicode_get_info(c, INT_MAX);
+			c = t3_utf8_get(nfc_output + idx, &codepoint_len);
+			available_since = get_available_since(c);
 
-			if ((codepoint_info & T3_UNICODE_COMBINING_BIT) &&
-					!(t3_unicode_get_info(c, _t3_term_combining) & T3_UNICODE_COMBINING_BIT))
-			{
+			if (_t3_term_combining < available_since && uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M)) {
 				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
 				/* For non-zero width combining characters, print a replacement character. */
-				if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 1)
+				if (_t3_window_wcwidth(c) == 1)
 					print_replacement_character();
 				output_start = idx + codepoint_len;
 			}
-			if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 2 &&
-					T3_UNICODE_INFO_TO_WIDTH(t3_unicode_get_info(c, _t3_term_double_width)) == 1)
-			{
+			if (_t3_term_double_width < available_since && _t3_window_wcwidth(c) == 2) {
 				if (_t3_term_double_width < 0) {
 					fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
 					print_replacement_character();
@@ -169,7 +176,7 @@ void _t3_output_buffer_print(void) {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr;
 		const char *conversion_input_ptr = nfc_output, *conversion_input_end = nfc_output + nfc_output_len;
 
-		/* Convert UTF-8 sequence into current output encoding using t3_unicode_export. */
+		/* Convert UTF-8 sequence into current output encoding using transcript_from_unicode. */
 		while (conversion_input_ptr < conversion_input_end) {
 			conversion_output_ptr = conversion_output;
 			switch (transcript_from_unicode(output_convertor, &conversion_input_ptr, conversion_input_end,
@@ -186,7 +193,7 @@ void _t3_output_buffer_print(void) {
 					if (conversion_output_ptr != conversion_output)
 						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 
-					c = t3_unicode_get(conversion_input_ptr, &char_len);
+					c = t3_utf8_get(conversion_input_ptr, &char_len);
 					conversion_input_ptr += char_len;
 
 					/* Ensure that the conversion ends in the 'initial state', because after this we will
@@ -196,7 +203,7 @@ void _t3_output_buffer_print(void) {
 					if (conversion_output_ptr != conversion_output)
 						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 
-					for (width = T3_UNICODE_INFO_TO_WIDTH(t3_unicode_get_info(c, INT_MAX)); width > 0; width--)
+					for (width = _t3_window_wcwidth(c); width > 0; width--)
 						print_replacement_character();
 
 					break;
@@ -245,7 +252,14 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 	size_t nfc_output_len;
 
 	if (str_len > 1 || nfc_output == NULL) {
-		nfc_output_len = t3_unicode_to_nfc(str, str_len, &nfc_output, &nfc_output_size);
+		char *tmp_nfc_output;
+		nfc_output_len = nfc_output_size;
+		tmp_nfc_output = (char *) u8_normalize(UNINORM_NFC, (const uint8_t *) str, str_len, (uint8_t *) nfc_output, &nfc_output_len);
+		if (tmp_nfc_output != nfc_output) {
+			free(nfc_output);
+			nfc_output = tmp_nfc_output;
+			nfc_output_size = nfc_output_len;
+		}
 	} else {
 		nfc_output[0] = *str;
 		nfc_output_len = 1;
@@ -253,7 +267,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 
 	if (output_convertor == NULL) {
 		size_t idx, codepoint_len;
-		uint_fast8_t codepoint_info;
+		uint_fast8_t available_since;
 		uint32_t c;
 
 		if (nfc_output_len == 1)
@@ -261,14 +275,12 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 
 		for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
-			c = t3_unicode_get(nfc_output + idx, &codepoint_len);
-			codepoint_info = t3_unicode_get_info(c, INT_MAX);
+			c = t3_utf8_get(nfc_output + idx, &codepoint_len);
+			available_since = get_available_since(c);
 
-			if ((codepoint_info & T3_UNICODE_COMBINING_BIT) &&
-					!(t3_unicode_get_info(c, _t3_term_combining) & T3_UNICODE_COMBINING_BIT))
+			if (_t3_term_combining < get_available_since(c) && uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M))
 				return t3_false;
-			if (T3_UNICODE_INFO_TO_WIDTH(codepoint_info) == 2 &&
-					T3_UNICODE_INFO_TO_WIDTH(t3_unicode_get_info(c, _t3_term_double_width)) == 1)
+			if (_t3_term_double_width < available_since && _t3_window_wcwidth(c) == 2)
 				return t3_false;
 		}
 		return t3_true;
@@ -276,7 +288,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		char conversion_output[CONV_BUFFER_LEN], *conversion_output_ptr;
 		const char *conversion_input_ptr = nfc_output, *conversion_input_end = nfc_output + nfc_output_len;
 
-		/* Convert UTF-8 sequence into current output encoding using t3_unicode_export. */
+		/* Convert UTF-8 sequence into current output encoding using transcript_from_unicode. */
 		while (conversion_input_ptr < conversion_input_end) {
 			conversion_output_ptr = conversion_output;
 			switch (transcript_from_unicode(output_convertor, &conversion_input_ptr, conversion_input_end,
@@ -307,7 +319,7 @@ static void convert_replacement_char(uint32_t c) {
 		return;
 
 	memset(utf8_buffer, 0, sizeof(replacement_char));
-	t3_unicode_put(c, utf8_buffer);
+	t3_utf8_put(c, utf8_buffer);
 
 	conversion_input_ptr = (const char *) &utf8_buffer;
 	conversion_output_ptr = replacement_char_str;
