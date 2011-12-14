@@ -289,7 +289,7 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 		bytes_read = n;
 		c = t3_utf8_get(str, &bytes_read);
 
-		width = _t3_window_wcwidth(c);
+		width = t3_utf8_wcwidth(c);
 		/* UC_CATEGORY_MASK_Cn is for unassigned/reserved code points. These are
 		   not necessarily unprintable. */
 		if (width < 0 || uc_is_general_category_withtable(c, T3_UTF8_CONTROL_MASK)) {

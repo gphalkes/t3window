@@ -35,6 +35,8 @@ extern "C" {
 T3_WINDOW_API uint32_t t3_utf8_get(const char *src, size_t *size);
 T3_WINDOW_API size_t t3_utf8_put(uint32_t c, char *dst);
 
+T3_WINDOW_API int t3_utf8_wcwidth(uint32_t c);
+
 /** @} */
 #ifdef __cplusplus
 } /* extern "C" */

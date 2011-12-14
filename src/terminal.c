@@ -722,7 +722,7 @@ int t3_term_strwidth(const char *str) {
 		bytes_read = n;
 		c = t3_utf8_get(str, &bytes_read);
 
-		width = _t3_window_wcwidth(c);
+		width = t3_utf8_wcwidth(c);
 		if (width < 0)
 			continue;
 		retval += width;

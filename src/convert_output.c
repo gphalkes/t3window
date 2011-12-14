@@ -151,11 +151,11 @@ void _t3_output_buffer_print(void) {
 			if (_t3_term_combining < available_since && uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M)) {
 				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
 				/* For non-zero width combining characters, print a replacement character. */
-				if (_t3_window_wcwidth(c) == 1)
+				if (t3_utf8_wcwidth(c) == 1)
 					print_replacement_character();
 				output_start = idx + codepoint_len;
 			}
-			if (_t3_term_double_width < available_since && _t3_window_wcwidth(c) == 2) {
+			if (_t3_term_double_width < available_since && t3_utf8_wcwidth(c) == 2) {
 				if (_t3_term_double_width < 0) {
 					fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
 					print_replacement_character();
@@ -203,7 +203,7 @@ void _t3_output_buffer_print(void) {
 					if (conversion_output_ptr != conversion_output)
 						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 
-					for (width = _t3_window_wcwidth(c); width > 0; width--)
+					for (width = t3_utf8_wcwidth(c); width > 0; width--)
 						print_replacement_character();
 
 					break;
@@ -281,7 +281,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 
 			if (_t3_term_combining < get_available_since(c) && uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M))
 				return t3_false;
-			if (_t3_term_double_width < available_since && _t3_window_wcwidth(c) == 2)
+			if (_t3_term_double_width < available_since && t3_utf8_wcwidth(c) == 2)
 				return t3_false;
 		}
 		return t3_true;

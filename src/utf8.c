@@ -11,6 +11,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <uniwidth.h>
 #include "utf8.h"
 
 /** Get the first codepoint represented by a UTF-8 string.
@@ -150,3 +151,17 @@ size_t t3_utf8_put(uint32_t c, char *dst) {
 	}
 }
 
+/** Get the width of a Unicode codepoint.
+
+    This function is a wrapper around uc_width, which takes into account that
+    for some characters uc_width returns a value that is different from what
+    terminals actually use.
+*/
+int t3_utf8_wcwidth(uint32_t c) {
+	static const char nul;
+	if (c >= 0x1160 && c < 0x11fa)
+		return 0;
+	if (c == 0x00ad)
+		return 1;
+	return uc_width(c, &nul);
+}
