@@ -292,8 +292,7 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 		width = _t3_window_wcwidth(c);
 		/* UC_CATEGORY_MASK_Cn is for unassigned/reserved code points. These are
 		   not necessarily unprintable. */
-		if (width < 0 || uc_is_general_category_withtable(c, (UC_CATEGORY_MASK_Cs |
-				UC_CATEGORY_MASK_Cf | UC_CATEGORY_MASK_Co | UC_CATEGORY_MASK_Cc))) {
+		if (width < 0 || uc_is_general_category_withtable(c, T3_UTF8_CONTROL_MASK)) {
 			retval = T3_ERR_NONPRINT;
 			continue;
 		}

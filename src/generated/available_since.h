@@ -3,9 +3,9 @@
 #define AVAILABLE_SINCE_H
 #include <stdint.h>
 #include "window_api.h"
-T3_WINDOW_LOCAL extern const uint8_t _t3_window_available_since_data_2[181][8];
-T3_WINDOW_LOCAL extern const uint8_t _t3_window_available_since_data_1[173][8];
-T3_WINDOW_LOCAL extern const uint8_t _t3_window_available_since_data_0[27][32];
+T3_WINDOW_LOCAL extern const uint8_t _t3_window_available_since_data_2[118][4];
+T3_WINDOW_LOCAL extern const uint8_t _t3_window_available_since_data_1[184][32];
+T3_WINDOW_LOCAL extern const uint8_t _t3_window_available_since_data_0[34][16];
 T3_WINDOW_LOCAL extern const uint8_t _t3_window_available_since_data_idx[];
-#define get_available_since(x) (_t3_window_available_since_data_2[_t3_window_available_since_data_1[_t3_window_available_since_data_0[_t3_window_available_since_data_idx[(x) >> 11]][((x) >> 6) & ((1 << 5) - 1)]][((x) >> 3) & ((1 << 3) - 1)]][((x) >> 0) & ((1 << 3) - 1)])
+#define get_available_since(x) (_t3_window_available_since_data_2[_t3_window_available_since_data_1[_t3_window_available_since_data_0[_t3_window_available_since_data_idx[(x) >> 11]][((x) >> 7) & ((1 << 4) - 1)]][((x) >> 2) & ((1 << 5) - 1)]][((x) >> 0) & ((1 << 2) - 1)])
 #endif

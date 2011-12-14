@@ -19,12 +19,18 @@
 /** @{ */
 #include <stddef.h>
 #include <stdint.h>
+#include <unictype.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <t3window/window_api.h>
+
+/** Category mask for libunistring's @c uc_is_general_category_withtable for
+    finding control characters. */
+#define T3_UTF8_CONTROL_MASK (UC_CATEGORY_MASK_Cs | UC_CATEGORY_MASK_Cf | UC_CATEGORY_MASK_Co | \
+	UC_CATEGORY_MASK_Cc | UC_CATEGORY_MASK_Zl | UC_CATEGORY_MASK_Zp)
 
 T3_WINDOW_API uint32_t t3_utf8_get(const char *src, size_t *size);
 T3_WINDOW_API size_t t3_utf8_put(uint32_t c, char *dst);

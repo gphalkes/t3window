@@ -270,6 +270,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		uint_fast8_t available_since;
 		uint32_t c;
 
+		/* FIXME: should we filter out control characters, like in t3_win_addnstr? */
 		if (nfc_output_len == 1)
 			return t3_true;
 

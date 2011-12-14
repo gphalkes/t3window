@@ -11,7 +11,7 @@ def main():
 		sys.exit(1)
 
 	statrie = os.popen("statrie -p -r0x110000 -H'#include \"window_api.h\"' -e'T3_WINDOW_LOCAL extern' " +
-		"-d generated -f available_since -n get_available_since t3_window_available_since", "w")
+		"-d generated -D255 -f available_since -n get_available_since t3_window_available_since", "w")
 
 	derived_age = open(sys.argv[1], "r")
 	for line in derived_age:
