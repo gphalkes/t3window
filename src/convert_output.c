@@ -20,7 +20,6 @@
 #include <errno.h>
 #include <transcript/transcript.h>
 #include <uninorm.h>
-#include <uniwidth.h>
 #include <unictype.h>
 
 #include "convert_output.h"

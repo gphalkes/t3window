@@ -146,15 +146,23 @@ EOF
 
 	clean_c
 	cat > .config.c <<EOF
-#include <t3unicode/unicode.h>
+#include <unictype.h>
+#include <uninorm.h>
+#include <uniwidth.h>
 
 int main(int argc, char *argv[]) {
-	t3_unicode_get_version();
+	uint8_t buffer[10];
+	size_t buffer_size = sizeof(buffer);
+	size_t out_size;
+	char nul = 0;
+	u8_normalize(UNINORM_NFC, buffer, buffer_size, NULL, &out_size);
+	uc_is_general_category_withtable(0x1234, UC_CATEGORY_MASK_M);
+	uc_width(0x1234, &nul);
 	return 0;
 }
 EOF
-	pkgconfig libt3unicode LIBT3UNICODE test_link || \
-		error "!! Can not find libt3unicode. libt3unicode is required to compile libt3window."
+	test_link "libunistring" "TESTLIBS=-lunistring" || \
+		error "!! Can not find libunistring library. Libunistring is required to compile libt3window."
 
-	create_makefile "CONFIGFLAGS=${CONFIGFLAGS} ${LIBTRANSCRIPT_FLAGS} ${LIBT3UNICODE_FLAGS}" "CONFIGLIBS=${CONFIGLIBS} ${LIBTRANSCRIPT_LIBS} ${LIBT3UNICODE_LIBS} ${CURSESLIBS}"
+	create_makefile "CONFIGFLAGS=${CONFIGFLAGS} ${LIBTRANSCRIPT_FLAGS}" "CONFIGLIBS=${CONFIGLIBS} ${LIBTRANSCRIPT_LIBS} -lunistring ${CURSESLIBS}"
 }
