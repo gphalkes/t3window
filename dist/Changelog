@@ -1,4 +1,5 @@
 Version 0.1.4:
+	Miscelaneous changes:
 	- Use libunistring instead of libt3unicode.
 
 Version 0.1.3:
