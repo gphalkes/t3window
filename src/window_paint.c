@@ -422,6 +422,10 @@ t3_bool _t3_win_refresh_term_line(int line) {
 		if (!_t3_win_is_shown(ptr))
 			continue;
 
+		y = t3_win_get_abs_y(ptr);
+		if (y > line || y + ptr->height <= line)
+			continue;
+
 		if (ptr->parent == NULL) {
 			parent_y = 0;
 			parent_max_y = _t3_terminal_window->height;
@@ -454,10 +458,8 @@ t3_bool _t3_win_refresh_term_line(int line) {
 			} while (parent != NULL);
 		}
 
-		y = t3_win_get_abs_y(ptr);
-
-		/* Skip lines outside the visible area, or that are clipped by the parent window. */
-		if (y > line || y + ptr->height <= line || line < parent_y || line >= parent_max_y)
+		/* Skip lines that are clipped by the parent window. */
+		if (line < parent_y || line >= parent_max_y)
 			continue;
 
 		if (parent_x < 0)
@@ -621,6 +623,66 @@ void t3_win_clrtobot(t3_window_t *win) {
 		win->lines[win->paint_y].width = 0;
 		win->lines[win->paint_y].start = 0;
 	}
+}
+
+/** Find the top-most window at a location
+    @return The top-most window at the specified location, or @c NULL if no
+        window covers the specified location.
+*/
+t3_window_t *t3_win_at_location(int search_y, int search_x) {
+	t3_window_t *ptr, *result = NULL;
+	int y, x, parent_y, parent_x, parent_max_y, parent_max_x;
+
+	for (ptr = _t3_tail; ptr != NULL; ptr = _get_previous_window(ptr)) {
+		/* if (ptr->lines == NULL)
+			continue; */
+
+		if (!_t3_win_is_shown(ptr))
+			continue;
+
+		y = t3_win_get_abs_y(ptr);
+		if (y > search_y || y + ptr->height <= search_y)
+			continue;
+
+		x = t3_win_get_abs_x(ptr);
+		if (x > search_x || x + ptr->width <= search_x)
+			continue;
+
+		if (ptr->parent != NULL) {
+			t3_window_t *parent = ptr->parent;
+			parent_y = INT_MIN;
+			parent_max_y = INT_MAX;
+			parent_x = INT_MIN;
+			parent_max_x = INT_MAX;
+
+			do {
+				int tmp;
+				tmp = t3_win_get_abs_y(parent);
+				if (tmp > parent_y)
+					parent_y = tmp;
+				tmp += parent->height;
+				if (tmp < parent_max_y)
+					parent_max_y = tmp;
+
+				tmp = t3_win_get_abs_x(parent);
+				if (tmp > parent_x)
+					parent_x = tmp;
+				tmp += parent->width;
+				if (tmp < parent_max_x)
+					parent_max_x = tmp;
+
+				parent = parent->parent;
+			} while (parent != NULL);
+
+			if (search_y < parent_y || search_y >= parent_max_y)
+				continue;
+			if (search_x < parent_x || search_x >= parent_max_x)
+				continue;
+		}
+
+		result = ptr;
+	}
+	return result;
 }
 
 /** @} */

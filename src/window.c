@@ -456,6 +456,11 @@ int t3_win_get_relation(t3_window_t *win, t3_window_t **anchor) {
 	return win->relation;
 }
 
+/** Get a t3_window_t's parent window. */
+t3_window_t *t3_win_get_parent(t3_window_t *win) {
+	return win->parent;
+}
+
 /** Get a t3_window_t's absolute horizontal position. */
 int t3_win_get_abs_x(t3_window_t *win) {
 	int result;
