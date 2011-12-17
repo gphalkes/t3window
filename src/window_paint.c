@@ -382,17 +382,23 @@ int t3_win_addchrep(t3_window_t *win, char c, t3_attr_t attr, int rep) { return 
 /** Get the next t3_window_t, when iterating over the t3_window_t's for drawing.
     @param ptr The last t3_window_t that was handled.
 */
-static t3_window_t *_get_previous_window(t3_window_t *ptr) {
-	if (ptr->tail != NULL)
+static t3_window_t *get_previous_window(t3_window_t *ptr) {
+	if (ptr->shown && ptr->tail != NULL)
 		return ptr->tail;
 
-	if (ptr->prev != NULL)
-		return ptr->prev;
+	while (ptr->prev != NULL) {
+		ptr = ptr->prev;
+		if (ptr->shown)
+			return ptr;
+	}
 
 	while (ptr->parent != NULL) {
-		if (ptr->parent->prev != NULL)
-			return ptr->parent->prev;
 		ptr = ptr->parent;
+		while (ptr->prev != NULL) {
+			ptr = ptr->prev;
+			if (ptr->shown)
+				return ptr;
+		}
 	}
 	return NULL;
 }
@@ -415,11 +421,9 @@ t3_bool _t3_win_refresh_term_line(int line) {
 	_t3_terminal_window->lines[line].length = 0;
 	_t3_terminal_window->lines[line].start = 0;
 
-	for (ptr = _t3_tail; ptr != NULL; ptr = _get_previous_window(ptr)) {
+	for (ptr = _t3_tail != NULL && !_t3_tail->shown ? get_previous_window(_t3_tail) : _t3_tail;
+			ptr != NULL; ptr = get_previous_window(ptr)) {
 		if (ptr->lines == NULL)
-			continue;
-
-		if (!_t3_win_is_shown(ptr))
 			continue;
 
 		y = t3_win_get_abs_y(ptr);
@@ -633,12 +637,8 @@ t3_window_t *t3_win_at_location(int search_y, int search_x) {
 	t3_window_t *ptr, *result = NULL;
 	int y, x, parent_y, parent_x, parent_max_y, parent_max_x;
 
-	for (ptr = _t3_tail; ptr != NULL; ptr = _get_previous_window(ptr)) {
-		/* if (ptr->lines == NULL)
-			continue; */
-
-		if (!_t3_win_is_shown(ptr))
-			continue;
+	for (ptr = _t3_tail != NULL && !_t3_tail->shown ? get_previous_window(_t3_tail) : _t3_tail;
+			ptr != NULL; ptr = get_previous_window(ptr)) {
 
 		y = t3_win_get_abs_y(ptr);
 		if (y > search_y || y + ptr->height <= search_y)
