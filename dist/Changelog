@@ -5,6 +5,11 @@ Version 0.1.4:
 	Miscelaneous changes:
 	- Use libunistring instead of libt3unicode.
 
+	Bug fixes:
+	- Alternate character set characters are now no longer pushed through the
+	  character set conversion routines.
+	- Detection of UTF-8 capabilities is improved and more conservative.
+
 Version 0.1.3:
 	Miscelaneous changes:
 	- Follow libtranscript API change.
