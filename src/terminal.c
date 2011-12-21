@@ -624,7 +624,10 @@ void t3_term_update(void) {
 				}
 			}
 			if (_t3_attrs & _T3_ATTR_ACS) {
-				t3_term_putc(_t3_alternate_chars[_t3_terminal_window->lines[i].data[j] & _T3_CHAR_MASK]);
+				/* ACS characters should be passed directly to the terminal, without
+				   character-set conversion. */
+				_t3_output_buffer_print();
+				fputc(_t3_alternate_chars[_t3_terminal_window->lines[i].data[j] & _T3_CHAR_MASK], _t3_putp_file);
 			} else if (_t3_terminal_window->lines[i].data[j] & _T3_ATTR_FALLBACK_ACS) {
 				t3_term_puts(get_default_acs(_t3_terminal_window->lines[i].data[j] & _T3_CHAR_MASK));
 			} else {

@@ -1,4 +1,7 @@
 Version 0.1.4:
+	New features:
+	- Added a routine to retrieve the visible window at a specific coordinate.
+
 	Miscelaneous changes:
 	- Use libunistring instead of libt3unicode.
 

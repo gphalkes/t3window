@@ -6,6 +6,6 @@ Name: libt3window
 Description: Terminal windowing library
 Version: <VERSION>
 URL: http://os.ghalkes.nl/t3/libt3window.html
-Requires.private: libtranscript libt3unicode
+Requires.private: libtranscript
 Cflags: -I${includedir}/t3/window
 Libs: -L${libdir} -lt3window
