@@ -74,27 +74,27 @@ TEST("\x2e\x81\x30\xc4\x36", /* GB-18030 version */
 
 /* [4.1] U+002E FULL STOP / U+0358 COMBINING DOT ABOVE RIGHT */
 TEST("\x2e\xcd\x98",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1)
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1 && _t3_term_combining == T3_UNICODE_40)
 		_t3_term_combining = T3_UNICODE_41;
 )
 /* [5.0] U+002E FULL STOP / U+1DC4 COMBINING MACRON-ACUTE */
 TEST("\x2e\xe1\xb7\x84",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1)
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1 && _t3_term_combining == T3_UNICODE_41)
 		_t3_term_combining = T3_UNICODE_50;
 )
 /* [5.1] U+002E FULL STOP / U+0487 COMBINING CYRILLIC POKRYTIE */
 TEST("\x2e\xd2\x87",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1)
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1 && _t3_term_combining == T3_UNICODE_50)
 		_t3_term_combining = T3_UNICODE_51;
 )
-/* [5.2] U+081B SAMARITAN MARK EPENTHETIC YUT */
-TEST("\xe0\xa0\x9b",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1)
+/* [5.2] U+002E FULL STOP / U+081B SAMARITAN MARK EPENTHETIC YUT */
+TEST("\x2e\xe0\xa0\x9b",
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1 && _t3_term_combining == T3_UNICODE_51)
 		_t3_term_combining = T3_UNICODE_52;
 )
-/* [6.0] U+0859 MANDAIC AFFRICATION MARK */
-TEST("\xe0\xa1\x99",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1)
+/* [6.0] U+002E FULL STOP / U+0859 MANDAIC AFFRICATION MARK */
+TEST("\x2e\xe0\xa1\x99",
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1 && _t3_term_combining == T3_UNICODE_52)
 		_t3_term_combining = T3_UNICODE_60;
 )
 
@@ -107,23 +107,23 @@ TEST("\xe5\x88\x88\xef\xb9\x87",
 )
 /* [4.1] U+FE10 PRESENTATION FORM FOR VERTICAL COMMA */
 TEST("\xef\xb8\x90",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2)
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2 && _t3_term_double_width == T3_UNICODE_40)
 		_t3_term_double_width = T3_UNICODE_41;
 )
 /* No new wide characters were introduced in Unicode 5.0. */
 /* [5.1] U+31DC CJK STROKE PZ */
 TEST("\xe3\x87\x9c",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2)
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2 && _t3_term_double_width == T3_UNICODE_41)
 		_t3_term_double_width = T3_UNICODE_51;
 )
 /* [5.2] U+3244 CIRCLED IDEOGRAPH QUESTION */
 TEST("\xe3\x89\x84",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2)
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2 && _t3_term_double_width == T3_UNICODE_51)
 		_t3_term_double_width = T3_UNICODE_52;
 )
 /* [6.0] U+31B8 BOPOMOFO LETTER GH */
 TEST("\xe3\x86\xb8",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2)
+	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 2 && _t3_term_double_width == T3_UNICODE_52)
 		_t3_term_double_width = T3_UNICODE_60;
 )
 
