@@ -219,6 +219,7 @@ T3_WINDOW_API const char *t3_window_strerror(int error);
 /** @} */
 
 T3_WINDOW_API int t3_term_init(int fd, const char *term);
+T3_WINDOW_API void t3_term_deinit(void);
 T3_WINDOW_API void t3_term_restore(void);
 T3_WINDOW_API const char *t3_term_get_codeset(void);
 T3_WINDOW_API int t3_term_get_keychar(int msec);

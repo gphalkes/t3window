@@ -17,7 +17,8 @@
 #include "terminal.h"
 
 T3_WINDOW_LOCAL t3_bool _t3_init_output_buffer(void);
-T3_WINDOW_LOCAL t3_bool _t3_init_output_convertor(const char *encoding);
+T3_WINDOW_LOCAL void _t3_free_output_buffer(void);
+T3_WINDOW_LOCAL t3_bool _t3_init_output_converter(const char *encoding);
 T3_WINDOW_LOCAL void _t3_output_buffer_print(void);
 
 #endif

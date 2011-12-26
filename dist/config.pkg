@@ -53,10 +53,11 @@ int main(int argc, char *argv[]) {
 	isatty(argc);
 	tcgetattr(argc, &attrs);
 	tcsetattr(argc, TCSADRAIN, &attrs);
+	dup(STDOUT_FILENO);
 	return 0;
 }
 EOF
-	test_link "fdopen/isatty/tcgetattr/tcsetattr" || error "!! Some required functionality is not available. See config.log for details."
+	test_link "fdopen/isatty/tcgetattr/tcsetattr/dup" || error "!! Some required functionality is not available. See config.log for details."
 
 	clean_c
 	cat > .config.c <<EOF

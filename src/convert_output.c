@@ -33,7 +33,7 @@
 
 static char *output_buffer;
 static size_t output_buffer_size, output_buffer_idx;
-static transcript_t *output_convertor = NULL;
+static transcript_t *output_converter = NULL;
 
 static char *nfc_output;
 static size_t nfc_output_size;
@@ -48,27 +48,43 @@ static void print_replacement_character(void);
     @brief Initialize the output buffer used for accumulating output characters.
 */
 t3_bool _t3_init_output_buffer(void) {
+	if (output_buffer != NULL)
+		return t3_true;
 	output_buffer_size = 160;
 	return (output_buffer = malloc(output_buffer_size)) != NULL;
+}
+
+/** @internal
+    @brief Free all memory associated with the output conversion.
+*/
+void _t3_free_output_buffer(void) {
+	if (output_buffer != NULL) {
+		free(output_buffer);
+		output_buffer = NULL;
+	}
+	if (output_converter != NULL) {
+		transcript_close_converter(output_converter);
+		output_converter = NULL;
+	}
 }
 
 /** @internal
     @brief Initialize the characterset conversion used for output.
     @param encodig The encoding to convert to.
 */
-t3_bool _t3_init_output_convertor(const char *encoding) {
+t3_bool _t3_init_output_converter(const char *encoding) {
 	char squashed_name[10];
 
-	if (output_convertor != NULL)
-		transcript_close_converter(output_convertor);
+	if (output_converter != NULL)
+		transcript_close_converter(output_converter);
 
 	transcript_normalize_name(encoding, squashed_name, sizeof(squashed_name));
 	if (strcmp(squashed_name, "utf8") == 0) {
-		output_convertor = NULL;
+		output_converter = NULL;
 		return t3_true;
 	}
 
-	if ((output_convertor = transcript_open_converter(encoding, TRANSCRIPT_UTF8, 0, NULL)) == NULL)
+	if ((output_converter = transcript_open_converter(encoding, TRANSCRIPT_UTF8, 0, NULL)) == NULL)
 		return t3_false;
 
 	convert_replacement_char(replacement_char);
@@ -135,7 +151,7 @@ void _t3_output_buffer_print(void) {
 	}
 
 	//FIXME: for GB18030 we should also take the first option. However, it does need conversion...
-	if (output_convertor == NULL) {
+	if (output_converter == NULL) {
 #if 1
 		size_t idx, codepoint_len, output_start;
 		uint32_t c;
@@ -178,7 +194,7 @@ void _t3_output_buffer_print(void) {
 		/* Convert UTF-8 sequence into current output encoding using transcript_from_unicode. */
 		while (conversion_input_ptr < conversion_input_end) {
 			conversion_output_ptr = conversion_output;
-			switch (transcript_from_unicode(output_convertor, &conversion_input_ptr, conversion_input_end,
+			switch (transcript_from_unicode(output_converter, &conversion_input_ptr, conversion_input_end,
 					&conversion_output_ptr, conversion_output + CONV_BUFFER_LEN, TRANSCRIPT_END_OF_TEXT))
 			{
 				default: {
@@ -198,7 +214,7 @@ void _t3_output_buffer_print(void) {
 					/* Ensure that the conversion ends in the 'initial state', because after this we will
 					   be outputing replacement characters. */
 					conversion_output_ptr = conversion_output;
-					transcript_from_unicode_flush(output_convertor, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
+					transcript_from_unicode_flush(output_converter, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
 					if (conversion_output_ptr != conversion_output)
 						fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 
@@ -223,7 +239,7 @@ void _t3_output_buffer_print(void) {
 		/* Ensure that the conversion ends in the 'initial state', because after this we will
 		   be outputing escape sequences. */
 		conversion_output_ptr = conversion_output;
-		transcript_from_unicode_flush(output_convertor, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
+		transcript_from_unicode_flush(output_converter, &conversion_output_ptr, conversion_output + CONV_BUFFER_LEN);
 		if (conversion_output_ptr != conversion_output)
 			fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
 	}
@@ -264,7 +280,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		nfc_output_len = 1;
 	}
 
-	if (output_convertor == NULL) {
+	if (output_converter == NULL) {
 		size_t idx, codepoint_len;
 		uint_fast8_t available_since;
 		uint32_t c;
@@ -291,12 +307,12 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		/* Convert UTF-8 sequence into current output encoding using transcript_from_unicode. */
 		while (conversion_input_ptr < conversion_input_end) {
 			conversion_output_ptr = conversion_output;
-			switch (transcript_from_unicode(output_convertor, &conversion_input_ptr, conversion_input_end,
+			switch (transcript_from_unicode(output_converter, &conversion_input_ptr, conversion_input_end,
 					&conversion_output_ptr, conversion_output + CONV_BUFFER_LEN, TRANSCRIPT_END_OF_TEXT))
 			{
 				default:
 					/* Reset conversion to initial state. */
-					transcript_from_unicode_reset(output_convertor);
+					transcript_from_unicode_reset(output_converter);
 					return t3_false;
 				case TRANSCRIPT_SUCCESS:
 				case TRANSCRIPT_NO_SPACE:	/* Not enough space in output buffer. Restart conversion with remaining chars. */
@@ -304,7 +320,7 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 			}
 		}
 		/* Reset conversion to initial state. */
-		transcript_from_unicode_reset(output_convertor);
+		transcript_from_unicode_reset(output_converter);
 		return t3_true;
 	}
 }
@@ -315,7 +331,7 @@ static void convert_replacement_char(uint32_t c) {
 	char *conversion_output_ptr;
 	const char *conversion_input_ptr;
 
-	if (output_convertor == NULL)
+	if (output_converter == NULL)
 		return;
 
 	memset(utf8_buffer, 0, sizeof(replacement_char));
@@ -324,10 +340,10 @@ static void convert_replacement_char(uint32_t c) {
 	conversion_input_ptr = (const char *) &utf8_buffer;
 	conversion_output_ptr = replacement_char_str;
 
-	if (transcript_from_unicode(output_convertor, &conversion_input_ptr, utf8_buffer + strlen(utf8_buffer),
+	if (transcript_from_unicode(output_converter, &conversion_input_ptr, utf8_buffer + strlen(utf8_buffer),
 			&conversion_output_ptr, replacement_char_str + sizeof(replacement_char_str), TRANSCRIPT_END_OF_TEXT) == TRANSCRIPT_SUCCESS
 			&&
-			transcript_from_unicode_flush(output_convertor, &conversion_output_ptr,
+			transcript_from_unicode_flush(output_converter, &conversion_output_ptr,
 			replacement_char_str + sizeof(replacement_char_str)) == TRANSCRIPT_SUCCESS)
 	{
 			replacement_char_length = conversion_output_ptr - replacement_char_str;
@@ -359,7 +375,7 @@ void t3_term_set_replacement_char(int c) {
 
 /** Print the replacement character. */
 static void print_replacement_character(void) {
-	if (output_convertor == NULL) {
+	if (output_converter == NULL) {
 		fwrite("\xef\xbf\xbd", 1, 3, _t3_putp_file);
 	} else {
 		fwrite(replacement_char_str, 1, replacement_char_length, _t3_putp_file);

@@ -290,6 +290,7 @@ static int isreset(const char *str) {
 static int init_sequences(const char *term) {
 	int error, ncv_int;
 	char *acsc;
+	char *enacs;
 
 	if ((error = _t3_setupterm(term, _t3_terminal_out_fd)) != 0) {
 		if (error == 3)
@@ -399,11 +400,18 @@ static int init_sequences(const char *term) {
 		if (ncv_int & (1<<5)) _t3_ncv |= T3_ATTR_BOLD;
 		if (ncv_int & (1<<8)) _t3_ncv |= T3_ATTR_ACS;
 	}
+
+	/* Enable alternate character set if required by terminal. */
+	if ((enacs = get_ti_string("enacs")) != NULL) {
+		_t3_putp(enacs);
+		free(enacs);
+	}
+
 	return T3_ERR_SUCCESS;
 }
 
 /** Initialize the terminal.
-    @param fd The file descriptor of the terminal or -1 for default/last used.
+    @param fd The file descriptor of the terminal or -1 for default.
     @param term The name of the terminal, or @c NULL to use the @c TERM environment variable.
     @return One of: ::T3_ERR_SUCCESS, ::T3_ERR_NOT_A_TTY, ::T3_ERR_ERRNO, ::T3_ERR_HARDCOPY_TERMINAL,
         ::T3_ERR_TERMINFODB_NOT_FOUND, ::T3_ERR_UNKNOWN, ::T3_ERR_TERMINAL_TOO_LIMITED,
@@ -414,9 +422,9 @@ static int init_sequences(const char *term) {
     be called before this function.
 
     If standard input/output should be used as the terminal, -1 should be
-    passed. However, if a previous call to ::t3_term_init has set the terminal
-    to another value, using -1 as the file descriptor will use the previous
-    value passed unless the previous call resulted in ::T3_ERR_NOT_A_TTY.
+    passed. When calling t3_term_init multiple times (necessary when
+    t3_term_restore was called), only the first successful call will inspect
+    the @p fd and @p term parameters.
 
     The terminal is initialized to raw mode such that echo is disabled
     (characters typed are not shown), control characters are passed to the
@@ -431,30 +439,36 @@ int t3_term_init(int fd, const char *term) {
 #elif defined(HAS_SIZE_IOCTL)
 	struct ttysize wsz;
 #endif
-	char *enacs;
 	struct termios new_params;
 
 	if (initialised)
 		return T3_ERR_SUCCESS;
 
-	if (fd >= 0) {
-		if ((_t3_putp_file = fdopen(fd, "w")) == NULL)
+	if (_t3_putp != NULL) {
+		/* We dup the fd, because when we use fclose on the FILE that we fdopen
+		   it will close the underlying fd. This should not however close the
+		   fd we have been passed or STDOUT. */
+		if (fd >= 0) {
+			if (!isatty(fd))
+				return T3_ERR_NOT_A_TTY;
+			if ((_t3_terminal_in_fd = _t3_terminal_out_fd = dup(fd)) == -1)
+				return T3_ERR_ERRNO;
+		} else if (_t3_putp_file == NULL) {
+			if (!isatty(STDOUT_FILENO) || !isatty(STDIN_FILENO))
+				return T3_ERR_NOT_A_TTY;
+			if ((_t3_terminal_out_fd = dup(STDOUT_FILENO)) == -1)
+				return T3_ERR_ERRNO;
+			_t3_terminal_in_fd = STDIN_FILENO;
+		}
+
+		if ((_t3_putp_file = fdopen(_t3_terminal_out_fd, "w")) == NULL) {
+			close(_t3_terminal_out_fd);
 			return T3_ERR_ERRNO;
-		_t3_terminal_out_fd = fd;
-		_t3_terminal_in_fd = fd;
-	} else if (_t3_putp_file == NULL) {
-		/* Unfortunately stdout is not a constant, and _putp_file can therefore not be
-		   initialized statically. */
-		_t3_terminal_out_fd = STDOUT_FILENO;
-		_t3_terminal_in_fd = STDIN_FILENO;
-		_t3_putp_file = stdout;
+		}
+
+		FD_ZERO(&_t3_inset);
+		FD_SET(_t3_terminal_in_fd, &_t3_inset);
 	}
-
-	if (!isatty(_t3_terminal_in_fd) || !isatty(_t3_terminal_out_fd))
-		return T3_ERR_NOT_A_TTY;
-
-	FD_ZERO(&_t3_inset);
-	FD_SET(_t3_terminal_in_fd, &_t3_inset);
 
 	/* FIXME: we should check whether the same value is passed for term each time,
 	   or tell the user that only the first time is relevant. */
@@ -491,7 +505,7 @@ int t3_term_init(int fd, const char *term) {
 		const char *charset = transcript_get_codeset();
 		strncpy(_t3_current_charset, charset, sizeof(_t3_current_charset) - 1);
 		_t3_current_charset[sizeof(_t3_current_charset) - 1] = '\0';
-		if (!_t3_init_output_convertor(_t3_current_charset))
+		if (!_t3_init_output_converter(_t3_current_charset))
 			return T3_ERR_CHARSET_ERROR;
 
 		_t3_set_alternate_chars_defaults();
@@ -557,12 +571,6 @@ int t3_term_init(int fd, const char *term) {
 		_t3_putp(_t3_civis);
 	_t3_do_cup(_t3_cursor_y, _t3_cursor_x);
 
-	/* Enable alternate character set if required by terminal. */
-	if ((enacs = get_ti_string("enacs")) != NULL) {
-		_t3_putp(enacs);
-		free(enacs);
-	}
-
 	/* Set the attributes of the terminal to a known value. */
 	_t3_set_attrs(0);
 
@@ -597,4 +605,48 @@ void t3_term_restore(void) {
 		tcsetattr(_t3_terminal_in_fd, TCSADRAIN, &saved);
 		initialised = t3_false;
 	}
+}
+
+#define CLEAR(x, func) do { if (x != NULL) { func(x); x = NULL; } } while (0)
+/** Free all memory allocated by libt3window.
+
+    This function releases all memory allocated by libt3window, and allows
+    libt3window to be initialized for a new terminal.
+*/
+void t3_term_deinit(void) {
+	t3_term_restore();
+	CLEAR(_t3_putp_file, fclose);
+
+	seqs_initialised = t3_false;
+	CLEAR(smcup, free);
+	CLEAR(rmcup, free);
+	CLEAR(_t3_clear, free);
+	CLEAR(_t3_cup, free);
+	CLEAR(_t3_hpa, free);
+	CLEAR(_t3_vpa, free);
+	CLEAR(_t3_sgr, free);
+	CLEAR(_t3_sgr0, free);
+	CLEAR(_t3_smul, free);
+	CLEAR(_t3_rmul, free);
+	CLEAR(_t3_bold, free);
+	CLEAR(_t3_rev, free);
+	CLEAR(_t3_blink, free);
+	CLEAR(_t3_dim, free);
+	CLEAR(_t3_smacs, free);
+	CLEAR(_t3_rmacs, free);
+	CLEAR(_t3_setaf, free);
+	CLEAR(_t3_setf, free);
+	CLEAR(_t3_setab, free);
+	CLEAR(_t3_setb, free);
+	CLEAR(_t3_scp, free);
+	CLEAR(_t3_op, free);
+	CLEAR(_t3_el, free);
+	CLEAR(_t3_sc, free);
+	CLEAR(_t3_rc, free);
+	CLEAR(_t3_civis, free);
+	CLEAR(_t3_cnorm, free);
+
+	CLEAR(_t3_terminal_window, t3_win_del);
+	CLEAR(_t3_old_data.data, free);
+	_t3_free_output_buffer();
 }

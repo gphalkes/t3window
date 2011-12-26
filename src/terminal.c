@@ -529,7 +529,7 @@ void t3_term_update(void) {
 	int i, j;
 
 	if (_t3_detection_needs_finishing) {
-		_t3_init_output_convertor(_t3_current_charset);
+		_t3_init_output_converter(_t3_current_charset);
 		_t3_set_alternate_chars_defaults();
 		t3_win_set_paint(_t3_terminal_window, 0, 0);
 		t3_win_clrtobot(_t3_terminal_window);
