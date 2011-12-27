@@ -1,3 +1,8 @@
+Version 0.1.5:
+	New features:
+	- Added a function to release all memory allocated internally by
+	  libt3window, to aid in debugging.
+
 Version 0.1.4:
 	New features:
 	- Added a routine to retrieve the visible window at a specific coordinate.

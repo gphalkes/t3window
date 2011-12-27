@@ -66,6 +66,11 @@ void _t3_free_output_buffer(void) {
 		transcript_close_converter(output_converter);
 		output_converter = NULL;
 	}
+	if (nfc_output != NULL) {
+		free(nfc_output);
+		nfc_output_size = 0;
+		nfc_output = NULL;
+	}
 }
 
 /** @internal

@@ -318,7 +318,8 @@ t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restrictw) {
 /** Discard a t3_window_t.
     @param win The t3_window_t to discard.
 
-    Note that child windows are @em not automatically discarded as well.
+    Note that child windows are @em not automatically discarded as well. All
+    child windows have their parent attribute set to @c NULL.
 */
 void t3_win_del(t3_window_t *win) {
 	int i;
@@ -326,6 +327,9 @@ void t3_win_del(t3_window_t *win) {
 		return;
 
 	_t3_remove_window(win);
+	/* Make child windows stand alone windows. */
+	while (win->head != NULL)
+		t3_win_set_parent(win->head, NULL);
 
 	if (win->lines != NULL) {
 		for (i = 0; i < win->height; i++)

@@ -649,4 +649,5 @@ void t3_term_deinit(void) {
 	CLEAR(_t3_terminal_window, t3_win_del);
 	CLEAR(_t3_old_data.data, free);
 	_t3_free_output_buffer();
+	transcript_finalize();
 }
