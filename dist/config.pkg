@@ -120,9 +120,9 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 EOF
-	if pkgconfig tinfo CURSES test_link ; then
+	if pkgconfig tinfo CURSES test_link PKGCONFIG_REQUIRES_PRIVATE; then
 		:
-	elif pkgconfig ncurses CURSES test_link ; then
+	elif pkgconfig ncurses CURSES test_link PKGCONFIG_REQUIRES_PRIVATE ; then
 		:
 	elif test_compile "curses header file" ; then
 		if test_link "terminfo access functions in -ltinfo" "TESTLIBS=-ltinfo" ; then
@@ -136,6 +136,7 @@ EOF
 				error "!! Can not find curses/tinfo library. The curses/tinfo library is required to compile libt3window."
 			fi
 		fi
+		PKGCONFIG_LIBS_PRIVATE="$PKGCONFIG_LIBS_PRIVATE ${CURSES_LIBS}"
 	else
 		error "!! Can not find curses/tinfo library. The curses/tinfo library is required to compile libt3window."
 	fi
@@ -149,7 +150,8 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 EOF
-	pkgconfig libtranscript/0.2.2 LIBTRANSCRIPT test_link || \
+
+	pkgconfig libtranscript/0.2.2 LIBTRANSCRIPT test_link PKGCONFIG_REQUIRES_PRIVATE || \
 		error "!! Can not find libtranscript. libtranscript is required to compile libt3window."
 
 	clean_c
@@ -171,6 +173,14 @@ int main(int argc, char *argv[]) {
 EOF
 	test_link "libunistring" "TESTLIBS=-lunistring" || \
 		error "!! Can not find libunistring library. Libunistring is required to compile libt3window."
+
+	PKGCONFIG_DESC="Terminal windowing library"
+	PKGCONFIG_VERSION="<VERSION>"
+	PKGCONFIG_URL="http://os.ghalkes.nl/t3/libt3window.html"
+	PKGCONFIG_LIBS="-lt3window"
+	PKGCONFIG_LIBS_PRIVATE="$PKGCONFIG_LIBS_PRIVATE -lunistring"
+
+	gen_pkgconfig libt3window
 
 	create_makefile "CONFIGFLAGS=${CONFIGFLAGS} ${LIBTRANSCRIPT_FLAGS} ${CURSES_FLAGS}" "CONFIGLIBS=${CONFIGLIBS} ${LIBTRANSCRIPT_LIBS} -lunistring ${CURSES_LIBS}"
 }
