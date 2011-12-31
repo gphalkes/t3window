@@ -26,8 +26,8 @@ Prerequisites and installation
 ==============================
 
 libt3window requires the GNU libtool utility to be compiled. Furthermore, it
-requires (n)curses for access to the terminfo database, libtranscript and
-libunistring.
+requires (n)curses or ncurses's libtinfo for access to the terminfo database,
+libtranscript and libunistring.
 
 There are two ways in which to compile libt3window:
 
