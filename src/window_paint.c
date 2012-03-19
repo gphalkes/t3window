@@ -100,7 +100,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		extra_spaces = win->width - win->paint_x - width;
 	n = k;
 
-	if (win->cached_pos_line != win->paint_y || win->cached_pos_width >= win->paint_x) {
+	if (win->cached_pos_line != win->paint_y || win->cached_pos_width > win->paint_x) {
 		win->cached_pos_line = win->paint_y;
 		win->cached_pos = 0;
 		win->cached_pos_width = win->lines[win->paint_y].start;
@@ -178,6 +178,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
 		win->lines[win->paint_y].start = win->paint_x;
+		/* Inserting before existing characters invalidates the cached position. */
 		win->cached_pos_line = -1;
 	} else {
 		/* Character (partly) overwrite existing chars. */
@@ -251,6 +252,7 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		if (win->lines[win->paint_y].start > win->paint_x) {
 			win->lines[win->paint_y].width += win->lines[win->paint_y].start - win->paint_x;
 			win->lines[win->paint_y].start = win->paint_x;
+			win->cached_pos_line = -1;
 		}
 	}
 	win->paint_x += width;
