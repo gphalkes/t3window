@@ -1,3 +1,10 @@
+Version 0.1.6:
+	Bug fixes:
+	- Using characters with a zero attribute caused incorrect positioning of
+	  text placed over the top of it, when the upper text started to the left
+	  of the lower text and overlapped with the lower text. This was mainly
+	  visible when using the black-and-white mode.
+
 Version 0.1.5:
 	New features:
 	- Added a function to release all memory allocated internally by
