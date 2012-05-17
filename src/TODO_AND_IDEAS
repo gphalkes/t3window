@@ -21,7 +21,6 @@ Sets meta key handling mode. argp is a long equal to one of the above values.
   else will be replaced by replacement char), which can be controlled by the
   user, is desirable. This can prevent corruptions like the gnome-terminal one
   where some characters are drawn 2 cells wide, while only occupying 1.
-- split files to be more manageble
 
 Low Priority
 ============
@@ -97,6 +96,39 @@ Low Priority
   The final feature is that the bits in the third word are aligned such that
   they require a minimum of masking and shifting [Unfortunately, the width bits
   are in the way for even less shifting]
+
+  ====
+  A third way, which is probably quite space efficient and also allows quicker
+  scanning of strings, is to use the following encoding:
+
+  Length | Attribute Index | UTF-8 string
+
+  Each quantity is UTF-8 encoded to allow small values to be encoded as a
+  single byte. Attribute index is simply an index into a table of t3_attr_t
+  values indicating the required attribute. This table must be searched before
+  inserting new values into the string, and possibly extended if that
+  particular attribute combination was not used previously. However, because
+  only few attribute values are actually used, this will not be a problem, and
+  the attributes will mostly be encoded by a single byte. [ possibly a garbage
+  collection function for attribute indices can be added, but this will require
+  a full scan of the window stack ]
+
+  The length field should encode two lengths: the width in cells and the number
+  of bytes of this coded block. If reverse scanning is also required, the
+  length field can be repeated at the end of the block. The UTF-8 string should
+  contain all combining characters as well, such that if a new value is written
+  for a cell, simply removing the associated encoded block sufices. This also
+  means that the cell width is either 1 or 2, making a single bit sufficient
+  for encoding it.
+
+  Using this encoding will actually make it more efficient for window-to-window
+  copying of strings, because only the length field needs to be inspected. It
+  is however best to copy/overwrite complete strings in one go, to prevent
+  unnecessary memory moves.
+
+  The only real issue is insertion of zero width characters (combining chars),
+  because they require updating encoded blocks rather than handling an encoded
+  block as a whole.
 
 Ideas
 =====
