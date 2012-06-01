@@ -444,7 +444,7 @@ int t3_term_init(int fd, const char *term) {
 	if (initialised)
 		return T3_ERR_SUCCESS;
 
-	if (_t3_putp != NULL) {
+	if (_t3_putp_file == NULL) {
 		/* We dup the fd, because when we use fclose on the FILE that we fdopen
 		   it will close the underlying fd. This should not however close the
 		   fd we have been passed or STDOUT. */
