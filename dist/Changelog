@@ -1,3 +1,9 @@
+Version 0.1.7:
+	Bug fixes:
+	- Fix two bugs in the initialisation code which would cause memory leaks
+	  when calling t3_term_init more than once (which is a normal use-case when
+	  suspending a program).
+
 Version 0.1.6:
 	Bug fixes:
 	- Using characters with a zero attribute caused incorrect positioning of
