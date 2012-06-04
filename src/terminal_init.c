@@ -38,7 +38,8 @@
 
 static struct termios saved; /**< Terminal state as saved in ::t3_term_init */
 static t3_bool initialised, /**< Boolean indicating whether the terminal has been initialised. */
-	seqs_initialised; /**< Boolean indicating whether the terminal control sequences have been initialised. */
+	seqs_initialised, /**< Boolean indicating whether the terminal control sequences have been initialised. */
+	transcript_init_done; /**< Boolean indicating whether @c transcript_init was called. */
 
 /** Store whether the terminal is actually the screen program.
 
@@ -500,7 +501,10 @@ int t3_term_init(int fd, const char *term) {
 		}
 	}
 
-	transcript_init();
+	if (!transcript_init_done) {
+		transcript_init();
+		transcript_init_done = t3_true;
+	}
 	if (!detection_done) {
 		const char *charset = transcript_get_codeset();
 		strncpy(_t3_current_charset, charset, sizeof(_t3_current_charset) - 1);
@@ -649,5 +653,8 @@ void t3_term_deinit(void) {
 	CLEAR(_t3_terminal_window, t3_win_del);
 	CLEAR(_t3_old_data.data, free);
 	_t3_free_output_buffer();
-	transcript_finalize();
+	if (transcript_init_done) {
+		transcript_finalize();
+		transcript_init_done = t3_false;
+	}
 }
