@@ -77,7 +77,7 @@ static t3_bool ensure_space(line_data_t *line, size_t n) {
 static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n) {
 	int width = 0;
 	int extra_spaces = 0;
-	int i, j;
+	int i;
 	size_t k;
 	t3_bool result = t3_true;
 	t3_chardata_t space = ' ' | _t3_term_attr_to_chardata(win->default_attrs);
@@ -120,13 +120,16 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 			return t3_false;
 
 		pos_width = win->cached_pos_width;
+		i = win->cached_pos;
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
-		for (i = win->cached_pos; i < win->lines[win->paint_y].length; i++) {
-			pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
-			if (pos_width >= win->paint_x)
-				break;
+		if (pos_width < win->paint_x) {
+			for (; i < win->lines[win->paint_y].length; i++) {
+				pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
+				if (pos_width >= win->paint_x)
+					break;
+			}
 		}
 
 		/* Check whether we are being asked to add a zero-width character in the middle
@@ -228,8 +231,6 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		end_replace = i;
 
 		end_spaces = pos_width > win->paint_x + width ? pos_width - win->paint_x - width : 0;
-
-		for (j = i; j < win->lines[win->paint_y].length && _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[j]) == 0; j++) {}
 
 		/* Move the existing characters out of the way. */
 		sdiff = n + end_spaces + start_spaces - (end_replace - start_replace);
