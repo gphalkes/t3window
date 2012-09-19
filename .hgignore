@@ -14,3 +14,5 @@ src/test
 doc/API
 doc/doxygen.conf
 doc/DoxygenLayout.xml
+testsuite/work
+testsuite/testlog*.txt
