@@ -635,6 +635,7 @@ void t3_term_update(void) {
 			}
 		}
 
+done:
 		/* Clear the terminal line if the new line is shorter than the old one. */
 		if ((_t3_terminal_window->lines[i].width < _t3_old_data.width || j < new_idx) && width < _t3_terminal_window->width) {
 			if (_t3_bce && (_t3_attrs & ~_T3_ATTR_FG_MASK) != 0)
@@ -649,8 +650,6 @@ void t3_term_update(void) {
 			}
 		}
 		_t3_output_buffer_print();
-
-done: /* Add empty statement to shut up compilers */ ;
 	}
 
 	/* _t3_set_attrs(0); */

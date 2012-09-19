@@ -543,8 +543,17 @@ t3_bool _t3_win_refresh_term_line(int line) {
 		_t3_terminal_window->paint_x = 0;
 		result &= _win_add_chardata(_t3_terminal_window, &space, 1);
 	}
-	if (_t3_terminal_window->lines[line].width + _t3_terminal_window->lines[line].start < _t3_terminal_window->width) {
+	/* If the default attributes for the terminal are not only a foreground color,
+	   we need to ensure that we paint the terminal. */
+	if ((_t3_terminal_window->default_attrs & ~T3_ATTR_FG_MASK) != 0 &&
+			_t3_terminal_window->lines[line].width + _t3_terminal_window->lines[line].start < _t3_terminal_window->width) {
 		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(_t3_terminal_window->default_attrs);
+		/* Make sure we fill the whole line. Adding the final character to an otherwise
+		   empty line doesn't do anything for us. */
+		if (_t3_terminal_window->lines[line].width == 0) {
+			_t3_terminal_window->paint_x = 0;
+			result &= _win_add_chardata(_t3_terminal_window, &space, 1);
+		}
 		_t3_terminal_window->paint_x = _t3_terminal_window->width - 1;
 		result &= _win_add_chardata(_t3_terminal_window, &space, 1);
 	}
