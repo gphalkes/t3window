@@ -653,6 +653,7 @@ void t3_term_deinit(void) {
 	CLEAR(_t3_terminal_window, t3_win_del);
 	CLEAR(_t3_old_data.data, free);
 	_t3_free_output_buffer();
+	_t3_free_attr_map();
 	if (transcript_init_done) {
 		transcript_finalize();
 		transcript_init_done = t3_false;

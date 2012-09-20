@@ -132,7 +132,7 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 /** Foreground color unspecified. */
 #define T3_ATTR_FG_UNSPEC ((t3_attr_t) 0L)
 /** Foreground color default. */
-#define T3_ATTR_FG_DEFAULT (((t3_attr_t) 256) << (T3_ATTR_COLOR_SHIFT))
+#define T3_ATTR_FG_DEFAULT (((t3_attr_t) 257) << (T3_ATTR_COLOR_SHIFT))
 /** Foreground color black. */
 #define T3_ATTR_FG_BLACK T3_ATTR_FG(0)
 /** Foreground color red. */
@@ -153,7 +153,7 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 /** Background color unspecified. */
 #define T3_ATTR_BG_UNSPEC ((t3_attr_t) 0L)
 /** Background color default. */
-#define T3_ATTR_BG_DEFAULT (((t3_attr_t) 256) << (T3_ATTR_COLOR_SHIFT + 9))
+#define T3_ATTR_BG_DEFAULT (((t3_attr_t) 257) << (T3_ATTR_COLOR_SHIFT + 9))
 /** Background color black. */
 #define T3_ATTR_BG_BLACK T3_ATTR_BG(0)
 /** Background color red. */

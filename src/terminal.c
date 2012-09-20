@@ -1,4 +1,4 @@
-/* Copyright (C) 2011 G.P. Halkes
+/* Copyright (C) 2011-2012 G.P. Halkes
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License version 3, as
    published by the Free Software Foundation.
@@ -304,6 +304,7 @@ t3_bool t3_term_resize(void) {
 static void set_attrs_non_ansi(t3_attr_t new_attrs) {
 	t3_attr_t attrs_basic_non_ansi = _t3_attrs & BASIC_ATTRS & ~_t3_ansi_attrs;
 	t3_attr_t new_attrs_basic_non_ansi = new_attrs & BASIC_ATTRS & ~_t3_ansi_attrs;
+	int color_nr;
 
 	if (attrs_basic_non_ansi != new_attrs_basic_non_ansi) {
 		t3_attr_t changed;
@@ -319,7 +320,7 @@ static void set_attrs_non_ansi(t3_attr_t new_attrs) {
 					0,
 					0,
 					new_attrs & T3_ATTR_ACS));
-				_t3_attrs = new_attrs & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK);
+				_t3_attrs = (new_attrs & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK)) | (_t3_attrs & (T3_ATTR_FG_MASK | T3_ATTR_BG_MASK));
 				attrs_basic_non_ansi = _t3_attrs & ~_t3_ansi_attrs;
 			} else {
 				/* Note that this will not be NULL if it is required because of
@@ -371,23 +372,26 @@ static void set_attrs_non_ansi(t3_attr_t new_attrs) {
 		}
 
 		if ((_t3_attrs & T3_ATTR_FG_MASK) != (new_attrs & T3_ATTR_FG_MASK)) {
+			color_nr = (new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT;
 			if (_t3_setaf != NULL)
-				_t3_putp(_t3_tparm(_t3_setaf, 1, attr_to_color[(new_attrs >> T3_ATTR_COLOR_SHIFT) & 0xf]));
+				_t3_putp(_t3_tparm(_t3_setaf, 1, color_nr < 9 ? attr_to_color[color_nr] : color_nr - 1));
 			else if (_t3_setf != NULL)
-				_t3_putp(_t3_tparm(_t3_setf, 1, attr_to_alt_color[(new_attrs >> T3_ATTR_COLOR_SHIFT) & 0xf]));
+				_t3_putp(_t3_tparm(_t3_setf, 1, color_nr < 9 ? attr_to_alt_color[color_nr] : color_nr - 1));
 		}
 
 		if ((_t3_attrs & T3_ATTR_BG_MASK) != (new_attrs & T3_ATTR_BG_MASK)) {
+			color_nr = (new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT;
 			if (_t3_setab != NULL)
-				_t3_putp(_t3_tparm(_t3_setab, 1, attr_to_color[(new_attrs >> (T3_ATTR_COLOR_SHIFT + 4)) & 0xf]));
+				_t3_putp(_t3_tparm(_t3_setab, 1, color_nr < 9 ? attr_to_color[color_nr] : color_nr - 1));
 			else if (_t3_setb != NULL)
-				_t3_putp(_t3_tparm(_t3_setb, 1, attr_to_alt_color[(new_attrs >> (T3_ATTR_COLOR_SHIFT + 4)) & 0xf]));
+				_t3_putp(_t3_tparm(_t3_setb, 1, color_nr < 9 ? attr_to_alt_color[color_nr] : color_nr - 1));
 		}
 	} else {
-		if ((new_attrs & T3_ATTR_FG_MASK) == 0)
+		color_nr = (new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT;
+		if (color_nr == 0)
 			_t3_putp(_t3_op);
 		else
-			_t3_putp(_t3_tparm(_t3_scp, 1, (new_attrs >> T3_ATTR_COLOR_SHIFT) & 0xf));
+			_t3_putp(_t3_tparm(_t3_scp, 1, color_nr - 1));
 	}
 }
 
@@ -457,19 +461,29 @@ void _t3_set_attrs(t3_attr_t new_attrs) {
 	}
 
 	if (changed_attrs & T3_ATTR_FG_MASK) {
-		char color[3];
-		color[0] = '3';
-		color[1] = '0' + attr_to_color[(new_attrs >> T3_ATTR_COLOR_SHIFT) & 0xf];
-		color[2] = 0;
+		char color[9];
+		int color_nr = ((new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT);
+		if (color_nr < 9) {
+			color[0] = '3';
+			color[1] = '0' + attr_to_color[color_nr];
+			color[2] = 0;
+		} else {
+			sprintf(color, "38;5;%d", color_nr - 1);
+		}
 		ADD_ANSI_SEP();
 		strcat(mode_string, color);
 	}
 
 	if (changed_attrs & T3_ATTR_BG_MASK) {
-		char color[3];
-		color[0] = '4';
-		color[1] = '0' + attr_to_color[(new_attrs >> (T3_ATTR_COLOR_SHIFT + 9)) & 0xf];
-		color[2] = 0;
+		char color[9];
+		int color_nr = ((new_attrs & T3_ATTR_BG_MASK) >> (T3_ATTR_COLOR_SHIFT + 9));
+		if (color_nr < 9) {
+			color[0] = '4';
+			color[1] = '0' + attr_to_color[color_nr];
+			color[2] = 0;
+		} else {
+			sprintf(color, "48;5;%d", color_nr - 1);
+		}
 		ADD_ANSI_SEP();
 		strcat(mode_string, color);
 	}
