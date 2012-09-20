@@ -26,6 +26,18 @@
 */
 #define UTF8_MAX_BYTES 4
 
+/* Attribute to index mapping. For now this uses a simple linear search. Should
+   this turn out to be too expensive, it can be easily replaced by a hash-table
+   based solution, an LRU cache with linear search or a sorted list with binary
+   search. Whatever the data structure used, by ensuring use of the internal API,
+   we can easily replace the implementation later.
+*/
+//FIXME: documentation
+static t3_attr_t *attr_map;
+static int attr_map_fill, attr_map_allocated;
+#define ATTR_MAP_START_SIZE 32
+
+
 /** @addtogroup t3window_win */
 /** @{ */
 
@@ -38,7 +50,7 @@
 */
 static t3_bool ensure_space(line_data_t *line, size_t n) {
 	int newsize;
-	t3_chardata_t *resized;
+	char *resized;
 
 	if (n > INT_MAX || INT_MAX - (int) n < line->length)
 		return t3_false;
@@ -56,31 +68,172 @@ static t3_bool ensure_space(line_data_t *line, size_t n) {
 			newsize *= 2;
 	} while (newsize - line->length < (int) n);
 
-	if ((resized = realloc(line->data, sizeof(t3_chardata_t) * newsize)) == NULL)
+	if ((resized = realloc(line->data, sizeof(t3_attr_t) * newsize)) == NULL)
 		return t3_false;
 	line->data = resized;
 	line->allocated = newsize;
 	return t3_true;
 }
 
-/** @internal
-    @brief Add character data to a t3_window_t at the current painting position.
-    @param win The t3_window_t to add the characters to.
-    @param str The characters to add as t3_chardata_t.
-    @param n The length of @p str.
-    @return A boolean indicating whether insertion succeeded (only fails on memory
-        allocation errors).
+//FIXME: documentation
+int _t3_map_attr(t3_attr_t attr) {
+	int idx;
 
-    This is the most complex and most central function of the library. All character
-    drawing eventually ends up here.
+	for (idx = 0; idx < attr_map_fill && attr_map[idx] != attr; idx++) {}
+	if (idx < attr_map_fill)
+		return idx;
+
+	if (attr_map_fill >= attr_map_allocated) {
+		int new_allocation = attr_map_allocated == 0 ? ATTR_MAP_START_SIZE : attr_map_allocated * 2;
+		t3_attr_t *new_map;
+
+		if ((new_map = realloc(attr_map, new_allocation * sizeof(t3_attr_t))) == NULL)
+			return -1;
+		attr_map = new_map;
+		attr_map_allocated = new_allocation;
+	}
+	attr_map[attr_map_fill++] = attr;
+	return attr_map_fill - 1;
+}
+
+//FIXME: documentation
+t3_attr_t _t3_get_attr(int idx) {
+	if (idx < 0 || idx > attr_map_fill)
+		return 0;
+	return attr_map[idx];
+}
+
+
+/** Get the first UTF-8 value encoded in a string.
+    @param src The UTF-8 string to parse.
+    @param size The location to store the size of the character.
+    @return The value at the start of @p src.
+
+    @note This function assumes that the input is a valid UTF-8 encoded value.
 */
-static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n) {
-	int width = 0;
-	int extra_spaces = 0;
-	int i;
-	size_t k;
-	t3_bool result = t3_true;
-	t3_chardata_t space = ' ' | _t3_term_attr_to_chardata(win->default_attrs);
+uint32_t _t3_get_value(const char *src, size_t *size) {
+	int bytes_left;
+	uint32_t retval;
+
+	switch ((uint8_t) src[0]) {
+		case  0: case  1: case  2: case  3: case  4: case  5: case  6: case  7:
+		case  8: case  9: case 10: case 11: case 12: case 13: case 14: case 15:
+		case 16: case 17: case 18: case 19: case 20: case 21: case 22: case 23:
+		case 24: case 25: case 26: case 27: case 28: case 29: case 30: case 31:
+		case 32: case 33: case 34: case 35: case 36: case 37: case 38: case 39:
+		case 40: case 41: case 42: case 43: case 44: case 45: case 46: case 47:
+		case 48: case 49: case 50: case 51: case 52: case 53: case 54: case 55:
+		case 56: case 57: case 58: case 59: case 60: case 61: case 62: case 63:
+		case 64: case 65: case 66: case 67: case 68: case 69: case 70: case 71:
+		case 72: case 73: case 74: case 75: case 76: case 77: case 78: case 79:
+		case 80: case 81: case 82: case 83: case 84: case 85: case 86: case 87:
+		case 88: case 89: case 90: case 91: case 92: case 93: case 94: case 95:
+		case  96: case  97: case  98: case  99: case 100: case 101: case 102: case 103:
+		case 104: case 105: case 106: case 107: case 108: case 109: case 110: case 111:
+		case 112: case 113: case 114: case 115: case 116: case 117: case 118: case 119:
+		case 120: case 121: case 122: case 123: case 124: case 125: case 126: case 127:
+			*size = 1;
+			return src[0];
+		case 194: case 195: case 196: case 197: case 198: case 199: case 200: case 201:
+		case 202: case 203: case 204: case 205: case 206: case 207: case 208: case 209:
+		case 210: case 211: case 212: case 213: case 214: case 215: case 216: case 217:
+		case 218: case 219: case 220: case 221: case 222: case 223:
+			bytes_left = 1;
+			retval = src[0] & 0x1F;
+			break;
+		case 224: case 225: case 226: case 227: case 228: case 229: case 230: case 231:
+		case 232: case 233: case 234: case 235: case 236: case 237: case 238: case 239:
+			bytes_left = 2;
+			retval = src[0] & 0x0F;
+			break;
+		case 240: case 241: case 242: case 243: case 244: case 245: case 246: case 247:
+			bytes_left = 3;
+			retval = src[0] & 0x07;
+			break;
+		case 248: case 249: case 250: case 251:
+			bytes_left = 4;
+			retval = src[0] & 0x03;
+			break;
+		case 252: case 253:
+			bytes_left = 5;
+			retval = src[1] & 1;
+	}
+
+	*size = bytes_left + 1;
+	src++;
+	for (; bytes_left > 0; bytes_left--)
+		retval = (retval << 6) | (src++[0] & 0x3f);
+	return retval;
+}
+
+/** Write a UTF-8 encoded value.
+    @param c The codepoint to convert.
+    @param dst The location to store the result.
+    @return The number of bytes stored in @p dst.
+
+    The value must be lower than 0x80000000 (i.e. at most 31 bits may be used).
+    No check is made for this however, so the calling code must ensure that this
+    is the case.
+*/
+size_t _t3_put_value(uint32_t c, char *dst) {
+	if (c < 0x80) {
+		dst[0] = c;
+		return 1;
+	} else if (c < 0x800) {
+		dst[0] = 0xc0 | (c >> 6);
+		dst[1] = 0x80 | (c & 0x3f);
+		return 2;
+	} else if (c < 0x10000) {
+		dst[0] = 0xe0 | (c >> 12);
+		dst[1] = 0x80 | ((c >> 6) & 0x3f);
+		dst[2] = 0x80 | (c & 0x3f);
+		return 3;
+	} else if (c < 0x200000) {
+		dst[0] = 0xf0 | (c >> 18);
+		dst[1] = 0x80 | ((c >> 12) & 0x3f);
+		dst[2] = 0x80 | ((c >> 6) & 0x3f);
+		dst[3] = 0x80 | (c & 0x3f);
+		return 4;
+	} else if (c < 0x4000000) {
+		dst[0] = 0xf8 | (c >> 24);
+		dst[1] = 0x80 | ((c >> 18) & 0x3f);
+		dst[1] = 0x80 | ((c >> 12) & 0x3f);
+		dst[2] = 0x80 | ((c >> 6) & 0x3f);
+		dst[3] = 0x80 | (c & 0x3f);
+		return 5;
+	} else {
+		dst[0] = 0xfc | (c >> 30);
+		dst[1] = 0x80 | ((c >> 24) & 0x3f);
+		dst[1] = 0x80 | ((c >> 18) & 0x3f);
+		dst[1] = 0x80 | ((c >> 12) & 0x3f);
+		dst[2] = 0x80 | ((c >> 6) & 0x3f);
+		dst[3] = 0x80 | (c & 0x3f);
+		return 6;
+	}
+}
+
+static size_t _create_space_block(int attr, char *out) {
+	size_t result_size;
+	result_size = _t3_put_value(attr, out + 1);
+	result_size++;
+	out[result_size] = ' ';
+	out[0] = result_size << 1;
+	result_size++;
+	return result_size;
+}
+
+uint32_t _t3_get_block_attr(const char *block) {
+	size_t discard;
+	for (block++; ((*block) & 0xc0) == 0x80; block++) {}
+
+	return _t3_get_value(block, &discard);
+}
+
+static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
+	uint32_t block_size, new_block_size;
+	size_t block_size_bytes, new_block_size_bytes;
+	char new_block_size_str[6];
+	int pos_width, i;
 
 	if (win->lines == NULL)
 		return t3_false;
@@ -90,14 +243,100 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 	if (win->paint_x >= win->width)
 		return t3_true;
 
-	for (k = 0; k < n; k++) {
-		if (win->paint_x + width + _T3_CHARDATA_TO_WIDTH(str[k]) > win->width)
-			break;
-		width += _T3_CHARDATA_TO_WIDTH(str[k]);
+	if (win->cached_pos_line != win->paint_y || win->cached_pos_width > win->paint_x) {
+		win->cached_pos_line = win->paint_y;
+		win->cached_pos = 0;
+		win->cached_pos_width = win->lines[win->paint_y].start;
 	}
 
-	if (k < n)
+	/* Simply drop characters that don't belong to any other character. */
+	if (win->lines[win->paint_y].length == 0 ||
+			win->paint_x <= win->lines[win->paint_y].start ||
+			win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width + 1)
+		return t3_true;
+
+	/* Ensure we have space for n characters, and possibly extend the block size header by 1. */
+	if (!ensure_space(win->lines + win->paint_y, n + 1))
+		return t3_false;
+
+	pos_width = win->cached_pos_width;
+
+	/* Locate the first character that at least partially overlaps the position
+	   where this string is supposed to go. */
+	if (pos_width < win->paint_x) {
+		for (i = win->cached_pos; i < win->lines[win->paint_y].length; i += (block_size >> 1) + block_size_bytes) {
+			block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
+			pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+
+			/* Do the check for whether we found the insertion point here, so we don't update i. */
+			if (pos_width >= win->paint_x)
+				break;
+		}
+	}
+
+	/* Check whether we are being asked to add a zero-width character in the middle
+	   of a double-width character. If so, ignore. */
+	if (pos_width > win->paint_x)
+		return t3_true;
+
+	new_block_size = block_size + (n << 1);
+	new_block_size_bytes = _t3_put_value(new_block_size, new_block_size_str);
+
+	/* WARNING: from this point on, the block_size and new_block_size variables have
+	   a new meaning: the actual size of the block, rather than including the bit
+	   indicating the width of the character as well. */
+	block_size >>= 1;
+	new_block_size >>= 1;
+
+	/* Move the data after the insertion point up by the size of the character
+	   string to insert and the difference in block size header size. */
+	memmove(win->lines[win->paint_y].data + i + new_block_size + new_block_size_bytes,
+		win->lines[win->paint_y].data + i + block_size + block_size_bytes,
+		win->lines[win->paint_y].length - i - block_size - block_size_bytes);
+	/* Copy the bytes of the new character into the string. */
+	memcpy(win->lines[win->paint_y].data + i + block_size + block_size_bytes, str, n);
+	/* If applicable, move the data for this block by the difference in block size header size. */
+	if (new_block_size_bytes != block_size_bytes) {
+		memmove(win->lines[win->paint_y].data + i + new_block_size_bytes,
+			win->lines[win->paint_y].data + i + block_size_bytes, new_block_size);
+	}
+	/* Copy in the new block size header. */
+	memcpy(win->lines[win->paint_y].data + i, new_block_size_str, new_block_size_bytes);
+
+	win->lines[win->paint_y].length += n + (new_block_size_bytes - block_size_bytes);
+	return t3_true;
+}
+
+static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n) {
+	uint32_t block_size;
+	size_t block_size_bytes;
+	size_t k;
+	int i;
+	int width = 0;
+	int extra_spaces = 0;
+	uint32_t extra_spaces_attr;
+	t3_bool result = t3_true;
+
+
+	if (win->lines == NULL)
+		return t3_false;
+
+	if (win->paint_y >= win->height)
+		return t3_true;
+	if (win->paint_x >= win->width)
+		return t3_true;
+
+	for (k = 0; k < n; k += (block_size >> 1) + block_size_bytes) {
+		block_size = _t3_get_value(blocks + k, &block_size_bytes);
+		if (win->paint_x + width + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > win->width)
+			break;
+		width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+	}
+
+	if (k < n) {
 		extra_spaces = win->width - win->paint_x - width;
+		extra_spaces_attr = _t3_get_block_attr(blocks + k);
+	}
 	n = k;
 
 	if (win->cached_pos_line != win->paint_y || win->cached_pos_width > win->paint_x) {
@@ -106,78 +345,51 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 		win->cached_pos_width = win->lines[win->paint_y].start;
 	}
 
-	if (width == 0) {
-		int pos_width;
-		/* Combining characters. */
-
-		/* Simply drop characters that don't belong to any other character. */
-		if (win->lines[win->paint_y].length == 0 ||
-				win->paint_x <= win->lines[win->paint_y].start ||
-				win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width + 1)
-			return t3_true;
-
-		if (!ensure_space(win->lines + win->paint_y, n))
-			return t3_false;
-
-		pos_width = win->cached_pos_width;
-		i = win->cached_pos;
-
-		/* Locate the first character that at least partially overlaps the position
-		   where this string is supposed to go. */
-		if (pos_width < win->paint_x) {
-			for (; i < win->lines[win->paint_y].length; i++) {
-				pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
-				if (pos_width >= win->paint_x)
-					break;
-			}
-		}
-
-		/* Check whether we are being asked to add a zero-width character in the middle
-		   of a double-width character. If so, ignore. */
-		if (pos_width > win->paint_x)
-			return t3_true;
-
-		/* Skip to the next non-zero-width character. */
-		if (i < win->lines[win->paint_y].length)
-			for (i++; i < win->lines[win->paint_y].length && _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
-
-		memmove(win->lines[win->paint_y].data + i + n, win->lines[win->paint_y].data + i,
-			sizeof(t3_chardata_t) * (win->lines[win->paint_y].length - i));
-		memcpy(win->lines[win->paint_y].data + i, str, n * sizeof(t3_chardata_t));
-		win->lines[win->paint_y].length += n;
-	} else if (win->lines[win->paint_y].length == 0) {
+	if (win->lines[win->paint_y].length == 0) {
 		/* Empty line. */
 		if (!ensure_space(win->lines + win->paint_y, n))
 			return t3_false;
 		win->lines[win->paint_y].start = win->paint_x;
-		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
+		memcpy(win->lines[win->paint_y].data, blocks, n);
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width = width;
 		win->cached_pos_line = -1;
 	} else if (win->lines[win->paint_y].start + win->lines[win->paint_y].width <= win->paint_x) {
 		/* Add characters after existing characters. */
+		char default_attr_str[8];
+		size_t default_attr_size;
 		int diff = win->paint_x - (win->lines[win->paint_y].start + win->lines[win->paint_y].width);
 
-		if (!ensure_space(win->lines + win->paint_y, n + diff))
+		default_attr_size = _create_space_block(_t3_map_attr(win->default_attrs), default_attr_str);
+
+		if (!ensure_space(win->lines + win->paint_y, n + diff * (default_attr_size)))
 			return t3_false;
+
 		for (i = diff; i > 0; i--) {
-			win->lines[win->paint_y].data[win->lines[win->paint_y].length++] = WIDTH_TO_META(1) | ' ' |
-				_t3_term_attr_to_chardata(win->default_attrs);
+			memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, default_attr_str, default_attr_size);
+			win->lines[win->paint_y].length += default_attr_size;
 		}
-		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, str, n * sizeof(t3_chardata_t));
+
+		memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, blocks, n);
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
 	} else if (win->paint_x + width <= win->lines[win->paint_y].start) {
 		/* Add characters before existing characters. */
+		char default_attr_str[8];
+		size_t default_attr_size;
 		int diff = win->lines[win->paint_y].start - (win->paint_x + width);
 
-		if (!ensure_space(win->lines + win->paint_y, n + diff))
+		default_attr_size = _create_space_block(_t3_map_attr(win->default_attrs), default_attr_str);
+
+		if (!ensure_space(win->lines + win->paint_y, n + diff * default_attr_size))
 			return t3_false;
-		memmove(win->lines[win->paint_y].data + n + diff, win->lines[win->paint_y].data,
-			sizeof(t3_chardata_t) * win->lines[win->paint_y].length);
-		memcpy(win->lines[win->paint_y].data, str, n * sizeof(t3_chardata_t));
-		for (i = diff; i > 0; i--)
-			win->lines[win->paint_y].data[n++] = WIDTH_TO_META(1) | ' ' | _t3_term_attr_to_chardata(win->default_attrs);
+		memmove(win->lines[win->paint_y].data + n + diff * default_attr_size, win->lines[win->paint_y].data,
+			win->lines[win->paint_y].length);
+		memcpy(win->lines[win->paint_y].data, blocks, n);
+		for (i = diff; i > 0; i--) {
+			memcpy(win->lines[win->paint_y].data + n, default_attr_str, default_attr_size);
+			n += default_attr_size;
+		}
 		win->lines[win->paint_y].length += n;
 		win->lines[win->paint_y].width += width + diff;
 		win->lines[win->paint_y].start = win->paint_x;
@@ -186,15 +398,20 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 	} else {
 		/* Character (partly) overwrite existing chars. */
 		int pos_width = win->cached_pos_width;
-		int next_pos_width;
-		size_t start_replace = 0, start_space_meta, start_spaces, end_replace, end_space_meta, end_spaces;
+		size_t start_replace = 0, start_space_attr, start_spaces, end_replace, end_space_attr, end_spaces;
 		int sdiff;
+		char start_space_str[8], end_space_str[8];
+		size_t start_space_bytes, end_space_bytes;
 
 		/* Locate the first character that at least partially overlaps the position
 		   where this string is supposed to go. */
-		for (i = win->cached_pos; i < win->lines[win->paint_y].length &&
-				(next_pos_width = pos_width + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i])) <= win->paint_x; i++)
-			pos_width = next_pos_width;
+		for (i = win->cached_pos; i < win->lines[win->paint_y].length; i += (block_size >> 1) + block_size_bytes) {
+			block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
+			if (_T3_BLOCK_SIZE_TO_WIDTH(block_size) + pos_width > win->paint_x)
+				break;
+
+			pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+		}
 
 		win->cached_pos = i;
 		win->cached_pos_width = pos_width;
@@ -203,49 +420,59 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 
 		/* If the character only partially overlaps, we replace the first part with
 		   spaces with the attributes of the old character. */
-		start_space_meta = (win->lines[win->paint_y].data[start_replace] & _T3_ATTR_MASK) | WIDTH_TO_META(1);
+		start_space_attr = _t3_get_block_attr(win->lines[win->paint_y].data + start_replace);
 		start_spaces = win->paint_x >= win->lines[win->paint_y].start ? win->paint_x - pos_width : 0;
 
 		/* Now we need to find which other character(s) overlap. However, the current
 		   string may overlap with a double width character but only for a single
 		   position. In that case we will replace the trailing portion of the character
 		   with spaces with the old character's attributes. */
-		pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[start_replace]);
+		pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
 
-		i++;
+		i += (block_size >> 1) + block_size_bytes;
 
 		/* If the character where we start overwriting already fully overlaps with the
 		   new string, then we need to only replace this and any spaces that result
 		   from replacing the trailing portion need to use the start space attribute */
 		if (pos_width >= win->paint_x + width) {
-			end_space_meta = start_space_meta;
+			end_space_attr = start_space_attr;
+			end_replace = i;
 		} else {
-			for (; i < win->lines[win->paint_y].length && pos_width < win->paint_x + width; i++)
-				pos_width += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
+			for (; i < win->lines[win->paint_y].length; i += (block_size >> 1) + block_size_bytes) {
+				block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
+				pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+				if (pos_width >= win->paint_x + width)
+					break;
+			}
 
-			end_space_meta = (win->lines[win->paint_y].data[i - 1] & _T3_ATTR_MASK) | WIDTH_TO_META(1);
+			end_space_attr = _t3_get_block_attr(win->lines[win->paint_y].data + i);
+			end_replace = i < win->lines[win->paint_y].length ? i + (block_size >> 1) + block_size_bytes : i;
 		}
-
-		/* Skip any zero-width characters. */
-		for (; i < win->lines[win->paint_y].length && _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) == 0; i++) {}
-		end_replace = i;
 
 		end_spaces = pos_width > win->paint_x + width ? pos_width - win->paint_x - width : 0;
 
+		start_space_bytes = _create_space_block(start_space_attr, start_space_str);
+		end_space_bytes = _create_space_block(end_space_attr, end_space_str);
+
 		/* Move the existing characters out of the way. */
-		sdiff = n + end_spaces + start_spaces - (end_replace - start_replace);
+		sdiff = n + end_spaces * end_space_bytes + start_spaces * start_space_bytes - (end_replace - start_replace);
 		if (sdiff > 0 && !ensure_space(win->lines + win->paint_y, sdiff))
 			return t3_false;
 
 		memmove(win->lines[win->paint_y].data + end_replace + sdiff, win->lines[win->paint_y].data + end_replace,
-			sizeof(t3_chardata_t) * (win->lines[win->paint_y].length - end_replace));
+			win->lines[win->paint_y].length - end_replace);
 
-		for (i = start_replace; start_spaces > 0; start_spaces--)
-			win->lines[win->paint_y].data[i++] = start_space_meta | ' ';
-		memcpy(win->lines[win->paint_y].data + i, str, n * sizeof(t3_chardata_t));
+		for (i = start_replace; start_spaces > 0; start_spaces--) {
+			memcpy(win->lines[win->paint_y].data + i, start_space_str, start_space_bytes);
+			i += start_space_bytes;
+		}
+
+		memcpy(win->lines[win->paint_y].data + i, blocks, n);
 		i += n;
-		for (; end_spaces > 0; end_spaces--)
-			win->lines[win->paint_y].data[i++] = end_space_meta | ' ';
+		for (; end_spaces > 0; end_spaces--) {
+			memcpy(win->lines[win->paint_y].data + i, end_space_str, end_space_bytes);
+			i += end_space_bytes;
+		}
 
 		win->lines[win->paint_y].length += sdiff;
 		if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < width + win->paint_x)
@@ -258,11 +485,19 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
 	}
 	win->paint_x += width;
 
-	for (i = 0; i < extra_spaces; i++)
-		result &= _win_add_chardata(win, &space, 1);
+	if (extra_spaces > 0) {
+		char extra_space_str[8];
+		size_t extra_space_bytes;
+
+		extra_space_bytes = _create_space_block(extra_spaces_attr, extra_space_str);
+
+		for (i = 0; i < extra_spaces; i++)
+			result &= _win_write_blocks(win, extra_space_str, extra_space_bytes);
+	}
 
 	return result;
 }
+
 
 /** Add a string with explicitly specified size to a t3_window_t with specified attributes.
     @param win The t3_window_t to add the string to.
@@ -278,15 +513,18 @@ static t3_bool _win_add_chardata(t3_window_t *win, t3_chardata_t *str, size_t n)
     (indirectly) implemented using this function.
 */
 int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) {
-	size_t bytes_read, i;
-	t3_chardata_t cd_buf[UTF8_MAX_BYTES + 1];
+	size_t bytes_read;
+	char block[1 + 6 + UTF8_MAX_BYTES];
 	uint32_t c;
 	int retval = T3_ERR_SUCCESS;
 	int width;
+	int attr_idx;
+	size_t block_bytes;
 
 	attr = t3_term_combine_attrs(attr, win->default_attrs);
-	/* WARNING: when changing the internal representation of attributes, this must also be changed!!! */
-	attr = _t3_term_attr_to_chardata(attr) & _T3_ATTR_MASK;
+	attr_idx = _t3_map_attr(attr);
+	if (attr_idx < 0)
+		return T3_ERR_OUT_OF_MEMORY;
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
 		bytes_read = n;
@@ -298,19 +536,18 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 		if (width < 0 || uc_is_general_category_withtable(c, T3_UTF8_CONTROL_MASK)) {
 			retval = T3_ERR_NONPRINT;
 			continue;
+		} else if (width == 0) {
+			_win_add_zerowidth(win, str, bytes_read);
+			continue;
 		}
 
-		cd_buf[0] = attr | WIDTH_TO_META(width) | (unsigned char) str[0];
-		for (i = 1; i < bytes_read; i++)
-			cd_buf[i] = (unsigned char) str[i];
+		block_bytes = _t3_put_value(attr_idx, block + 1);
+		memcpy(block + 1 + block_bytes, str, bytes_read);
+		block_bytes += bytes_read;
+		_t3_put_value((block_bytes << 1) + (width == 2 ? 1 : 0), block);
+		block_bytes++;
 
-		if (bytes_read > 1) {
-			cd_buf[0] &= ~(_T3_ATTR_ACS | _T3_ATTR_FALLBACK_ACS);
-		} else if ((cd_buf[0] & _T3_ATTR_ACS) && !t3_term_acs_available(cd_buf[0] & _T3_CHAR_MASK)) {
-			cd_buf[0] &= ~_T3_ATTR_ACS;
-			cd_buf[0] |= _T3_ATTR_FALLBACK_ACS;
-		}
-		if (!_win_add_chardata(win, cd_buf, bytes_read))
+		if (!_win_write_blocks(win, block, block_bytes))
 			return T3_ERR_ERRNO;
 	}
 	return retval;
@@ -406,6 +643,7 @@ static t3_window_t *get_previous_window(t3_window_t *ptr) {
 	return NULL;
 }
 
+
 /** @internal
     @brief Redraw a terminal line, based on all visible t3_window_t structs.
     @param terminal The t3_window_t representing the cached terminal contents.
@@ -418,6 +656,8 @@ t3_bool _t3_win_refresh_term_line(int line) {
 	int y, x, parent_y, parent_x, parent_max_y, parent_max_x;
 	int data_start, length, paint_x;
 	t3_bool result = t3_true;
+	uint32_t block_size;
+	size_t block_size_bytes;
 
 	_t3_terminal_window->paint_y = line;
 	_t3_terminal_window->lines[line].width = 0;
@@ -501,30 +741,45 @@ t3_bool _t3_win_refresh_term_line(int line) {
 			}
 		} else /* if (x < parent_x) */ {
 			_t3_terminal_window->paint_x = parent_x;
-			for (paint_x = x + draw->start;
-				paint_x + _T3_CHARDATA_TO_WIDTH(draw->data[data_start]) <= _t3_terminal_window->paint_x && data_start < draw->length;
-				paint_x += _T3_CHARDATA_TO_WIDTH(draw->data[data_start]), data_start++) {}
-			/* Add a space for the multi-cell character that is crossed by the parent clipping. */
+
+			for (paint_x = x + draw->start; data_start < draw->length; data_start += (block_size >> 1) + block_size_bytes) {
+				block_size = _t3_get_value(draw->data + data_start, &block_size_bytes);
+				if (paint_x + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > _t3_terminal_window->paint_x)
+					break;
+				paint_x += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+			}
+
 			if (data_start < draw->length && paint_x < _t3_terminal_window->paint_x) {
-				/* WARNING: when changing the internal representation of attributes, this must also be changed!!! */
-				result &= t3_win_addch(_t3_terminal_window, ' ', (draw->data[data_start] & _T3_ATTR_MASK) >> _T3_ATTR_SHIFT) == 0;
-				for (data_start++;
-					data_start < draw->length && _T3_CHARDATA_TO_WIDTH(draw->data[data_start]) == 0;
-					data_start++) {}
+				char space_str[8];
+				size_t space_str_bytes;
+
+				paint_x += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+				space_str_bytes = _create_space_block(_t3_get_block_attr(draw->data + data_start), space_str);
+				while (paint_x > _t3_terminal_window->paint_x)
+					result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+				data_start += (block_size >> 1) + block_size_bytes;
 			}
 		}
 
 		paint_x = _t3_terminal_window->paint_x;
-		for (length = data_start;
-			length < draw->length && paint_x + _T3_CHARDATA_TO_WIDTH(draw->data[length]) <= parent_max_x;
-			paint_x += _T3_CHARDATA_TO_WIDTH(draw->data[length]), length++) {}
+		for (length = data_start; length < draw->length; length += (block_size >> 1) + block_size_bytes) {
+			block_size = _t3_get_value(draw->data + length, &block_size_bytes);
+			if (paint_x + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > parent_max_x)
+				break;
+			paint_x += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+		}
 
-		result &= _win_add_chardata(_t3_terminal_window, draw->data + data_start, length - data_start);
+		if (length != data_start)
+			result &= _win_write_blocks(_t3_terminal_window, draw->data + data_start, length - data_start);
 
 		/* Add a space for the multi-cell character that is crossed by the parent clipping. */
-		if (length < draw->length && paint_x == parent_max_x - 1)
-			/* WARNING: when changing the internal representation of attributes, this must also be changed!!! */
-			result &= t3_win_addch(_t3_terminal_window, ' ', (draw->data[length] & _T3_ATTR_MASK) >> _T3_ATTR_SHIFT) == 0;
+		if (length < draw->length && paint_x == parent_max_x - 1) {
+			char space_str[8];
+			size_t space_str_bytes;
+
+			space_str_bytes = _create_space_block(_t3_get_block_attr(draw->data + length), space_str);
+			result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+		}
 
 		if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width &&
 				x + draw->start + draw->width < parent_max_x)
@@ -539,23 +794,32 @@ t3_bool _t3_win_refresh_term_line(int line) {
 	/* If a line does not start at position 0, just make it do so. This makes the whole repainting
 	   bit a lot easier. */
 	if (_t3_terminal_window->lines[line].start != 0) {
-		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(_t3_terminal_window->default_attrs);
+		char space_str[8];
+		size_t space_str_bytes;
+
+		space_str_bytes = _create_space_block(_t3_map_attr(_t3_terminal_window->default_attrs), space_str);
 		_t3_terminal_window->paint_x = 0;
-		result &= _win_add_chardata(_t3_terminal_window, &space, 1);
+		result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
 	}
+
 	/* If the default attributes for the terminal are not only a foreground color,
 	   we need to ensure that we paint the terminal. */
 	if ((_t3_terminal_window->default_attrs & ~T3_ATTR_FG_MASK) != 0 &&
-			_t3_terminal_window->lines[line].width + _t3_terminal_window->lines[line].start < _t3_terminal_window->width) {
-		t3_chardata_t space = ' ' | WIDTH_TO_META(1) | _t3_term_attr_to_chardata(_t3_terminal_window->default_attrs);
+			_t3_terminal_window->lines[line].width + _t3_terminal_window->lines[line].start < _t3_terminal_window->width)
+	{
+		char space_str[8];
+		size_t space_str_bytes;
+
+		space_str_bytes = _create_space_block(_t3_map_attr(_t3_terminal_window->default_attrs), space_str);
+
 		/* Make sure we fill the whole line. Adding the final character to an otherwise
 		   empty line doesn't do anything for us. */
 		if (_t3_terminal_window->lines[line].width == 0) {
 			_t3_terminal_window->paint_x = 0;
-			result &= _win_add_chardata(_t3_terminal_window, &space, 1);
+			result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
 		}
 		_t3_terminal_window->paint_x = _t3_terminal_window->width - 1;
-		result &= _win_add_chardata(_t3_terminal_window, &space, 1);
+		result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
 	}
 
 	return result;
@@ -572,17 +836,28 @@ void t3_win_clrtoeol(t3_window_t *win) {
 		win->lines[win->paint_y].start = 0;
 	} else if (win->paint_x < win->lines[win->paint_y].start + win->lines[win->paint_y].width) {
 		int sumwidth = win->lines[win->paint_y].start, i;
+		uint32_t block_size;
+		size_t block_size_bytes;
+
+		block_size = _t3_get_value(win->lines[win->paint_y].data, & block_size_bytes);
 		for (i = 0; i < win->lines[win->paint_y].length &&
-				sumwidth + _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]) <= win->paint_x; i++)
-			sumwidth += _T3_CHARDATA_TO_WIDTH(win->lines[win->paint_y].data[i]);
+				sumwidth + _T3_BLOCK_SIZE_TO_WIDTH(block_size) <= win->paint_x; i += (block_size >> 1) + block_size_bytes)
+		{
+			sumwidth += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+			block_size = _t3_get_value(win->lines[win->paint_y].data + i, & block_size_bytes);
+		}
 
 		if (sumwidth < win->paint_x) {
 			int spaces = win->paint_x - sumwidth;
-			if (spaces < win->lines[win->paint_y].length - i ||
-					ensure_space(win->lines + win->paint_y, spaces - win->lines[win->paint_y].length + i)) {
+			char space_str[8];
+			size_t space_str_bytes;
+
+			space_str_bytes = _create_space_block(_t3_map_attr(win->default_attrs), space_str);
+			if ((int) (spaces * space_str_bytes) < win->lines[win->paint_y].length - i ||
+					ensure_space(win->lines + win->paint_y, spaces * space_str_bytes - win->lines[win->paint_y].length + i)) {
+				win->paint_x = sumwidth;
 				for (; spaces > 0; spaces--)
-					win->lines[win->paint_y].data[i++] = WIDTH_TO_META(1) | ' ';
-				sumwidth = win->paint_x;
+					_win_write_blocks(win, space_str, space_str_bytes);
 			}
 		}
 
@@ -602,7 +877,7 @@ void t3_win_clrtoeol(t3_window_t *win) {
     @param attr The attributes to use for drawing.
     @return See ::t3_win_addnstr.
 */
-int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_chardata_t attr) {
+int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_attr_t attr) {
 	int i;
 
 	attr = t3_term_combine_attrs(attr | T3_ATTR_ACS, win->default_attrs);

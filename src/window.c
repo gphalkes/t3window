@@ -133,7 +133,7 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
 
 	for (i = 0; i < height; i++) {
 		retval->lines[i].allocated = width > INITIAL_ALLOC ? INITIAL_ALLOC : width;
-		if ((retval->lines[i].data = malloc(sizeof(t3_chardata_t) * retval->lines[i].allocated)) == NULL) {
+		if ((retval->lines[i].data = malloc(retval->lines[i].allocated)) == NULL) {
 			t3_win_del(retval);
 			return NULL;
 		}
@@ -366,7 +366,7 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 		win->lines = result;
 		memset(win->lines + win->height, 0, sizeof(line_data_t) * (height - win->height));
 		for (i = win->height; i < height; i++) {
-			if ((win->lines[i].data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL) {
+			if ((win->lines[i].data = malloc(INITIAL_ALLOC)) == NULL) {
 				for (i = win->height; i < height && win->lines[i].data != NULL; i++)
 					free(win->lines[i].data);
 				return t3_false;

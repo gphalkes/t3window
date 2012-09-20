@@ -167,23 +167,23 @@ void _t3_set_alternate_chars_defaults(void) {
     such that fewer characters need to be sent to the terminal than by using @c sgr.
 */
 static void detect_ansi(void) {
-	t3_chardata_t non_existent = 0;
+	t3_attr_t non_existent = 0;
 
 	if (_t3_op != NULL && (streq(_t3_op, "\033[39;49m") || streq(_t3_op, "\033[49;39m"))) {
 		if (_t3_setaf != NULL && streq(_t3_setaf, "\033[3%p1%dm") &&
 				_t3_setab != NULL && streq(_t3_setab, "\033[4%p1%dm"))
-			_t3_ansi_attrs |= _T3_ATTR_FG_MASK | _T3_ATTR_BG_MASK;
+			_t3_ansi_attrs |= T3_ATTR_FG_MASK | T3_ATTR_BG_MASK;
 	}
 	if (_t3_smul != NULL && _t3_rmul != NULL && streq(_t3_smul, "\033[4m") && streq(_t3_rmul, "\033[24m"))
-		_t3_ansi_attrs |= _T3_ATTR_UNDERLINE;
+		_t3_ansi_attrs |= T3_ATTR_UNDERLINE;
 	if (_t3_smacs != NULL && _t3_rmacs != NULL && streq(_t3_smacs, "\033[11m") && streq(_t3_rmacs, "\033[10m"))
-		_t3_ansi_attrs |= _T3_ATTR_ACS;
+		_t3_ansi_attrs |= T3_ATTR_ACS;
 
 	/* So far, we have been able to check that the "exit mode" operation was ANSI compatible as well.
 	   However, for bold, dim, reverse and blink we can't check this, so we will only accept them
 	   as attributes if the terminal uses ANSI colors, and they all match in as far as they exist.
 	*/
-	if ((_t3_ansi_attrs & (_T3_ATTR_FG_MASK | _T3_ATTR_BG_MASK)) == 0 || (_t3_ansi_attrs & (_T3_ATTR_UNDERLINE | _T3_ATTR_ACS)) == 0)
+	if ((_t3_ansi_attrs & (T3_ATTR_FG_MASK | T3_ATTR_BG_MASK)) == 0 || (_t3_ansi_attrs & (T3_ATTR_UNDERLINE | T3_ATTR_ACS)) == 0)
 		return;
 
 	if (_t3_rev != NULL) {
@@ -196,42 +196,42 @@ static void detect_ansi(void) {
 			if (streq(smso, _t3_rev)) {
 				char *rmso = get_ti_string("rmso");
 				if (streq(rmso, "\033[27m"))
-					_t3_ansi_attrs |= _T3_ATTR_REVERSE;
+					_t3_ansi_attrs |= T3_ATTR_REVERSE;
 				free(rmso);
 			} else {
-				_t3_ansi_attrs |= _T3_ATTR_REVERSE;
+				_t3_ansi_attrs |= T3_ATTR_REVERSE;
 			}
 			free(smso);
 		}
 	} else {
-		non_existent |= _T3_ATTR_REVERSE;
+		non_existent |= T3_ATTR_REVERSE;
 	}
 
 	if (_t3_bold != NULL) {
 		if (streq(_t3_bold, "\033[1m"))
-			_t3_ansi_attrs |= _T3_ATTR_BOLD;
+			_t3_ansi_attrs |= T3_ATTR_BOLD;
 	} else {
-		non_existent |= _T3_ATTR_BOLD;
+		non_existent |= T3_ATTR_BOLD;
 	}
 
 	if (_t3_dim != NULL) {
 		if (streq(_t3_dim, "\033[2m"))
-			_t3_ansi_attrs |= _T3_ATTR_DIM;
+			_t3_ansi_attrs |= T3_ATTR_DIM;
 	} else {
-		non_existent |= _T3_ATTR_DIM;
+		non_existent |= T3_ATTR_DIM;
 	}
 
 	if (_t3_blink != NULL) {
 		if (streq(_t3_blink, "\033[5m"))
-			_t3_ansi_attrs |= _T3_ATTR_BLINK;
+			_t3_ansi_attrs |= T3_ATTR_BLINK;
 	} else {
-		non_existent |= _T3_ATTR_BLINK;
+		non_existent |= T3_ATTR_BLINK;
 	}
 
 	/* Only accept as ANSI if all attributes accept ACS are either non specified or ANSI. */
-	if (((non_existent | _t3_ansi_attrs) & (_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK)) !=
-			(_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK))
-		_t3_ansi_attrs &= ~(_T3_ATTR_REVERSE | _T3_ATTR_BOLD | _T3_ATTR_DIM | _T3_ATTR_BLINK);
+	if (((non_existent | _t3_ansi_attrs) & (T3_ATTR_REVERSE | T3_ATTR_BOLD | T3_ATTR_DIM | T3_ATTR_BLINK)) !=
+			(T3_ATTR_REVERSE | T3_ATTR_BOLD | T3_ATTR_DIM | T3_ATTR_BLINK))
+		_t3_ansi_attrs &= ~(T3_ATTR_REVERSE | T3_ATTR_BOLD | T3_ATTR_DIM | T3_ATTR_BLINK);
 }
 
 /** Send a string for measuring it's on screen width.
@@ -324,7 +324,7 @@ static int init_sequences(const char *term) {
 
 	if ((_t3_smul = get_ti_string("smul")) != NULL) {
 		if ((_t3_rmul = get_ti_string("rmul")) == NULL || isreset(_t3_rmul))
-			_t3_reset_required_mask |= _T3_ATTR_UNDERLINE;
+			_t3_reset_required_mask |= T3_ATTR_UNDERLINE;
 	}
 	_t3_bold = get_ti_string("bold");
 	_t3_rev = get_ti_string("rev");
@@ -519,7 +519,7 @@ int t3_term_init(int fd, const char *term) {
 	if (_t3_terminal_window == NULL) {
 		if ((_t3_terminal_window = t3_win_new(NULL, _t3_lines, _t3_columns, 0, 0, 0)) == NULL)
 			return T3_ERR_ERRNO;
-		if ((_t3_old_data.data = malloc(sizeof(t3_chardata_t) * INITIAL_ALLOC)) == NULL)
+		if ((_t3_old_data.data = malloc(sizeof(t3_attr_t) * INITIAL_ALLOC)) == NULL)
 			return T3_ERR_ERRNO;
 		_t3_old_data.allocated = INITIAL_ALLOC;
 		/* Remove terminal window from the window stack. */

@@ -49,6 +49,7 @@ static int test(void) {
 	t3_win_hide(low);
 	next();
 
+	//~ ASSERT(sub = t3_win_new(low, 1, 20, 1, -6, -3));
 	ASSERT(sub = t3_win_new(low, 1, 20, 1, -6, -3));
 
 	t3_win_set_paint(sub, 0, 2);
