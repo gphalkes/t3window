@@ -21,7 +21,7 @@ setup_ldlibrary_path
 	cat $TEST/test.c
 } > test.c
 
-gcc -g -Wall -I../../src test.c -L../../src/.libs/ -lt3window -o test
+gcc -g -Wall -I../../src test.c -L../../src/.libs/ -lt3window -o test || fail "!! Could not compile test"
 ../../../../record/src/tdreplay -lreplay.log $REPLAYOPTS $TEST/recording || fail "!! Terminal output is different"
 
 [ "$QUIET" = 1 ] || echo "Test passed" >&2
