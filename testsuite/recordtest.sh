@@ -8,7 +8,7 @@ if [ $# -eq 0 ] ; then
 	fail "Usage: recordtest.sh <test>"
 fi
 
-TEST="$PWD/tests/$1"
+TEST="$PWD/$1"
 
 shift
 cd_workdir

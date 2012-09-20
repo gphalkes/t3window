@@ -42,7 +42,7 @@ typedef enum {
 static t3_bool detecting_terminal_capabilities = t3_true;
 
 static int last_key = -1, /**< Last keychar returned from ::t3_term_get_keychar. Used in ::t3_term_unget_keychar. */
-	stored_key = -1; /**< Location for storing "ungot" keys in ::t3_term_unget_keychar. */
+	stored_key = INT_MIN; /**< Location for storing "ungot" keys in ::t3_term_unget_keychar. */
 
 fd_set _t3_inset; /**< File-descriptor set used for select in ::t3_term_get_keychar. */
 
@@ -202,8 +202,8 @@ static int safe_read_char(void) {
 		} else if (retval >= 1) {
 			if (detecting_terminal_capabilities) {
 				if (parse_position_reports((int) c)) {
-					stored_key = c;
-					return T3_WARN_UPDATE_TERMINAL;
+					stored_key = T3_WARN_UPDATE_TERMINAL;
+					return c;
 				}
 			}
 			return (int) (unsigned char) c;
@@ -232,9 +232,9 @@ int t3_term_get_keychar(int msec) {
 	fd_set _inset;
 	struct timeval timeout;
 
-	if (stored_key >= 0) {
+	if (stored_key != INT_MIN) {
 		last_key = stored_key;
-		stored_key = -1;
+		stored_key = INT_MIN;
 		return last_key;
 	}
 
