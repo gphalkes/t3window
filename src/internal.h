@@ -140,7 +140,7 @@ T3_WINDOW_LOCAL void _t3_set_attrs(t3_attr_t new_attrs);
 
 T3_WINDOW_LOCAL extern t3_window_t *_t3_head, *_t3_tail;
 T3_WINDOW_LOCAL t3_bool _t3_win_is_shown(t3_window_t *win);
-
+T3_WINDOW_LOCAL t3_attr_t _t3_term_sanitize_attrs(t3_attr_t attrs);
 
 T3_WINDOW_LOCAL int _t3_map_attr(t3_attr_t attr);
 T3_WINDOW_LOCAL t3_attr_t _t3_get_attr(int idx);

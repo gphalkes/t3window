@@ -276,10 +276,11 @@ t3_bool _t3_win_is_shown(t3_window_t *win) {
     This function can be used to set a default background for the entire window, as
     well as any other attributes.
 */
-void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attr) {
+void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attrs) {
+	attrs = _t3_term_sanitize_attrs(attrs);
 	if (win == NULL)
 		win = _t3_terminal_window;
-	win->default_attrs = attr;
+	win->default_attrs = attrs;
 }
 
 /** Set the restrictw window.

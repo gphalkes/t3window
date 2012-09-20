@@ -819,4 +819,18 @@ void t3_term_get_caps_internal(t3_term_caps_t *caps, int version) {
 	if (_t3_scp != NULL) caps->cap_flags |= T3_TERM_CAP_CP;
 }
 
+t3_attr_t _t3_term_sanitize_attrs(t3_attr_t attrs) {
+	/* Set color to unspecified if it is out of range. */
+	if (_t3_scp == NULL) {
+		if (((attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT) > (_t3_colors + 2))
+			attrs &= ~T3_ATTR_FG_MASK;
+		if (((attrs & T3_ATTR_BG_MASK) >> (T3_ATTR_COLOR_SHIFT + 9)) > (_t3_colors + 2))
+			attrs &= ~T3_ATTR_BG_MASK;
+	} else {
+		if (((attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT) > (_t3_pairs + 2))
+			attrs &= ~T3_ATTR_FG_MASK;
+	}
+	return attrs;
+}
+
 /** @} */

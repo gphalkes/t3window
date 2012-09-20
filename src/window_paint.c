@@ -519,18 +519,20 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
     @p attr used as the priority attributes. All other t3_win_add* functions are
     (indirectly) implemented using this function.
 */
-int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) {
+int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attrs) {
 	size_t bytes_read;
 	char block[1 + 6 + UTF8_MAX_BYTES];
 	uint32_t c;
 	int retval = T3_ERR_SUCCESS;
 	int width;
-	int attr_idx;
+	int attrs_idx;
 	size_t block_bytes;
 
-	attr = t3_term_combine_attrs(attr, win->default_attrs);
-	attr_idx = _t3_map_attr(attr);
-	if (attr_idx < 0)
+	attrs = _t3_term_sanitize_attrs(attrs);
+
+	attrs = t3_term_combine_attrs(attrs, win->default_attrs);
+	attrs_idx = _t3_map_attr(attrs);
+	if (attrs_idx < 0)
 		return T3_ERR_OUT_OF_MEMORY;
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
@@ -548,7 +550,7 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr) 
 			continue;
 		}
 
-		block_bytes = _t3_put_value(attr_idx, block + 1);
+		block_bytes = _t3_put_value(attrs_idx, block + 1);
 		memcpy(block + 1 + block_bytes, str, bytes_read);
 		block_bytes += bytes_read;
 		_t3_put_value((block_bytes << 1) + (width == 2 ? 1 : 0), block);
