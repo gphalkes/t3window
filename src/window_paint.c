@@ -32,9 +32,15 @@
    search. Whatever the data structure used, by ensuring use of the internal API,
    we can easily replace the implementation later.
 */
-//FIXME: documentation
+/** @internal
+    @brief The map of indices to attribute sets.
+*/
 static t3_attr_t *attr_map;
-static int attr_map_fill, attr_map_allocated;
+static int attr_map_fill, /**< @internal @brief The number of elements used in ::attr_map. */
+	attr_map_allocated; /**< @internal @brief The number of elements allocated in ::attr_map. */
+/** @internal
+    @brief The initial allocation for ::attr_map.
+*/
 #define ATTR_MAP_START_SIZE 32
 
 
@@ -75,7 +81,10 @@ static t3_bool ensure_space(line_data_t *line, size_t n) {
 	return t3_true;
 }
 
-//FIXME: documentation
+/** @internal
+    @brief Map a set of attributes to an integer.
+    @param attr The attribute set to map.
+*/
 int _t3_map_attr(t3_attr_t attr) {
 	int idx;
 
@@ -96,14 +105,19 @@ int _t3_map_attr(t3_attr_t attr) {
 	return attr_map_fill - 1;
 }
 
-//FIXME: documentation
+/** @internal
+    @brief Get the set of attributes associated with a mapped integer.
+    @param idx The mapped attribute index as returned by ::_t3_map_attr.
+*/
 t3_attr_t _t3_get_attr(int idx) {
 	if (idx < 0 || idx > attr_map_fill)
 		return 0;
 	return attr_map[idx];
 }
 
-//FIXME: documentation
+/** @internal
+    @brief Clean up the memory used for attribute set mappings.
+*/
 void _t3_free_attr_map(void) {
 	free(attr_map);
 	attr_map = NULL;
@@ -219,6 +233,11 @@ size_t _t3_put_value(uint32_t c, char *dst) {
 	}
 }
 
+/** Create memory block representing a space character with specific attributes.
+    @param attr The attribute index to use.
+    @param out An array of size at least 8 to write to.
+    @return The number of bytes written to @p out.
+*/
 static size_t create_space_block(int attr, char *out) {
 	size_t result_size;
 	result_size = _t3_put_value(attr, out + 1);
@@ -229,6 +248,7 @@ static size_t create_space_block(int attr, char *out) {
 	return result_size;
 }
 
+/** Get the attribute index from a block. */
 static uint32_t get_block_attr(const char *block) {
 	size_t discard;
 	for (block++; ((*block) & 0xc0) == 0x80; block++) {}
@@ -236,6 +256,12 @@ static uint32_t get_block_attr(const char *block) {
 	return _t3_get_value(block, &discard);
 }
 
+/** Insert a zero-width character into an existing block.
+    @param win The window to write to.
+    @param str The string containing the UTF-8 encoded zero-width character.
+    @param n The number of bytes in @p str.
+    @return A boolean indicating success.
+*/
 static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
 	uint32_t block_size, new_block_size;
 	size_t block_size_bytes, new_block_size_bytes;
@@ -314,6 +340,12 @@ static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
 	return t3_true;
 }
 
+/** Write one or more blocks to a window.
+    @param win The window to write to.
+    @param blocks The string containing the blocks.
+    @param n The number of bytes in @p blocks.
+    @return A boolean indicating success.
+*/
 static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n) {
 	uint32_t block_size;
 	size_t block_size_bytes;
