@@ -468,6 +468,8 @@ void _t3_set_attrs(t3_attr_t new_attrs) {
 			color[0] = '3';
 			color[1] = '0' + (color_nr >= 0 && color_nr < 8 ? color_nr : 9);
 			color[2] = 0;
+		} else if (color_nr < 16) {
+			sprintf(color, "9%d", color_nr - 8);
 		} else {
 			sprintf(color, "38;5;%d", color_nr);
 		}
@@ -482,6 +484,8 @@ void _t3_set_attrs(t3_attr_t new_attrs) {
 			color[0] = '4';
 			color[1] = '0' + (color_nr >= 0 && color_nr < 8 ? color_nr : 9);
 			color[2] = 0;
+		} else if (color_nr < 16) {
+			sprintf(color, "10%d", color_nr - 8);
 		} else {
 			sprintf(color, "48;5;%d", color_nr);
 		}

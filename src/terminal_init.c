@@ -170,8 +170,10 @@ static void detect_ansi(void) {
 	t3_attr_t non_existent = 0;
 
 	if (_t3_op != NULL && (streq(_t3_op, "\033[39;49m") || streq(_t3_op, "\033[49;39m"))) {
-		if (_t3_setaf != NULL && streq(_t3_setaf, "\033[3%p1%dm") &&
-				_t3_setab != NULL && streq(_t3_setab, "\033[4%p1%dm"))
+		if (_t3_setaf != NULL && (streq(_t3_setaf, "\033[3%p1%dm") ||
+				streq(_t3_setaf, "\033[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m")) &&
+				_t3_setab != NULL && (streq(_t3_setab, "\033[4%p1%dm") ||
+				streq(_t3_setab, "\033[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m")))
 			_t3_ansi_attrs |= T3_ATTR_FG_MASK | T3_ATTR_BG_MASK;
 	}
 	if (_t3_smul != NULL && _t3_rmul != NULL && streq(_t3_smul, "\033[4m") && streq(_t3_rmul, "\033[24m"))
