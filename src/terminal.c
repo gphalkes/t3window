@@ -108,10 +108,8 @@ static int new_cursor_y, /**< New cursor position (y coordinate). */
 t3_bool _t3_show_cursor = t3_true; /**< @internal Boolean indicating whether the cursor is visible currently. */
 static t3_bool new_show_cursor = t3_true; /**< Boolean indicating whether the cursor is will be visible after the next update. */
 
-/** Conversion table between color attributes and ANSI colors. */
-static int attr_to_color[10] = { 9, 0, 1, 2, 3, 4, 5, 6, 7, 9 };
 /** Conversion table between color attributes and non-ANSI colors. */
-static int attr_to_alt_color[10] = { 0, 0, 4, 2, 6, 1, 5, 3, 7, 0 };
+static int attr_to_alt_color[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 t3_attr_t _t3_attrs = 0, /**< @internal Last used set of attributes. */
 	_t3_ansi_attrs = 0, /**< @internal Bit mask indicating which attributes should be drawn as ANSI colors. */
 	/** @internal Attributes for which the only way to turn of the attribute is to reset all attributes. */
@@ -320,7 +318,10 @@ static void set_attrs_non_ansi(t3_attr_t new_attrs) {
 					0,
 					0,
 					new_attrs & T3_ATTR_ACS));
-				_t3_attrs = (new_attrs & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK)) | (_t3_attrs & (T3_ATTR_FG_MASK | T3_ATTR_BG_MASK));
+				/* sgr tends to reset the colors as well. To ensure that we set
+				   the colors regardless of what sgr does, we force the colors in
+				   _t3_attrs to the DEFAULT, which can never be actually set. */
+				_t3_attrs = (new_attrs & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK)) | T3_ATTR_FG_DEFAULT | T3_ATTR_BG_DEFAULT;
 				attrs_basic_non_ansi = _t3_attrs & ~_t3_ansi_attrs;
 			} else {
 				/* Note that this will not be NULL if it is required because of
@@ -367,24 +368,24 @@ static void set_attrs_non_ansi(t3_attr_t new_attrs) {
 				((_t3_attrs & T3_ATTR_BG_MASK) != (new_attrs & T3_ATTR_BG_MASK) && (new_attrs & T3_ATTR_BG_MASK) == 0)) {
 			if (_t3_op != NULL) {
 				_t3_putp(_t3_op);
-				_t3_attrs = new_attrs & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK);
+				_t3_attrs &= ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK);
 			}
 		}
 
-		if ((_t3_attrs & T3_ATTR_FG_MASK) != (new_attrs & T3_ATTR_FG_MASK)) {
-			color_nr = (new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT;
+		if ((_t3_attrs & T3_ATTR_FG_MASK) != (new_attrs & T3_ATTR_FG_MASK) && (new_attrs & T3_ATTR_FG_MASK) != 0) {
+			color_nr = ((new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT) - 1;
 			if (_t3_setaf != NULL)
-				_t3_putp(_t3_tparm(_t3_setaf, 1, color_nr < 9 ? attr_to_color[color_nr] : color_nr - 1));
+				_t3_putp(_t3_tparm(_t3_setaf, 1, color_nr));
 			else if (_t3_setf != NULL)
-				_t3_putp(_t3_tparm(_t3_setf, 1, color_nr < 9 ? attr_to_alt_color[color_nr] : color_nr - 1));
+				_t3_putp(_t3_tparm(_t3_setf, 1, color_nr < 8 ? attr_to_alt_color[color_nr] : color_nr));
 		}
 
-		if ((_t3_attrs & T3_ATTR_BG_MASK) != (new_attrs & T3_ATTR_BG_MASK)) {
-			color_nr = (new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT;
+		if ((_t3_attrs & T3_ATTR_BG_MASK) != (new_attrs & T3_ATTR_BG_MASK) && (new_attrs & T3_ATTR_BG_MASK) != 0) {
+			color_nr = ((new_attrs & T3_ATTR_BG_MASK) >> (T3_ATTR_COLOR_SHIFT + 9)) - 1;
 			if (_t3_setab != NULL)
-				_t3_putp(_t3_tparm(_t3_setab, 1, color_nr < 9 ? attr_to_color[color_nr] : color_nr - 1));
+				_t3_putp(_t3_tparm(_t3_setab, 1, color_nr));
 			else if (_t3_setb != NULL)
-				_t3_putp(_t3_tparm(_t3_setb, 1, color_nr < 9 ? attr_to_alt_color[color_nr] : color_nr - 1));
+				_t3_putp(_t3_tparm(_t3_setb, 1, color_nr < 8 ? attr_to_alt_color[color_nr] : color_nr ));
 		}
 	} else {
 		color_nr = (new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT;
@@ -462,13 +463,13 @@ void _t3_set_attrs(t3_attr_t new_attrs) {
 
 	if (changed_attrs & T3_ATTR_FG_MASK) {
 		char color[9];
-		int color_nr = ((new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT);
-		if (color_nr < 9) {
+		int color_nr = ((new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT) - 1;
+		if (color_nr < 8 || color_nr == 256) {
 			color[0] = '3';
-			color[1] = '0' + attr_to_color[color_nr];
+			color[1] = '0' + (color_nr >= 0 && color_nr < 8 ? color_nr : 9);
 			color[2] = 0;
 		} else {
-			sprintf(color, "38;5;%d", color_nr - 1);
+			sprintf(color, "38;5;%d", color_nr);
 		}
 		ADD_ANSI_SEP();
 		strcat(mode_string, color);
@@ -476,13 +477,13 @@ void _t3_set_attrs(t3_attr_t new_attrs) {
 
 	if (changed_attrs & T3_ATTR_BG_MASK) {
 		char color[9];
-		int color_nr = ((new_attrs & T3_ATTR_BG_MASK) >> (T3_ATTR_COLOR_SHIFT + 9));
-		if (color_nr < 9) {
+		int color_nr = ((new_attrs & T3_ATTR_BG_MASK) >> (T3_ATTR_COLOR_SHIFT + 9)) - 1;
+		if (color_nr < 8 || color_nr == 256) {
 			color[0] = '4';
-			color[1] = '0' + attr_to_color[color_nr];
+			color[1] = '0' + (color_nr >= 0 && color_nr < 8 ? color_nr : 9);
 			color[2] = 0;
 		} else {
-			sprintf(color, "48;5;%d", color_nr - 1);
+			sprintf(color, "48;5;%d", color_nr);
 		}
 		ADD_ANSI_SEP();
 		strcat(mode_string, color);
@@ -569,8 +570,8 @@ void t3_term_update(void) {
 		_t3_win_refresh_term_line(i);
 
 		while (new_idx != _t3_terminal_window->lines[i].length) {
-			int old_width;
-			/* FIXME: don't do the skip if there are only a few bytes to skipped. */
+			int old_width, same_count = 0;
+			int saved_old_idx = old_idx, saved_new_idx = new_idx, saved_width = width;
 
 			while (new_idx != _t3_terminal_window->lines[i].length && old_idx != _t3_old_data.length) {
 				old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
@@ -580,6 +581,7 @@ void t3_term_update(void) {
 				if (old_block_size != new_block_size || memcmp(_t3_old_data.data + old_idx + old_block_size_bytes,
 						_t3_terminal_window->lines[i].data + new_idx + new_block_size_bytes, old_block_size >> 1) != 0)
 					break;
+				same_count++;
 				width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
 				old_idx += (old_block_size >> 1) + old_block_size_bytes;
 				new_idx += (new_block_size >> 1) + new_block_size_bytes;
@@ -587,6 +589,12 @@ void t3_term_update(void) {
 
 			if (new_idx == _t3_terminal_window->lines[i].length)
 				break;
+
+			if (same_count < 3) {
+				old_idx = saved_old_idx;
+				new_idx = saved_new_idx;
+				width = saved_width;
+			}
 
 			if (width != last_width) {
 				if (last_width < 0 || _t3_hpa == NULL)
@@ -633,13 +641,14 @@ void t3_term_update(void) {
 				}
 				new_idx += new_block_size >> 1;
 				width += _T3_BLOCK_SIZE_TO_WIDTH(new_block_size);
+				same_count--;
 
 				while (old_idx != _t3_old_data.length && old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) <= width) {
 					old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
 					old_width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
 					old_idx += (old_block_size >> 1) + old_block_size_bytes;
 				}
-			} while (old_width != width && new_idx != _t3_terminal_window->lines[i].length);
+			} while ((old_width != width || same_count > 0) && new_idx != _t3_terminal_window->lines[i].length);
 			last_width = width;
 			_t3_output_buffer_print();
 		}
