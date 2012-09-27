@@ -580,15 +580,16 @@ void t3_term_update(void) {
 		width = _t3_terminal_window->lines[i].start;
 		old_width = _t3_old_data.start;
 
-		if (_t3_terminal_window->lines[i].start > _t3_old_data.start && _t3_old_data.width > 0) {
+		if (width > old_width && _t3_old_data.width > 0) {
 			int spaces;
 			_t3_do_cup(i, _t3_old_data.start);
 			_t3_set_attrs(0);
 
-			if (_t3_old_data.start + _t3_old_data.width < _t3_terminal_window->lines[i].start) {
+			if (_t3_old_data.start + _t3_old_data.width < width) {
 				spaces = _t3_old_data.width;
 				old_idx = _t3_old_data.length;
 				old_width = _t3_old_data.start + _t3_old_data.width;
+				last_width = old_width;
 			} else {
 				spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start;
 				while (old_idx < _t3_old_data.length) {
@@ -598,17 +599,22 @@ void t3_term_update(void) {
 					old_width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
 					old_idx += (old_block_size >> 1) + old_block_size_bytes;
 				}
+				last_width = width;
 			}
 
 			for (spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start; spaces > 0; spaces--)
 				t3_term_putc(' ');
-			last_width = _t3_terminal_window->lines[i].start;
 		}
 
 		while (new_idx != _t3_terminal_window->lines[i].length) {
-			int saved_old_idx = old_idx, saved_new_idx = new_idx, saved_width = width, same_count = 0;
+			int saved_old_idx, saved_new_idx, saved_width, same_count = 0;
 
+			/* Only check if old and new are the same if we are checking the same position. */
 			if (old_width == width) {
+				saved_old_idx = old_idx;
+				saved_new_idx = new_idx;
+				saved_width = width;
+
 				while (new_idx < _t3_terminal_window->lines[i].length && old_idx < _t3_old_data.length) {
 					old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
 					new_block_size = _t3_get_value(_t3_terminal_window->lines[i].data + new_idx, &new_block_size_bytes);
@@ -627,10 +633,14 @@ void t3_term_update(void) {
 				if (new_idx >= _t3_terminal_window->lines[i].length)
 					break;
 
-				if (same_count < 3) {
+				if (same_count < 3 && old_idx < _t3_old_data.length) {
 					old_idx = saved_old_idx;
 					new_idx = saved_new_idx;
-					width = saved_width;
+					old_width = width = saved_width;
+					same_count++;
+				} else {
+					/* Erase same_count, so we don't print unnecessary characters below. */
+					same_count = 0;
 				}
 			}
 
@@ -704,7 +714,7 @@ void t3_term_update(void) {
 			if (_t3_el != NULL) {
 				_t3_putp(_t3_el);
 			} else {
-				int max = _t3_old_data.width < _t3_terminal_window->width ? _t3_old_data.width : _t3_terminal_window->width;
+				int max = _t3_old_data.start + _t3_old_data.width;
 				for (; width < max; width++)
 					t3_term_putc(' ');
 			}
