@@ -832,35 +832,29 @@ t3_bool _t3_win_refresh_term_line(int line) {
 		}
 	}
 
-	/* If a line does not start at position 0, just make it do so. This makes the whole repainting
-	   bit a lot easier. */
-	if (_t3_terminal_window->lines[line].start != 0) {
-		char space_str[8];
-		size_t space_str_bytes;
-
-		space_str_bytes = create_space_block(_t3_map_attr(_t3_terminal_window->default_attrs), space_str);
-		_t3_terminal_window->paint_x = 0;
-		result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
-	}
 
 	/* If the default attributes for the terminal are not only a foreground color,
 	   we need to ensure that we paint the terminal. */
-	if ((_t3_terminal_window->default_attrs & ~T3_ATTR_FG_MASK) != 0 &&
-			_t3_terminal_window->lines[line].width + _t3_terminal_window->lines[line].start < _t3_terminal_window->width)
-	{
+	if ((_t3_terminal_window->default_attrs & ~T3_ATTR_FG_MASK) != 0) {
 		char space_str[8];
 		size_t space_str_bytes;
 
 		space_str_bytes = create_space_block(_t3_map_attr(_t3_terminal_window->default_attrs), space_str);
-
-		/* Make sure we fill the whole line. Adding the final character to an otherwise
-		   empty line doesn't do anything for us. */
-		if (_t3_terminal_window->lines[line].width == 0) {
+		if (_t3_terminal_window->lines[line].start != 0) {
 			_t3_terminal_window->paint_x = 0;
 			result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
 		}
-		_t3_terminal_window->paint_x = _t3_terminal_window->width - 1;
-		result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+
+		if (_t3_terminal_window->lines[line].width + _t3_terminal_window->lines[line].start < _t3_terminal_window->width) {
+			/* Make sure we fill the whole line. Adding the final character to an otherwise
+			   empty line doesn't do anything for us. */
+			if (_t3_terminal_window->lines[line].width == 0) {
+				_t3_terminal_window->paint_x = 0;
+				result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+			}
+			_t3_terminal_window->paint_x = _t3_terminal_window->width - 1;
+			result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+		}
 	}
 
 	return result;

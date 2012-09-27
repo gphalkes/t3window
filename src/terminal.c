@@ -413,14 +413,18 @@ void _t3_set_attrs(t3_attr_t new_attrs) {
 	/* Just in case the caller forgot */
 	new_attrs &= ~T3_ATTR_FALLBACK_ACS;
 
-	if (new_attrs == 0 && (_t3_sgr0 != NULL || _t3_sgr != NULL)) {
-		/* Use sgr instead of sgr0 as this is probably more tested (see rxvt-unicode terminfo bug) */
-		if (_t3_sgr != NULL)
-			_t3_putp(_t3_tparm(_t3_sgr, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0));
-		else
-			_t3_putp(_t3_sgr0);
-		_t3_attrs = 0;
-		return;
+	if (new_attrs == 0) {
+		if (_t3_attrs == 0)
+			return;
+		if (_t3_sgr0 != NULL || _t3_sgr != NULL) {
+			/* Use sgr instead of sgr0 as this is probably more tested (see rxvt-unicode terminfo bug) */
+			if (_t3_sgr != NULL)
+				_t3_putp(_t3_tparm(_t3_sgr, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+			else
+				_t3_putp(_t3_sgr0);
+			_t3_attrs = 0;
+			return;
+		}
 	}
 
 	changed_attrs = (new_attrs ^ _t3_attrs) & ~_t3_ansi_attrs;
@@ -566,38 +570,68 @@ void t3_term_update(void) {
 	}
 
 	for (i = 0; i < _t3_lines; i++) {
-		int old_idx = 0, new_idx = 0, width = 0, last_width = -1;
+		int old_idx = 0, new_idx = 0, width, old_width, last_width = -1;
 		uint32_t old_block_size, new_block_size;
 		size_t old_block_size_bytes, new_block_size_bytes;
 
 		SWAP_LINES(_t3_old_data, _t3_terminal_window->lines[i]);
 		_t3_win_refresh_term_line(i);
 
-		while (new_idx != _t3_terminal_window->lines[i].length) {
-			int old_width, same_count = 0;
-			int saved_old_idx = old_idx, saved_new_idx = new_idx, saved_width = width;
+		width = _t3_terminal_window->lines[i].start;
+		old_width = _t3_old_data.start;
 
-			while (new_idx != _t3_terminal_window->lines[i].length && old_idx != _t3_old_data.length) {
-				old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
-				new_block_size = _t3_get_value(_t3_terminal_window->lines[i].data + new_idx, &new_block_size_bytes);
+		if (_t3_terminal_window->lines[i].start > _t3_old_data.start && _t3_old_data.width > 0) {
+			int spaces;
+			_t3_do_cup(i, _t3_old_data.start);
+			_t3_set_attrs(0);
 
-				/* Check if the next blocks are equal. If not, break. */
-				if (old_block_size != new_block_size || memcmp(_t3_old_data.data + old_idx + old_block_size_bytes,
-						_t3_terminal_window->lines[i].data + new_idx + new_block_size_bytes, old_block_size >> 1) != 0)
-					break;
-				same_count++;
-				width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
-				old_idx += (old_block_size >> 1) + old_block_size_bytes;
-				new_idx += (new_block_size >> 1) + new_block_size_bytes;
+			if (_t3_old_data.start + _t3_old_data.width < _t3_terminal_window->lines[i].start) {
+				spaces = _t3_old_data.width;
+				old_idx = _t3_old_data.length;
+				old_width = _t3_old_data.start + _t3_old_data.width;
+			} else {
+				spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start;
+				while (old_idx < _t3_old_data.length) {
+					old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
+					if (old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) > width)
+						break;
+					old_width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
+					old_idx += (old_block_size >> 1) + old_block_size_bytes;
+				}
 			}
 
-			if (new_idx == _t3_terminal_window->lines[i].length)
-				break;
+			for (spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start; spaces > 0; spaces--)
+				t3_term_putc(' ');
+			last_width = _t3_terminal_window->lines[i].start;
+		}
 
-			if (same_count < 3) {
-				old_idx = saved_old_idx;
-				new_idx = saved_new_idx;
-				width = saved_width;
+		while (new_idx != _t3_terminal_window->lines[i].length) {
+			int saved_old_idx = old_idx, saved_new_idx = new_idx, saved_width = width, same_count = 0;
+
+			if (old_width == width) {
+				while (new_idx < _t3_terminal_window->lines[i].length && old_idx < _t3_old_data.length) {
+					old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
+					new_block_size = _t3_get_value(_t3_terminal_window->lines[i].data + new_idx, &new_block_size_bytes);
+
+					/* Check if the next blocks are equal. If not, break. */
+					if (old_block_size != new_block_size || memcmp(_t3_old_data.data + old_idx + old_block_size_bytes,
+							_t3_terminal_window->lines[i].data + new_idx + new_block_size_bytes, old_block_size >> 1) != 0)
+						break;
+					same_count++;
+					width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
+					old_width = width;
+					old_idx += (old_block_size >> 1) + old_block_size_bytes;
+					new_idx += (new_block_size >> 1) + new_block_size_bytes;
+				}
+
+				if (new_idx >= _t3_terminal_window->lines[i].length)
+					break;
+
+				if (same_count < 3) {
+					old_idx = saved_old_idx;
+					new_idx = saved_new_idx;
+					width = saved_width;
+				}
 			}
 
 			if (width != last_width) {
@@ -606,8 +640,6 @@ void t3_term_update(void) {
 				else
 					_t3_putp(_t3_tparm(_t3_hpa, 1, width));
 			}
-
-			old_width = width;
 
 			do {
 				t3_attr_t new_attrs;
@@ -647,18 +679,22 @@ void t3_term_update(void) {
 				width += _T3_BLOCK_SIZE_TO_WIDTH(new_block_size);
 				same_count--;
 
-				while (old_idx != _t3_old_data.length && old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) <= width) {
+				while (old_idx < _t3_old_data.length) {
 					old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
+					if (old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) > width)
+						break;
 					old_width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
 					old_idx += (old_block_size >> 1) + old_block_size_bytes;
 				}
-			} while ((old_width != width || same_count > 0) && new_idx != _t3_terminal_window->lines[i].length);
+			} while ((old_width != width || same_count > 0) && new_idx < _t3_terminal_window->lines[i].length);
 			last_width = width;
 			_t3_output_buffer_print();
 		}
 
 		/* Clear the terminal line if the new line is shorter than the old one. */
-		if (_t3_terminal_window->lines[i].width < _t3_old_data.width && width < _t3_terminal_window->width) {
+		if (_t3_terminal_window->lines[i].start + _t3_terminal_window->lines[i].width < _t3_old_data.start + _t3_old_data.width &&
+				width < _t3_terminal_window->width)
+		{
 			if (last_width < 0)
 				_t3_do_cup(i, 0);
 
