@@ -243,13 +243,14 @@ T3_WINDOW_API int t3_term_strwidth(const char *str);
 T3_WINDOW_API t3_attr_t t3_term_combine_attrs(t3_attr_t a, t3_attr_t b);
 T3_WINDOW_API t3_attr_t t3_term_get_ncv(void);
 
+T3_WINDOW_API void t3_term_disable_ansi_optimization(void);
+
 /** These are implemented in convert_output.c */
 T3_WINDOW_API t3_bool t3_term_can_draw(const char *str, size_t str_len);
 T3_WINDOW_API void t3_term_set_replacement_char(int c);
 T3_WINDOW_API t3_bool t3_term_putc(char c);
 T3_WINDOW_API t3_bool t3_term_puts(const char *s);
 T3_WINDOW_API t3_bool t3_term_putn(const char *s, size_t n);
-T3_WINDOW_API void t3_term_disable_ansi_optimization(void);
 
 /** Get terminal capabilities.
     @param caps The location to store the capabilites.

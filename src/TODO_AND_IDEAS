@@ -1,15 +1,5 @@
 High Priority
 =============
-- set/reset linux console esc prefix meta handling
-
-KDGKBMETA
-Gets meta key handling mode. argp points to a long which is set to one of these:
-
-  K_METABIT 0x03 set high order bit
-  K_ESCPREFIX 0x04 escape prefix
-KDSKBMETA
-Sets meta key handling mode. argp is a long equal to one of the above values.
-
 - conjoining jamo should not be rendered separately, but only as a normalized
   codepoint. So if something in the range 0x1160 - 0x11FF is encountered, it
   should be dropped, regardless of the terminal type.
@@ -46,89 +36,6 @@ Low Priority
   Note that doing the update on terminal line 0 requires that we take multi-
   threading into account fully, rather than the way we do it now.
 - implement WIOCGETD alternative to TCIOGWINSZ ioctl
-
-- 256 color mode for xterm (and others). Coding this in the ATTR values is
-  going to be somewhat difficult, because there aren't sufficient bits it the
-  t3_chardata_t type left. Perhaps we should change the user mode to have a number
-  of user modes such that the program can do this itself. However, this is not
-  a very generic solution.
-
-  We should consider the following: the current implementation encodes
-  everything in 4 bytes quantities. However, only for the first character of
-  a UTF-8 sequence do we really need to store any information. So we could store
-  it that way. I.e., only store attribute bytes after the first byte of a
-  UTF-8 sequence. This does complicate processing, but any scheme that will
-  allow 256 colors will. The question is how much will it complicate processing?
-  And how much overhead will it give?
-
-  Another option, which may complicate processing less, is to encode everything
-  in 2 byte quantities, of which the top bit indicates that more (attribute)
-  words are following. That way we have an extensible scheme with the same or
-  less overhead than the current scheme which does allow 256 colors.
-
-  For example, we could use the following scheme, which would allow
-  implementation with minimal changes to the existing code:
-
-  0  | char       | FG (0)  | Unused
-  1  | char       | FG (1)  | Unused
-  2  | char       | FG (2)  | Unused
-  3  | char       | FG (3)  | Unused
-  4  | char       | FG (4)  | Unused
-  5  | char       | BG (0)  | FG (5)
-  6  | char       | BG (1)  | FG (6)
-  7  | char       | BG (2)  | FG (7)
-  8  | ACS        | BG (3)  | FG (8)
-  9  | Bold       | BG (4)  | BG (5)
-  10 | Reverse    | Blink   | BG (6)
-  11 | Underline  | User    | BG (7)
-  12 | Dim        | Unused  | BG (8)
-  13 | width      | 0       | 0
-  14 | width      | 0       | 0
-  15 | more       | more    | 0
-
-  The more bit indicates whether the following word is present. The location
-  for the width bits are zero in the second and third word to allow the testing
-  for whether a word is a character to be kept to a minimum (in many places the
-  code simply skips until a non-zero-width character is found). A second feature
-  is that the foreground and background have 5 bits in the first word to allow
-  the use of the third word to be kept to a minimum. This of course works best
-  if the default color is not "last color + 1", so that needs to be changed.
-  The final feature is that the bits in the third word are aligned such that
-  they require a minimum of masking and shifting [Unfortunately, the width bits
-  are in the way for even less shifting]
-
-  ====
-  A third way, which is probably quite space efficient and also allows quicker
-  scanning of strings, is to use the following encoding:
-
-  Length | Attribute Index | UTF-8 string
-
-  Each quantity is UTF-8 encoded to allow small values to be encoded as a
-  single byte. Attribute index is simply an index into a table of t3_attr_t
-  values indicating the required attribute. This table must be searched before
-  inserting new values into the string, and possibly extended if that
-  particular attribute combination was not used previously. However, because
-  only few attribute values are actually used, this will not be a problem, and
-  the attributes will mostly be encoded by a single byte. [ possibly a garbage
-  collection function for attribute indices can be added, but this will require
-  a full scan of the window stack ]
-
-  The length field should encode two lengths: the width in cells and the number
-  of bytes of this coded block. If reverse scanning is also required, the
-  length field can be repeated at the end of the block. The UTF-8 string should
-  contain all combining characters as well, such that if a new value is written
-  for a cell, simply removing the associated encoded block sufices. This also
-  means that the cell width is either 1 or 2, making a single bit sufficient
-  for encoding it.
-
-  Using this encoding will actually make it more efficient for window-to-window
-  copying of strings, because only the length field needs to be inspected. It
-  is however best to copy/overwrite complete strings in one go, to prevent
-  unnecessary memory moves.
-
-  The only real issue is insertion of zero width characters (combining chars),
-  because they require updating encoded blocks rather than handling an encoded
-  block as a whole.
 
 Ideas
 =====
