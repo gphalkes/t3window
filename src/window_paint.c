@@ -178,6 +178,12 @@ uint32_t _t3_get_value(const char *src, size_t *size) {
 		case 252: case 253:
 			bytes_left = 5;
 			retval = src[1] & 1;
+			break;
+		default:
+			/* This should never occur, as we only use this to read values we generated
+			   ourselves. However, the compiler will start fussing if we don't add this. */
+			*size = 0;
+			return 0;
 	}
 
 	*size = bytes_left + 1;
@@ -273,10 +279,11 @@ static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
 
 	if (win->paint_y >= win->height)
 		return t3_true;
-	if (win->paint_x >= win->width)
+	/* Combining characters may be added _at_ width. */
+	if (win->paint_x > win->width)
 		return t3_true;
 
-	if (win->cached_pos_line != win->paint_y || win->cached_pos_width > win->paint_x) {
+	if (win->cached_pos_line != win->paint_y || win->cached_pos_width >= win->paint_x) {
 		win->cached_pos_line = win->paint_y;
 		win->cached_pos = 0;
 		win->cached_pos_width = win->lines[win->paint_y].start;
@@ -285,7 +292,7 @@ static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
 	/* Simply drop characters that don't belong to any other character. */
 	if (win->lines[win->paint_y].length == 0 ||
 			win->paint_x <= win->lines[win->paint_y].start ||
-			win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width + 1)
+			win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width)
 		return t3_true;
 
 	/* Ensure we have space for n characters, and possibly extend the block size header by 1. */
@@ -295,16 +302,18 @@ static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
 	pos_width = win->cached_pos_width;
 
 	/* Locate the first character that at least partially overlaps the position
-	   where this string is supposed to go. */
-	if (pos_width < win->paint_x) {
-		for (i = win->cached_pos; i < win->lines[win->paint_y].length; i += (block_size >> 1) + block_size_bytes) {
-			block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
-			pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
+	   where this string is supposed to go. Note that this loop will iterate at
+	   least once, because if win->cached_pos == win->lines[win->paint_y].length,
+	   then win->cached_pos_width will equal win->paint_x, and thereby get invalidated
+	   above. */
+	block_size = 0; /* Shut up the compiler. */
+	for (i = win->cached_pos; i < win->lines[win->paint_y].length; i += (block_size >> 1) + block_size_bytes) {
+		block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
+		pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
 
-			/* Do the check for whether we found the insertion point here, so we don't update i. */
-			if (pos_width >= win->paint_x)
-				break;
-		}
+		/* Do the check for whether we found the insertion point here, so we don't update i. */
+		if (pos_width >= win->paint_x)
+			break;
 	}
 
 	/* Check whether we are being asked to add a zero-width character in the middle
@@ -443,7 +452,12 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
 		size_t start_space_bytes, end_space_bytes;
 
 		/* Locate the first character that at least partially overlaps the position
-		   where this string is supposed to go. */
+		   where this string is supposed to go. Note that this loop will always be
+		   entered once, because win->cached_pos will always be < line length.
+		   To see why this is the case, consider that when win->cached_pos equals the
+		   line length. Then win->paint_x equals the width of the line and that case
+		   will be handled above. */
+		block_size = 0; /* Shut up the compiler. */
 		for (i = win->cached_pos; i < win->lines[win->paint_y].length; i += (block_size >> 1) + block_size_bytes) {
 			block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
 			if (_T3_BLOCK_SIZE_TO_WIDTH(block_size) + pos_width > win->paint_x)
@@ -485,7 +499,7 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
 			}
 
 			end_space_attr = get_block_attr(win->lines[win->paint_y].data + i);
-			end_replace = i < win->lines[win->paint_y].length ? i + (block_size >> 1) + block_size_bytes : i;
+			end_replace = i < win->lines[win->paint_y].length ? (int) (i + (block_size >> 1) + block_size_bytes) : i;
 		}
 
 		end_spaces = pos_width > win->paint_x + width ? pos_width - win->paint_x - width : 0;
