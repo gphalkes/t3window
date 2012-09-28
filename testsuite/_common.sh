@@ -5,11 +5,6 @@ fail() {
 	exit 1
 }
 
-setup_ldlibrary_path() {
-	RELDIR=../../../
-	export LD_LIBRARY_PATH=$RELDIR/window/src/.libs:$RELDIR/../transcript/src/.libs
-}
-
 cd_workdir() {
 	cd "$DIR" || fail "Could not change to base dir"
 	{ [ -d work ] || mkdir work ; } || fail "Could not create work dir"
@@ -34,5 +29,5 @@ build_test() {
 		cat $TEST/test.c
 	} > test.c
 
-	gcc -g -Wall -I../../src test.c -L../../src/.libs/ -lt3window -o test || fail "!! Could not compile test"
+	gcc -g -Wall -I../../src test.c -L../../src/.libs/ -lt3window -o test -Wl,-rpath=$PWD/../../src/.libs:$PWD/../../../transcript/src/.libs || fail "!! Could not compile test"
 }

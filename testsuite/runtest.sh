@@ -13,7 +13,6 @@ cd_workdir
 
 rm *
 
-setup_ldlibrary_path
 build_test
 
 ../../../../record/src/tdreplay -lreplay.log $REPLAYOPTS $TEST/recording || fail "!! Terminal output is different"

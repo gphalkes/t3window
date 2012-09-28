@@ -15,7 +15,6 @@ cd_workdir
 
 rm *
 
-setup_ldlibrary_path
 build_test
 
 ../../../../record/src/tdrerecord -s -o $TEST/recording.new $TEST/recording || fail "!! Could not rerecord test"

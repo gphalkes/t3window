@@ -19,7 +19,6 @@
 
 #define ASSERT(_cond) do { if (!(_cond)) fatal("Assertion failed on line %s:%d: %s\n", __FILE__, __LINE__, #_cond); } while (0)
 
-static int opt_interactive = 1;
 static int opt_debug;
 static int initialized;
 
@@ -72,12 +71,8 @@ int main(int argc, char *argv[]) {
 			case 'd':
 				opt_debug = 1;
 				break;
-			case 'i':
-				opt_interactive = 1;
-				break;
 			case 'h':
 				printf("Usage: test [<options>]\n");
-				printf("  -i          Interactive\n");
 				printf("  -d          Debug\n");
 				break;
 			default:
@@ -94,5 +89,6 @@ int main(int argc, char *argv[]) {
 	atexit(t3_term_restore);
 	initialized = 1;
 
+	t3_term_override_colors(256, 65536);
 	return test();
 }

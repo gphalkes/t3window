@@ -591,6 +591,27 @@ void t3_term_disable_ansi_optimization(void) {
 	_t3_ansi_attrs = 0;
 }
 
+/** Override the number of colors reported by terminfo.
+    @param colors The number of colors to use, or @c 0 to use the terminfo setting.
+    @param pairs The number of pairs to use, or @c 0 to use the terminfo setting.
+
+    Many terminal emulators these days support XTerm 256 color mode. However,
+    they use their old TERM setting, rather than the xxx-256color TERM setting
+    that the terminfo database expects. Therefore, we provide an interface to
+    override the values retrieved from the terminfo database.
+*/
+void t3_term_override_colors(int colors, int pairs) {
+	if (colors <= 0)
+		_t3_colors = _t3_tigetnum("colors");
+	else
+		_t3_colors = colors;
+
+	if (pairs <= 0)
+		_t3_pairs = _t3_tigetnum("pairs");
+	else
+		_t3_pairs = pairs;
+}
+
 /** Restore terminal state (de-initialize). */
 void t3_term_restore(void) {
 	if (initialised) {

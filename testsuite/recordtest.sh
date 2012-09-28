@@ -15,7 +15,6 @@ cd_workdir
 
 rm *
 
-setup_ldlibrary_path
 build_test
 
 ../../../../record/src/tdrecord -o $TEST/recording -e LD_LIBRARY_PATH $RECORDOPTS ./test || fail "!! Could not record test"
