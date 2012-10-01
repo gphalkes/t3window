@@ -497,6 +497,8 @@ static void integrate_environment(void) {
 			override_colors(value, _t3_pairs);
 		} else if (check_num_opt(opts, "pairs=", &value)) {
 			override_colors(_t3_colors, value);
+		} else if (check_opt("ansi=off")) {
+			_t3_ansi_attrs = 0;
 		}
 		while (*opts != 0 && *opts != ' ') opts++;
 	}
@@ -673,11 +675,6 @@ int t3_term_init(int fd, const char *term) {
 
 	initialised = t3_true;
 	return T3_ERR_SUCCESS;
-}
-
-/** Disable the ANSI terminal control sequence optimization. */
-void t3_term_disable_ansi_optimization(void) {
-	_t3_ansi_attrs = 0;
 }
 
 /** Restore terminal state (de-initialize). */
