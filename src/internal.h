@@ -85,6 +85,12 @@ enum {
 	_T3_TERM_GBK
 };
 
+typedef enum {
+	_T3_ACS_AUTO,
+	_T3_ACS_ASCII,
+	_T3_ACS_UTF8
+} t3_acs_override_t;
+
 T3_WINDOW_LOCAL extern int _t3_term_encoding, _t3_term_combining, _t3_term_double_width;
 T3_WINDOW_LOCAL extern char _t3_current_charset[80];
 T3_WINDOW_LOCAL extern long _t3_detection_needs_finishing;
@@ -132,7 +138,7 @@ T3_WINDOW_LOCAL extern char _t3_alternate_chars[256];
 T3_WINDOW_LOCAL extern line_data_t _t3_old_data;
 T3_WINDOW_LOCAL extern t3_bool _t3_show_cursor;
 T3_WINDOW_LOCAL extern int _t3_cursor_y, _t3_cursor_x;
-
+T3_WINDOW_LOCAL extern t3_acs_override_t _t3_acs_override;
 
 T3_WINDOW_LOCAL void _t3_do_cup(int line, int col);
 T3_WINDOW_LOCAL void _t3_set_alternate_chars_defaults(void);

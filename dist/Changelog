@@ -1,6 +1,10 @@
 Version 0.2.0:
 	New features:
 	- Support up to 256 colors.
+	- Allow setting of options through the T3WINDOW_OPTS environment variable.
+	  At this time only overriding of the number of colors and pairs, and the
+	  method of drawing ACS characters (a.k.a. line drawing characters) is
+	  supported.
 
 Version 0.1.7:
 	Bug fixes:

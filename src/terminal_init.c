@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 #if defined(HAS_WINSIZE_IOCTL) || defined(HAS_SIZE_IOCTL)
 #include <sys/ioctl.h>
 #endif
@@ -35,6 +36,10 @@
 /** @internal
     @brief Wrapper for strcmp which converts the return value to boolean. */
 #define streq(a,b) (strcmp((a), (b)) == 0)
+
+/** @internal
+    @brief Call a function to free a pointer and subsequently set it to NULL. */
+#define CLEAR(x, func) do { if (x != NULL) { func(x); x = NULL; } } while (0)
 
 static struct termios saved; /**< Terminal state as saved in ::t3_term_init */
 static t3_bool initialised, /**< Boolean indicating whether the terminal has been initialised. */
@@ -333,6 +338,7 @@ static int init_sequences(const char *term) {
 	_t3_blink = get_ti_string("blink");
 	_t3_dim = get_ti_string("dim");
 	_t3_smacs = get_ti_string("smacs");
+
 	if (_t3_smacs != NULL && ((_t3_rmacs = get_ti_string("rmacs")) == NULL || isreset(_t3_rmacs)))
 		_t3_reset_required_mask |= T3_ATTR_ACS;
 
@@ -371,8 +377,8 @@ static int init_sequences(const char *term) {
 		_t3_bold = NULL;
 		_t3_blink = NULL;
 		_t3_dim = NULL;
-		if (_t3_rmul == NULL) _t3_smul = NULL;
-		if (_t3_rmacs == NULL) _t3_smacs = NULL;
+		if (_t3_rmul == NULL) CLEAR(_t3_smul, free);
+		if (_t3_rmacs == NULL) CLEAR(_t3_smacs, free);
 	}
 
 	_t3_bce = _t3_tigetflag("bce");
@@ -380,7 +386,7 @@ static int init_sequences(const char *term) {
 		_t3_bce = t3_true;
 
 	if ((_t3_sc = get_ti_string("sc")) != NULL && (_t3_rc = get_ti_string("rc")) == NULL)
-		_t3_sc = NULL;
+		CLEAR(_t3_sc, free);
 
 	_t3_civis = get_ti_string("civis");
 	_t3_cnorm = get_ti_string("cnorm");
@@ -411,6 +417,89 @@ static int init_sequences(const char *term) {
 	}
 
 	return T3_ERR_SUCCESS;
+}
+
+/** @internal Check whether a string starts with a specific option.
+    @param str The string to check.
+    @param opt The option to look for.
+    @return A boolean indicating whether the option was encountered.
+*/
+static t3_bool check_opt(const char *str, const char *opt) {
+	size_t len = strlen(opt);
+	return strncmp(str, opt, len) == 0 && (str[len] == ' ' || str[len] == 0);
+}
+
+/** @internal Check whether a string starts with a specific numerical option.
+    @param str The string to check.
+    @param opt The option to look for (including the '=' character.
+    @param result A pointer to where to store the result.
+    @return A boolean indicating whether the option was encountered and has a
+        valid value.
+*/
+static t3_bool check_num_opt(const char *str, const char *opt, int *result) {
+	size_t len = strlen(opt);
+	long value;
+	char *endptr;
+
+	if (!(strncmp(str, opt, len) == 0))
+		return t3_false;
+
+	errno = 0;
+	value = strtol(str + len, &endptr, 0);
+	if (*endptr != 0 && *endptr != ' ')
+		return t3_false;
+
+	if (value > INT_MAX || value < INT_MIN || ((value == LONG_MAX || value == LONG_MIN) && errno == ERANGE))
+		return t3_false;
+	*result = value;
+	return t3_true;
+}
+
+/** @internal Override the number of colors reported by terminfo.
+    @param colors The number of colors to use, or @c 0 to use the terminfo setting.
+    @param pairs The number of pairs to use, or @c 0 to use the terminfo setting.
+
+    Many terminal emulators these days support XTerm 256 color mode. However,
+    they use their old TERM setting, rather than the xxx-256color TERM setting
+    that the terminfo database expects. Therefore, we provide an interface to
+    override the values retrieved from the terminfo database.
+*/
+static void override_colors(int colors, int pairs) {
+	if (colors <= 0)
+		_t3_colors = _t3_tigetnum("colors");
+	else if (colors <= 256)
+		_t3_colors = colors;
+
+	if (pairs <= 0)
+		_t3_pairs = _t3_tigetnum("pairs");
+	else
+		_t3_pairs = pairs;
+}
+
+/** Read the T3WINDOW_OPTS environment variable and parse its contents. */
+static void integrate_environment(void) {
+	char *opts = getenv("T3WINDOW_OPTS");
+	int value;
+
+	if (opts == NULL)
+		return;
+
+	while (*opts != 0) {
+		while (*opts == ' ') opts++;
+
+		if (check_opt(opts, "acs=ascii")) {
+			_t3_acs_override = _T3_ACS_ASCII;
+		} else if (check_opt(opts, "acs=utf8")) {
+			_t3_acs_override = _T3_ACS_UTF8;
+		} else if (check_opt(opts, "acs=auto")) {
+			_t3_acs_override = _T3_ACS_AUTO;
+		} else if (check_num_opt(opts, "colors=", &value)) {
+			override_colors(value, _t3_pairs);
+		} else if (check_num_opt(opts, "pairs=", &value)) {
+			override_colors(_t3_colors, value);
+		}
+		while (*opts != 0 && *opts != ' ') opts++;
+	}
 }
 
 /** Initialize the terminal.
@@ -473,12 +562,12 @@ int t3_term_init(int fd, const char *term) {
 		FD_SET(_t3_terminal_in_fd, &_t3_inset);
 	}
 
-	/* FIXME: we should check whether the same value is passed for term each time,
-	   or tell the user that only the first time is relevant. */
 	if (!seqs_initialised) {
 		int result;
 		if ((result = init_sequences(term)) != T3_ERR_SUCCESS)
 			return result;
+
+		integrate_environment();
 		seqs_initialised = t3_true;
 	}
 
@@ -591,27 +680,6 @@ void t3_term_disable_ansi_optimization(void) {
 	_t3_ansi_attrs = 0;
 }
 
-/** Override the number of colors reported by terminfo.
-    @param colors The number of colors to use, or @c 0 to use the terminfo setting.
-    @param pairs The number of pairs to use, or @c 0 to use the terminfo setting.
-
-    Many terminal emulators these days support XTerm 256 color mode. However,
-    they use their old TERM setting, rather than the xxx-256color TERM setting
-    that the terminfo database expects. Therefore, we provide an interface to
-    override the values retrieved from the terminfo database.
-*/
-void t3_term_override_colors(int colors, int pairs) {
-	if (colors <= 0)
-		_t3_colors = _t3_tigetnum("colors");
-	else if (colors <= 256)
-		_t3_colors = colors;
-
-	if (pairs <= 0)
-		_t3_pairs = _t3_tigetnum("pairs");
-	else
-		_t3_pairs = pairs;
-}
-
 /** Restore terminal state (de-initialize). */
 void t3_term_restore(void) {
 	if (initialised) {
@@ -634,7 +702,6 @@ void t3_term_restore(void) {
 	}
 }
 
-#define CLEAR(x, func) do { if (x != NULL) { func(x); x = NULL; } } while (0)
 /** Free all memory allocated by libt3window.
 
     This function releases all memory allocated by libt3window, and allows

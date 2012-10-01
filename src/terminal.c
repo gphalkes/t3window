@@ -154,14 +154,40 @@ int _t3_term_encoding = _T3_TERM_UNKNOWN, /**< @internal Detected terminal encod
 */
 char _t3_current_charset[80];
 
+/** @internal Variable indicating if and if so how the ACS should be overriden. */
+t3_acs_override_t _t3_acs_override;
+
 /** Get fall-back character for alternate character set character (internal use only).
     @param idx The character to retrieve the fall-back character for.
     @return The fall-back character.
 */
 static const char *get_default_acs(int idx) {
-	if (idx < 0 || idx > 255)
+	static const char *acs_ascii_defaults[128] = {
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ",
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ",
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", ">", "<", "^", "v", " ",
+		"#", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ",
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ",
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ",
+		"+", ":", " ", " ", " ", " ", "\\", "#", "#", "#", "+", "+", "+", "+", "+", "~",
+		"-", "-", "-", "_", "+", "+", "+", "+", "|", "<", ">", "*", "!", "f", "o", " "
+	};
+	const char *retval;
+
+	if (idx < 0 || idx > 127)
 		return " ";
-	return _t3_default_alternate_chars[idx] != NULL ? _t3_default_alternate_chars[idx] : " ";
+	switch (_t3_acs_override) {
+		default:
+		case _T3_ACS_AUTO:
+		case _T3_ACS_UTF8:
+			retval = _t3_default_alternate_chars[idx];
+			break;
+		case _T3_ACS_ASCII:
+			retval = acs_ascii_defaults[idx];
+			break;
+	}
+
+	return retval != NULL ? retval : acs_ascii_defaults[idx];
 }
 
 /** Move cursor to screen position.
@@ -810,9 +836,9 @@ int t3_term_strwidth(const char *str) {
     terminfo(5), but most are encoded in T3_ACS_* constants.
 */
 t3_bool t3_term_acs_available(int idx) {
-	if (idx < 0 || idx > 255)
+	if (idx < 0 || idx > 127)
 		return t3_false;
-	return _t3_alternate_chars[idx] != 0;
+	return _t3_alternate_chars[idx] != 0 && _t3_acs_override == _T3_ACS_AUTO;
 }
 
 /** Combine attributes, with priority.
