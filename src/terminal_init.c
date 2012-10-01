@@ -603,7 +603,7 @@ void t3_term_disable_ansi_optimization(void) {
 void t3_term_override_colors(int colors, int pairs) {
 	if (colors <= 0)
 		_t3_colors = _t3_tigetnum("colors");
-	else
+	else if (colors <= 256)
 		_t3_colors = colors;
 
 	if (pairs <= 0)

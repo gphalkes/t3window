@@ -678,23 +678,20 @@ int t3_win_addchrep(t3_window_t *win, char c, t3_attr_t attr, int rep) { return 
     @param ptr The last t3_window_t that was handled.
 */
 static t3_window_t *get_previous_window(t3_window_t *ptr) {
-	if (ptr->shown && ptr->tail != NULL)
-		return ptr->tail;
-
-	while (ptr->prev != NULL) {
-		ptr = ptr->prev;
+	if (ptr->shown && ptr->tail != NULL) {
+		ptr = ptr->tail;
 		if (ptr->shown)
 			return ptr;
 	}
 
-	while (ptr->parent != NULL) {
-		ptr = ptr->parent;
+	do {
 		while (ptr->prev != NULL) {
 			ptr = ptr->prev;
 			if (ptr->shown)
 				return ptr;
 		}
-	}
+		ptr = ptr->parent;
+	} while (ptr != NULL);
 	return NULL;
 }
 
