@@ -52,7 +52,7 @@ static int next(void) {
 
 	t3_term_update();
 	while (1) {
-		if ((result = t3_term_get_keychar(opt_interactive ? -1 : 1)) == 27)
+		if ((result = t3_term_get_keychar(-1)) == 27)
 			while (!isalpha(result = t3_term_get_keychar(-1))) {}
 		else if (result == T3_WARN_UPDATE_TERMINAL)
 			t3_term_update();
@@ -89,6 +89,5 @@ int main(int argc, char *argv[]) {
 	atexit(t3_term_restore);
 	initialized = 1;
 
-	t3_term_override_colors(256, 65536);
 	return test();
 }
