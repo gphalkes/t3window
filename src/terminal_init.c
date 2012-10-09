@@ -746,3 +746,9 @@ void t3_term_deinit(void) {
 		transcript_init_done = t3_false;
 	}
 }
+
+/** Disable the ANSI terminal control sequence optimization.
+    @deprecated This function does nothing anymore. To disable the ANSI
+    optimization, set the environment variable @c T3WINDOW_OPTS=ansi=off.
+*/
+void t3_term_disable_ansi_optimization(void) {}
