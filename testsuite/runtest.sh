@@ -15,7 +15,7 @@ rm *
 
 build_test
 
-../../../../record/src/tdreplay -lreplay.log $REPLAYOPTS $TEST/recording || fail "!! Terminal output is different"
+../../../../record/src/tdreplay -lreplay.log -e T3WINDOW_OPTS $REPLAYOPTS $TEST/recording || fail "!! Terminal output is different"
 
 [ "$QUIET" = 1 ] || echo "Test passed" >&2
 exit 0
