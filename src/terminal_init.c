@@ -497,7 +497,7 @@ static void integrate_environment(void) {
 			override_colors(value, _t3_pairs);
 		} else if (check_num_opt(opts, "pairs=", &value)) {
 			override_colors(_t3_colors, value);
-		} else if (check_opt("ansi=off")) {
+		} else if (check_opt(opts, "ansi=off")) {
 			_t3_ansi_attrs = 0;
 		}
 		while (*opts != 0 && *opts != ' ') opts++;
