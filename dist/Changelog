@@ -7,8 +7,9 @@ Version 0.2.0:
 	  ANSI optimization is supported.
 
 	Miscelaneous changes:
-	- Removed the t3_term_disable_ansi_optimization function. This should be
-	  set using the T3WINDOW_OPTS variable instead.
+	- Deprecated the t3_term_disable_ansi_optimization function. This should be
+	  set using the T3WINDOW_OPTS variable instead. To maintain ABI
+	  compatability the function is retained as a no-op.
 
 Version 0.1.7:
 	Bug fixes:

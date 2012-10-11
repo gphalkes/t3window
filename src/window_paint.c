@@ -32,12 +32,17 @@
    search. Whatever the data structure used, by ensuring use of the internal API,
    we can easily replace the implementation later.
 */
-/** @internal
-    @brief The map of indices to attribute sets.
-*/
-static t3_attr_t *attr_map;
+
+typedef struct attr_map_t attr_map_t;
+struct attr_map_t {
+	t3_attr_t attr;
+	int next, prev;
+};
+
+static attr_map_t *attr_map; /**< @internal @brief The map of indices to attribute sets. */
 static int attr_map_fill, /**< @internal @brief The number of elements used in ::attr_map. */
-	attr_map_allocated; /**< @internal @brief The number of elements allocated in ::attr_map. */
+	attr_map_allocated, /**< @internal @brief The number of elements allocated in ::attr_map. */
+	attr_map_head = -1; /**< @internal @brief Head element in the LRU list of ::attr_map. */
 /** @internal
     @brief The initial allocation for ::attr_map.
 */
@@ -86,23 +91,40 @@ static t3_bool ensure_space(line_data_t *line, size_t n) {
     @param attr The attribute set to map.
 */
 int _t3_map_attr(t3_attr_t attr) {
-	int idx;
+	int ptr;
 
-	for (idx = 0; idx < attr_map_fill && attr_map[idx] != attr; idx++) {}
-	if (idx < attr_map_fill)
-		return idx;
+	for (ptr = attr_map_head; ptr != -1 && attr_map[ptr].attr != attr; ptr = attr_map[ptr].next) {}
+
+	if (ptr != -1) {
+		/* If this is not the first item in the list, unlink, and put it in front. */
+		if (attr_map[ptr].prev != -1) {
+			attr_map[attr_map[ptr].prev].next = attr_map[ptr].next;
+			if (attr_map[ptr].next != -1)
+				attr_map[attr_map[ptr].next].prev = attr_map[ptr].prev;
+			attr_map[ptr].prev = -1;
+			attr_map[ptr].next = attr_map_head;
+			attr_map[attr_map[ptr].next].prev = ptr;
+			attr_map_head = ptr;
+		}
+		return ptr;
+	}
 
 	if (attr_map_fill >= attr_map_allocated) {
 		int new_allocation = attr_map_allocated == 0 ? ATTR_MAP_START_SIZE : attr_map_allocated * 2;
-		t3_attr_t *new_map;
+		attr_map_t *new_map;
 
-		if ((new_map = realloc(attr_map, new_allocation * sizeof(t3_attr_t))) == NULL)
+		if ((new_map = realloc(attr_map, new_allocation * sizeof(attr_map_t))) == NULL)
 			return -1;
 		attr_map = new_map;
 		attr_map_allocated = new_allocation;
 	}
-	attr_map[attr_map_fill++] = attr;
-	return attr_map_fill - 1;
+	attr_map[attr_map_fill].attr = attr;
+	attr_map[attr_map_fill].prev = -1;
+	attr_map[attr_map_fill].next = attr_map_head;
+	attr_map_head = attr_map_fill;
+	if (attr_map[attr_map_head].next != -1)
+		attr_map[attr_map[attr_map_head].next].prev = attr_map_head;
+	return attr_map_fill++;
 }
 
 /** @internal
@@ -112,7 +134,7 @@ int _t3_map_attr(t3_attr_t attr) {
 t3_attr_t _t3_get_attr(int idx) {
 	if (idx < 0 || idx > attr_map_fill)
 		return 0;
-	return attr_map[idx];
+	return attr_map[idx].attr;
 }
 
 /** @internal
@@ -132,7 +154,7 @@ void _t3_free_attr_map(void) {
 
     @note This function assumes that the input is a valid UTF-8 encoded value.
 */
-uint32_t _t3_get_value(const char *src, size_t *size) {
+uint32_t _t3_get_value_int(const char *src, size_t *size) {
 	int bytes_left;
 	uint32_t retval;
 
@@ -369,9 +391,7 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
 	if (win->lines == NULL)
 		return t3_false;
 
-	if (win->paint_y >= win->height)
-		return t3_true;
-	if (win->paint_x >= win->width)
+	if (win->paint_y >= win->height || win->paint_x >= win->width || n == 0)
 		return t3_true;
 
 	for (k = 0; k < n; k += (block_size >> 1) + block_size_bytes) {
@@ -696,6 +716,28 @@ static t3_window_t *get_previous_window(t3_window_t *ptr) {
 }
 
 
+static t3_bool write_spaces_to_terminal_window(int attr_idx, int count) {
+	char space_str[64];
+	size_t space_str_bytes;
+	int i;
+	t3_bool result = true;
+
+	space_str_bytes = create_space_block(attr_idx, space_str);
+	if (count > 1) {
+		memcpy(space_str + space_str_bytes, space_str, space_str_bytes);
+		if (count > 2) {
+			memcpy(space_str + space_str_bytes * 2, space_str, space_str_bytes * 2);
+			if (count > 4)
+				memcpy(space_str + space_str_bytes * 4, space_str, space_str_bytes * 4);
+		}
+	}
+
+	for (i = count / 8; i > 0 ; i--)
+		result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes * 8);
+	result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes * (count & 7));
+	return result;
+}
+
 /** @internal
     @brief Redraw a terminal line, based on all visible t3_window_t structs.
     @param terminal The t3_window_t representing the cached terminal contents.
@@ -786,10 +828,10 @@ t3_bool _t3_win_refresh_term_line(int line) {
 				_t3_terminal_window->paint_x = x + start;
 			} else if (x >= parent_x) {
 				_t3_terminal_window->paint_x = x;
-				result &= t3_win_addchrep(_t3_terminal_window, ' ', ptr->default_attrs, start) == 0;
+				result &= write_spaces_to_terminal_window(_t3_map_attr(ptr->default_attrs), start);
 			} else {
 				_t3_terminal_window->paint_x = parent_x;
-				result &= t3_win_addchrep(_t3_terminal_window, ' ', ptr->default_attrs, start - parent_x + x) == 0;
+				result &= write_spaces_to_terminal_window(_t3_map_attr(ptr->default_attrs), start - parent_x + x);
 			}
 		} else /* if (x < parent_x) */ {
 			_t3_terminal_window->paint_x = parent_x;
@@ -802,13 +844,9 @@ t3_bool _t3_win_refresh_term_line(int line) {
 			}
 
 			if (data_start < draw->length && paint_x < _t3_terminal_window->paint_x) {
-				char space_str[8];
-				size_t space_str_bytes;
-
 				paint_x += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
-				space_str_bytes = create_space_block(get_block_attr(draw->data + data_start), space_str);
-				while (paint_x > _t3_terminal_window->paint_x)
-					result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+				result &= write_spaces_to_terminal_window(get_block_attr(draw->data + data_start),
+					paint_x - _t3_terminal_window->paint_x);
 				data_start += (block_size >> 1) + block_size_bytes;
 			}
 		}
@@ -825,21 +863,14 @@ t3_bool _t3_win_refresh_term_line(int line) {
 			result &= _win_write_blocks(_t3_terminal_window, draw->data + data_start, length - data_start);
 
 		/* Add a space for the multi-cell character that is crossed by the parent clipping. */
-		if (length < draw->length && paint_x == parent_max_x - 1) {
-			char space_str[8];
-			size_t space_str_bytes;
-
-			space_str_bytes = create_space_block(get_block_attr(draw->data + length), space_str);
-			result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
-		}
+		if (length < draw->length && paint_x == parent_max_x - 1)
+			result &= write_spaces_to_terminal_window(get_block_attr(draw->data + length), 1);
 
 		if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width &&
 				x + draw->start + draw->width < parent_max_x)
 		{
-			if (x + ptr->width <= parent_max_x)
-				result &= t3_win_addchrep(_t3_terminal_window, ' ', ptr->default_attrs, ptr->width - draw->start - draw->width) == 0;
-			else
-				result &= t3_win_addchrep(_t3_terminal_window, ' ', ptr->default_attrs, parent_max_x - x - draw->start - draw->width) == 0;
+			result &= write_spaces_to_terminal_window(_t3_map_attr(ptr->default_attrs), x + ptr->width <= parent_max_x ?
+				ptr->width - draw->start - draw->width : parent_max_x - x - draw->start - draw->width);
 		}
 	}
 
@@ -847,13 +878,9 @@ t3_bool _t3_win_refresh_term_line(int line) {
 	/* If the default attributes for the terminal are not only a foreground color,
 	   we need to ensure that we paint the terminal. */
 	if ((_t3_terminal_window->default_attrs & ~T3_ATTR_FG_MASK) != 0) {
-		char space_str[8];
-		size_t space_str_bytes;
-
-		space_str_bytes = create_space_block(_t3_map_attr(_t3_terminal_window->default_attrs), space_str);
 		if (_t3_terminal_window->lines[line].start != 0) {
 			_t3_terminal_window->paint_x = 0;
-			result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+			result &= write_spaces_to_terminal_window(_t3_map_attr(_t3_terminal_window->default_attrs), 1);
 		}
 
 		if (_t3_terminal_window->lines[line].width + _t3_terminal_window->lines[line].start < _t3_terminal_window->width) {
@@ -861,10 +888,10 @@ t3_bool _t3_win_refresh_term_line(int line) {
 			   empty line doesn't do anything for us. */
 			if (_t3_terminal_window->lines[line].width == 0) {
 				_t3_terminal_window->paint_x = 0;
-				result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+				result &= write_spaces_to_terminal_window(_t3_map_attr(_t3_terminal_window->default_attrs), 1);
 			}
 			_t3_terminal_window->paint_x = _t3_terminal_window->width - 1;
-			result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes);
+			result &= write_spaces_to_terminal_window(_t3_map_attr(_t3_terminal_window->default_attrs), 1);
 		}
 	}
 
