@@ -26,11 +26,16 @@
 */
 #define UTF8_MAX_BYTES 4
 
-/* Attribute to index mapping. For now this uses a simple linear search. Should
-   this turn out to be too expensive, it can be easily replaced by a hash-table
-   based solution, an LRU cache with linear search or a sorted list with binary
-   search. Whatever the data structure used, by ensuring use of the internal API,
-   we can easily replace the implementation later.
+/* Attribute to index mapping. This uses a move-to-front like scheme with linear search
+   to ensure that frequently used attributes are found quickly. For all cases except
+   the color-picker this works well, because a small set of attributes is used
+   frequently. When the color picker is drawn, it will add a lot of attributes/move
+   a lot of not-so-frequently used attributes to the front.
+
+   The advantage of this scheme is that it will result in short search times for
+   the most common case, and is very easy to implement. Other options would be
+   hash-tables, where the main issue is correct sizing of the table, or something
+   like a balanced binary search tree.
 */
 
 typedef struct attr_map_t attr_map_t;
