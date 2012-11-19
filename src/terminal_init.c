@@ -19,8 +19,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#if defined(HAS_WINSIZE_IOCTL) || defined(HAS_SIZE_IOCTL)
+#if defined(HAS_WINSIZE_IOCTL) || defined(HAS_SIZE_IOCTL) || defined(HAS_TIOCLINUX)
 #include <sys/ioctl.h>
+#endif
+#ifdef HAS_TIOCLINUX
+#include <linux/tiocl.h>
 #endif
 #include <transcript/transcript.h>
 
@@ -539,6 +542,9 @@ int t3_term_init(int fd, const char *term) {
 		return T3_ERR_SUCCESS;
 
 	if (_t3_putp_file == NULL) {
+#ifdef HAS_TIOCLINUX
+		char cmd = TIOCL_GETSHIFTSTATE;
+#endif
 		/* We dup the fd, because when we use fclose on the FILE that we fdopen
 		   it will close the underlying fd. This should not however close the
 		   fd we have been passed or STDOUT. */
@@ -559,6 +565,11 @@ int t3_term_init(int fd, const char *term) {
 			close(_t3_terminal_out_fd);
 			return T3_ERR_ERRNO;
 		}
+
+#ifdef HAS_TIOCLINUX
+		if (ioctl(_t3_terminal_in_fd, TIOCLINUX, &cmd) == 0)
+			_t3_modifier_hack = _T3_MODHACK_LINUX;
+#endif
 
 		FD_ZERO(&_t3_inset);
 		FD_SET(_t3_terminal_in_fd, &_t3_inset);

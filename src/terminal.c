@@ -19,8 +19,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#if defined(HAS_WINSIZE_IOCTL) || defined(HAS_SIZE_IOCTL)
+#if defined(HAS_WINSIZE_IOCTL) || defined(HAS_SIZE_IOCTL) || defined(HAS_TIOCLINUX)
 #include <sys/ioctl.h>
+#endif
+#ifdef HAS_TIOCLINUX
+#include <linux/keyboard.h>
+#include <linux/tiocl.h>
 #endif
 #include <assert.h>
 #include <limits.h>
@@ -156,6 +160,9 @@ char _t3_current_charset[80];
 
 /** @internal Variable indicating if and if so how the ACS should be overriden. */
 t3_acs_override_t _t3_acs_override;
+
+/** @internal Variable indicating what hack to obtain modifiers should be used, if any. */
+int _t3_modifier_hack;
 
 /** Get fall-back character for alternate character set character (internal use only).
     @param idx The character to retrieve the fall-back character for.
@@ -903,6 +910,9 @@ void t3_term_get_caps_internal(t3_term_caps_t *caps, int version) {
 	if (_t3_scp != NULL) caps->cap_flags |= T3_TERM_CAP_CP;
 }
 
+/** @internal
+    @brief Set the attributes to sane values, removing conflicting values.
+*/
 t3_attr_t _t3_term_sanitize_attrs(t3_attr_t attrs) {
 	/* Set color to unspecified if it is out of range. */
 	if (_t3_scp == NULL) {
@@ -918,6 +928,39 @@ t3_attr_t _t3_term_sanitize_attrs(t3_attr_t attrs) {
 			attrs &= ~T3_ATTR_FG_MASK;
 	}
 	return attrs;
+}
+
+/** Retrieve the state of the modifiers using terminal specific hacks.
+
+    This function can be used to retrieve the modifier state from the terminal,
+    if the terminal provides a method for querying the corrent modifier state.
+    One example of such a terminal is the linux console. Using this function
+    is basically a hack to get at state that is not encoded in the key sequence,
+    and is not the prefered way of accessing this data. For some terminals this
+    is however the only way to get at this data.
+*/
+int t3_term_get_modifiers_hack(void) {
+	switch (_t3_modifier_hack) {
+		case _T3_MODHACK_NONE:
+			return 0;
+#ifdef HAS_TIOCLINUX
+		case _T3_MODHACK_LINUX: {
+			int cmd = TIOCL_GETSHIFTSTATE;
+			int result = 0;
+			if (ioctl(_t3_terminal_in_fd, TIOCLINUX, &cmd) != 0)
+				return 0;
+			if (cmd & (1 << KVAL(K_SHIFT)))
+				result |= T3_TERM_KEY_SHIFT;
+			if (cmd & (1 << KVAL(K_CTRL)))
+				result |= T3_TERM_KEY_CTRL;
+			if (cmd & ((1 << KVAL(K_ALT)) | (1 << KVAL(K_ALTGR))))
+				result |= T3_TERM_KEY_META;
+			return result;
+		}
+#endif
+		default:
+			return 0;
+	}
 }
 
 /** @} */

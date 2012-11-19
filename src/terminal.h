@@ -196,6 +196,10 @@ enum {
 	/* FIXME: add all the different known ACS chars */
 };
 
+#define T3_TERM_KEY_CTRL (1<<0)
+#define T3_TERM_KEY_META (1<<1)
+#define T3_TERM_KEY_SHIFT (1<<2)
+
 #include "window_errors.h"
 
 /** @name Error codes (libt3window specific) */
@@ -263,6 +267,7 @@ T3_WINDOW_API t3_bool t3_term_putn(const char *s, size_t n);
 #define t3_term_get_caps(caps) t3_term_get_caps_internal((caps), T3_WINDOW_VERSION)
 
 T3_WINDOW_API void t3_term_get_caps_internal(t3_term_caps_t *caps, int version);
+T3_WINDOW_API int t3_term_get_modifiers_hack(void);
 
 #ifdef __cplusplus
 } /* extern "C" */
