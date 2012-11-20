@@ -71,7 +71,7 @@ EOF
 	if test_link "TIOCGWINSZ ioctl" ; then
 		CONFIGFLAGS="${CONFIGFLAGS} -DHAS_WINSIZE_IOCTL"
 	else
-	clean_c
+		clean_c
 		cat > .config.c <<EOF
 #include <sys/ioctl.h>
 int main(int argc, char *argv[]) {
@@ -81,6 +81,21 @@ int main(int argc, char *argv[]) {
 }
 EOF
 		test_link "TIOCGSIZE ioctl" && CONFIGFLAGS="${CONFIGFLAGS} -DHAS_SIZE_IOCTL"
+	fi
+
+	clean_c
+	cat > .config.c <<EOF
+#include <sys/ioctl.h>
+#include <linux/tiocl.h>
+#include <linux/keyboard.h>
+int main(int argc, char *argv[]) {
+	char cmd;
+	ioctl(argc, TIOCLINUX, &cmd);
+	return 0;
+}
+EOF
+	if test_link "TIOCLINUX ioctl" ; then
+		CONFIGFLAGS="${CONFIGFLAGS} -DHAS_TIOCLINUX"
 	fi
 
 	if test_select "select in <sys/select.h>" "sys/select.h" ; then

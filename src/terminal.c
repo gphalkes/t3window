@@ -949,11 +949,11 @@ int t3_term_get_modifiers_hack(void) {
 			int result = 0;
 			if (ioctl(_t3_terminal_in_fd, TIOCLINUX, &cmd) != 0)
 				return 0;
-			if (cmd & (1 << KVAL(K_SHIFT)))
+			if (cmd & (1 << KG_SHIFT))
 				result |= T3_TERM_KEY_SHIFT;
-			if (cmd & (1 << KVAL(K_CTRL)))
+			if (cmd & (1 << KG_CTRL))
 				result |= T3_TERM_KEY_CTRL;
-			if (cmd & ((1 << KVAL(K_ALT)) | (1 << KVAL(K_ALTGR))))
+			if (cmd & ((1 << KG_ALT) | (1 << KG_ALTGR)))
 				result |= T3_TERM_KEY_META;
 			return result;
 		}

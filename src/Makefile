@@ -34,7 +34,7 @@ include ../../shared/rules.mk
 CFLAGS += -DHAS_WINSIZE_IOCTL
 CFLAGS += -DHAS_SELECT_H
 CFLAGS += -DHAS_STRDUP
-CFLAGS += -DHAS_TIOCLINUX
+CFLAGS += -DHAS_TIOCLINUX -DHAS_KDGKBENT
 
 test: | libt3window.la
 

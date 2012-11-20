@@ -22,9 +22,15 @@
 #if defined(HAS_WINSIZE_IOCTL) || defined(HAS_SIZE_IOCTL) || defined(HAS_TIOCLINUX)
 #include <sys/ioctl.h>
 #endif
+
 #ifdef HAS_TIOCLINUX
 #include <linux/tiocl.h>
+#ifdef HAS_KDGKBENT
+#include <linux/kd.h>
+#include <linux/keyboard.h>
 #endif
+#endif
+
 #include <transcript/transcript.h>
 
 #include "window.h"
@@ -422,6 +428,33 @@ static int init_sequences(const char *term) {
 	return T3_ERR_SUCCESS;
 }
 
+/** @internal
+    @brief Detect which terminal hacks should be applied. */
+static void detect_terminal_hacks(const char *term) {
+	(void) term;
+#ifdef HAS_TIOCLINUX
+{
+	char cmd = TIOCL_GETSHIFTSTATE;
+	if (ioctl(_t3_terminal_in_fd, TIOCLINUX, &cmd) == 0) {
+#ifdef HAS_KDGKBENT
+		struct kbentry arg = { (1 << KG_SHIFT), 106, 0 };
+		int success = 0;
+		int modified_key_action;
+
+		success |= ioctl(_t3_terminal_in_fd, KDGKBENT, &arg);
+		modified_key_action = arg.kb_value;
+		arg.kb_table = 0;
+		arg.kb_index = 106;
+		success |= ioctl(_t3_terminal_in_fd, KDGKBENT, &arg);
+		if (success == 0 && arg.kb_value != modified_key_action)
+			return;
+#endif
+		_t3_modifier_hack = _T3_MODHACK_LINUX;
+	}
+}
+#endif
+}
+
 /** @internal Check whether a string starts with a specific option.
     @param str The string to check.
     @param opt The option to look for.
@@ -542,9 +575,6 @@ int t3_term_init(int fd, const char *term) {
 		return T3_ERR_SUCCESS;
 
 	if (_t3_putp_file == NULL) {
-#ifdef HAS_TIOCLINUX
-		char cmd = TIOCL_GETSHIFTSTATE;
-#endif
 		/* We dup the fd, because when we use fclose on the FILE that we fdopen
 		   it will close the underlying fd. This should not however close the
 		   fd we have been passed or STDOUT. */
@@ -566,10 +596,7 @@ int t3_term_init(int fd, const char *term) {
 			return T3_ERR_ERRNO;
 		}
 
-#ifdef HAS_TIOCLINUX
-		if (ioctl(_t3_terminal_in_fd, TIOCLINUX, &cmd) == 0)
-			_t3_modifier_hack = _T3_MODHACK_LINUX;
-#endif
+		detect_terminal_hacks(term);
 
 		FD_ZERO(&_t3_inset);
 		FD_SET(_t3_terminal_in_fd, &_t3_inset);
