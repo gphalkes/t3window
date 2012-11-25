@@ -20,38 +20,36 @@
 #include "window.h"
 #include "internal.h"
 #include "utf8.h"
+#include "log.h"
 
 /** @internal
     @brief The maximum size of a UTF-8 character in bytes. Used in ::t3_win_addnstr.
 */
 #define UTF8_MAX_BYTES 4
 
-/* Attribute to index mapping. This uses a move-to-front like scheme with linear search
-   to ensure that frequently used attributes are found quickly. For all cases except
-   the color-picker this works well, because a small set of attributes is used
-   frequently. When the color picker is drawn, it will add a lot of attributes/move
-   a lot of not-so-frequently used attributes to the front.
-
-   The advantage of this scheme is that it will result in short search times for
-   the most common case, and is very easy to implement. Other options would be
-   hash-tables, where the main issue is correct sizing of the table, or something
-   like a balanced binary search tree.
+/* Attribute to index mapping. To make the mapping quick, a simple hash table
+   with hash chaining is used.
 */
 
 typedef struct attr_map_t attr_map_t;
 struct attr_map_t {
 	t3_attr_t attr;
-	int next, prev;
+	int next;
 };
 
-static attr_map_t *attr_map; /**< @internal @brief The map of indices to attribute sets. */
-static int attr_map_fill, /**< @internal @brief The number of elements used in ::attr_map. */
-	attr_map_allocated, /**< @internal @brief The number of elements allocated in ::attr_map. */
-	attr_map_head = -1; /**< @internal @brief Head element in the LRU list of ::attr_map. */
 /** @internal
     @brief The initial allocation for ::attr_map.
 */
 #define ATTR_MAP_START_SIZE 32
+/** @internal
+    @brief The size of the hash map used for ::t3_attr_t mapping.
+*/
+#define ATTR_HASH_MAP_SIZE 337
+
+static attr_map_t *attr_map; /**< @internal @brief The map of indices to attribute sets. */
+static int attr_map_fill, /**< @internal @brief The number of elements used in ::attr_map. */
+	attr_map_allocated; /**< @internal @brief The number of elements allocated in ::attr_map. */
+static int attr_hash_map[ATTR_HASH_MAP_SIZE]; /**< @internal @brief Hash map for quickly mapping ::t3_attr_t's to indices. */
 
 
 /** @addtogroup t3window_win */
@@ -98,21 +96,10 @@ static t3_bool ensure_space(line_data_t *line, size_t n) {
 int _t3_map_attr(t3_attr_t attr) {
 	int ptr;
 
-	for (ptr = attr_map_head; ptr != -1 && attr_map[ptr].attr != attr; ptr = attr_map[ptr].next) {}
+	for (ptr = attr_hash_map[attr % ATTR_HASH_MAP_SIZE]; ptr != -1 && attr_map[ptr].attr != attr; ptr = attr_map[ptr].next) {}
 
-	if (ptr != -1) {
-		/* If this is not the first item in the list, unlink, and put it in front. */
-		if (attr_map[ptr].prev != -1) {
-			attr_map[attr_map[ptr].prev].next = attr_map[ptr].next;
-			if (attr_map[ptr].next != -1)
-				attr_map[attr_map[ptr].next].prev = attr_map[ptr].prev;
-			attr_map[ptr].prev = -1;
-			attr_map[ptr].next = attr_map_head;
-			attr_map[attr_map[ptr].next].prev = ptr;
-			attr_map_head = ptr;
-		}
+	if (ptr != -1)
 		return ptr;
-	}
 
 	if (attr_map_fill >= attr_map_allocated) {
 		int new_allocation = attr_map_allocated == 0 ? ATTR_MAP_START_SIZE : attr_map_allocated * 2;
@@ -124,11 +111,9 @@ int _t3_map_attr(t3_attr_t attr) {
 		attr_map_allocated = new_allocation;
 	}
 	attr_map[attr_map_fill].attr = attr;
-	attr_map[attr_map_fill].prev = -1;
-	attr_map[attr_map_fill].next = attr_map_head;
-	attr_map_head = attr_map_fill;
-	if (attr_map[attr_map_head].next != -1)
-		attr_map[attr_map[attr_map_head].next].prev = attr_map_head;
+	attr_map[attr_map_fill].next = attr_hash_map[attr % ATTR_HASH_MAP_SIZE];
+	attr_hash_map[attr % ATTR_HASH_MAP_SIZE] = attr_map_fill;
+
 	return attr_map_fill++;
 }
 
@@ -143,13 +128,39 @@ t3_attr_t _t3_get_attr(int idx) {
 }
 
 /** @internal
+    @brief Initialize data structures used for attribute set mappings.
+*/
+void _t3_init_attr_map(void) {
+	int i;
+	for (i = 0; i < ATTR_HASH_MAP_SIZE; i++)
+		attr_hash_map[i] = -1;
+}
+
+/** @internal
     @brief Clean up the memory used for attribute set mappings.
 */
 void _t3_free_attr_map(void) {
+#ifdef _T3_WINDOW_DEBUG
+	{
+		int ptr, chain, avg = 0, max = 0, chains = 0;
+		int chain_length = 0;
+		for (chain = 0; chain < ATTR_HASH_MAP_SIZE; chain++) {
+			for (ptr = attr_hash_map[chain], chain_length = 0; ptr != -1; ptr = attr_map[ptr].next, chain_length++) {}
+			if (chain_length > max)
+				max = chain_length;
+			if (chain_length > 0) {
+				chains++;
+				avg += chain_length;
+			}
+		}
+		lprintf("max: %d, chains: %d, avg: %.2f, attrs: %d\n", max, chains, (double) avg / chains, attr_map_fill);
+	}
+#endif
 	free(attr_map);
 	attr_map = NULL;
 	attr_map_allocated = 0;
 	attr_map_fill = 0;
+	_t3_init_attr_map();
 }
 
 /** Get the first UTF-8 value encoded in a string.

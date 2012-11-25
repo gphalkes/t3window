@@ -155,6 +155,7 @@ T3_WINDOW_LOCAL t3_attr_t _t3_term_sanitize_attrs(t3_attr_t attrs);
 
 T3_WINDOW_LOCAL int _t3_map_attr(t3_attr_t attr);
 T3_WINDOW_LOCAL t3_attr_t _t3_get_attr(int idx);
+T3_WINDOW_LOCAL void _t3_init_attr_map(void);
 T3_WINDOW_LOCAL void _t3_free_attr_map(void);
 
 #define _t3_get_value(s, size) (((s)[0] & 0x80) ? _t3_get_value_int(s, size) : (*(size) = 1, (s)[0]))

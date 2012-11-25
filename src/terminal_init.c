@@ -36,6 +36,7 @@
 #include "window.h"
 #include "internal.h"
 #include "convert_output.h"
+#include "log.h"
 
 /* The curses header file defines too many symbols that get in the way of our
    own, so we have a separate C file which exports only those functions that
@@ -563,13 +564,15 @@ static void integrate_environment(void) {
     and with a minimum of pre-processing.
 */
 int t3_term_init(int fd, const char *term) {
-	static t3_bool detection_done;
+	static t3_bool detection_done, only_once;
 #if defined(HAS_WINSIZE_IOCTL)
 	struct winsize wsz;
 #elif defined(HAS_SIZE_IOCTL)
 	struct ttysize wsz;
 #endif
 	struct termios new_params;
+
+	init_log();
 
 	if (initialised)
 		return T3_ERR_SUCCESS;
@@ -710,6 +713,11 @@ int t3_term_init(int fd, const char *term) {
 	_t3_set_attrs(0);
 
 	_t3_init_output_buffer();
+
+	if (!only_once) {
+		_t3_init_attr_map();
+		only_once = t3_true;
+	}
 
 	initialised = t3_true;
 	return T3_ERR_SUCCESS;
