@@ -13,7 +13,7 @@
 
 SOURCES.libt3window.la := window.c terminal.c curses_interface.c convert_output.c misc.c window_shared.c \
 	input.c terminal_init.c window_paint.c utf8.c generated/available_since.c log.c
-LDFLAGS.libt3window.la := -shared -Ltranscript
+LDFLAGS.libt3window.la := -shared -L../include/transcript
 CFLAGS.misc := -DUSE_GETTEXT
 LDLIBS.libt3window.la := -lncurses -ltranscript -lunistring
 
@@ -39,9 +39,5 @@ CFLAGS += -DHAS_STRDUP
 CFLAGS += -DHAS_TIOCLINUX -DHAS_KDGKBENT
 
 test: | libt3window.la
-
-links:
-	@[ -L t3window ] || ln -s . t3window
-	@[ -L transcript ] || ln -s ../../../transcript/src transcript
 
 .PHONY: links
