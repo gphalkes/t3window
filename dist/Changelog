@@ -5,6 +5,10 @@ Version 0.2.1:
 	Miscelaneous changes:
 	- Change the internal lookup structure for attributes to a simple hash map.
 
+	Bug fixes:
+	- Compile with Large File Support if such support is available on the
+	  platform.
+
 Version 0.2.0:
 	New features:
 	- Support up to 256 colors.
