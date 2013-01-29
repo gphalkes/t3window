@@ -1,4 +1,3 @@
-syntax: glob
 src/t3window
 src/t3unicode
 src/transcript
