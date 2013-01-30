@@ -17,6 +17,6 @@ rm *
 
 build_test
 
-../../../../record/src/tdrecord -o $TEST/recording -e T3WINDOW_OPTS $RECORDOPTS ./test || fail "!! Could not record test"
+tdrecord -o $TEST/recording -e T3WINDOW_OPTS $RECORDOPTS ./test || fail "!! Could not record test"
 
 exit 0

@@ -10,4 +10,4 @@ fi
 
 setup_TEST "$1"
 
-../../../record/src/tdview $REPLAYOPTS $TEST/recording || fail "!! Terminal output is different"
+tdview $REPLAYOPTS $TEST/recording || fail "!! Terminal output is different"

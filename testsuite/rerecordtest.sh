@@ -17,6 +17,6 @@ rm *
 
 build_test
 
-../../../../record/src/tdrerecord -s -o $TEST/recording.new $TEST/recording || fail "!! Could not rerecord test"
+tdrerecord -s -o $TEST/recording.new $TEST/recording || fail "!! Could not rerecord test"
 
 exit 0
