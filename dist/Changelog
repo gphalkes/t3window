@@ -1,3 +1,7 @@
+Version 0.2.2:
+	Bug fixes:
+	- Return the correct screen width for \0.
+
 Version 0.2.1:
 	New features:
 	- Add function to retrieve modifiers through terminal specific hacks.

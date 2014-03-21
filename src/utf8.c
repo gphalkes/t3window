@@ -1,4 +1,4 @@
-/* Copyright (C) 2011 G.P. Halkes
+/* Copyright (C) 2011-2014 G.P. Halkes
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License version 3, as
    published by the Free Software Foundation.
@@ -161,7 +161,9 @@ int t3_utf8_wcwidth(uint32_t c) {
 	static const char nul;
 	if (c >= 0x1160 && c < 0x11fa)
 		return 0;
-	if (c == 0x00ad)
+	else if (c == 0x00ad)
 		return 1;
+	else if (c == 0)
+		return -1;
 	return uc_width(c, &nul);
 }

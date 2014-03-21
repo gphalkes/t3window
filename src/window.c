@@ -287,7 +287,7 @@ void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attrs) {
     @param win The t3_window_t to set the restrictw parameter for.
     @param restrictw The t3_window_t to restrictw @p win to.
 
-    To restrictw the window to the terminal, pass @c NULL in @p restrictw. To
+    To restrict the window to the terminal, pass @c NULL in @p restrictw. To
     cancel restriction of the window position, pass @p win in @p restrictw.
 */
 t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restrictw) {
@@ -328,6 +328,9 @@ void t3_win_del(t3_window_t *win) {
 		return;
 
 	_t3_remove_window(win);
+	/* FIXME: this does not take into account anchors and restrict windows.
+	   Setting those will require a full scan of the set of windows. */
+
 	/* Make child windows stand alone windows. */
 	while (win->head != NULL)
 		t3_win_set_parent(win->head, NULL);
