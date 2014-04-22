@@ -145,7 +145,7 @@ int _t3_terminal_out_fd;
     Note that to prevent interference with adjecent variables, we use a @c long,
     instead of a ::t3_bool.
 */
-long _t3_detection_needs_finishing;
+ATOMIC_BOOL _t3_detection_needs_finishing;
 
 int _t3_term_encoding = _T3_TERM_UNKNOWN, /**< @internal Detected terminal encoding/mode. */
 	_t3_term_combining = -1, /**< @internal Terminal combining capabilities. */
@@ -581,11 +581,11 @@ void t3_term_update_cursor(void) {
 void t3_term_update(void) {
 	int i;
 
-	if (_t3_detection_needs_finishing) {
+	if (ATOMIC_LOAD(_t3_detection_needs_finishing)) {
 		_t3_init_output_converter(_t3_current_charset);
 		_t3_set_alternate_chars_defaults();
 		t3_term_redraw();
-		_t3_detection_needs_finishing = t3_false;
+		ATOMIC_STORE(_t3_detection_needs_finishing, t3_false);
 	}
 
 	if (_t3_civis != NULL) {

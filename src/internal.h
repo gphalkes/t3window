@@ -24,6 +24,7 @@
 #include <stdint.h>
 
 #include "window_api.h"
+#include "atomic.h"
 
 #define WIDTH_TO_META(_w) (((_w) & 3) << CHAR_BIT)
 
@@ -98,7 +99,7 @@ typedef enum {
 
 T3_WINDOW_LOCAL extern int _t3_term_encoding, _t3_term_combining, _t3_term_double_width;
 T3_WINDOW_LOCAL extern char _t3_current_charset[80];
-T3_WINDOW_LOCAL extern long _t3_detection_needs_finishing;
+T3_WINDOW_LOCAL extern ATOMIC_BOOL _t3_detection_needs_finishing;
 T3_WINDOW_LOCAL extern int _t3_terminal_in_fd;
 T3_WINDOW_LOCAL extern int _t3_terminal_out_fd;
 T3_WINDOW_LOCAL extern fd_set _t3_inset;

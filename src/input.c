@@ -68,9 +68,9 @@ static void finish_detection(void) {
 		case _T3_TERM_UTF8:
 			if (!transcript_equal(current_encoding, "utf8")) {
 				strcpy(_t3_current_charset, "UTF-8");
-				_t3_detection_needs_finishing = t3_true;
+				ATOMIC_STORE(_t3_detection_needs_finishing, t3_true);
 			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
-				_t3_detection_needs_finishing = t3_true;
+				ATOMIC_STORE(_t3_detection_needs_finishing, t3_true);
 			}
 			break;
 		case _T3_TERM_CJK:
@@ -83,15 +83,15 @@ static void finish_detection(void) {
 		case _T3_TERM_CJK_SHIFT_JIS:
 			if (!transcript_equal(current_encoding, "shiftjis")) {
 				strcpy(_t3_current_charset, "Shift_JIS");
-				_t3_detection_needs_finishing = t3_true;
+				ATOMIC_STORE(_t3_detection_needs_finishing, t3_true);
 			}
 			break;
 		case _T3_TERM_GB18030:
 			if (!transcript_equal(current_encoding, "gb18030")) {
 				strcpy(_t3_current_charset, "GB18030");
-				_t3_detection_needs_finishing = t3_true;
+				ATOMIC_STORE(_t3_detection_needs_finishing, t3_true);
 			} else if (_t3_term_double_width != -1 || _t3_term_combining != -1) {
-				_t3_detection_needs_finishing = t3_true;
+				ATOMIC_STORE(_t3_detection_needs_finishing, t3_true);
 			}
 			break;
 		default:
@@ -100,7 +100,7 @@ static void finish_detection(void) {
 
 	if (set_ascii) {
 		strcpy(_t3_current_charset, "ASCII");
-		_t3_detection_needs_finishing = t3_true;
+		ATOMIC_STORE(_t3_detection_needs_finishing, t3_true);
 	}
 }
 
