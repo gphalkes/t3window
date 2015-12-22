@@ -74,6 +74,7 @@ T3_WINDOW_LOCAL int _t3_term_get_default_acs(int idx);
 T3_WINDOW_LOCAL void _t3_remove_window(t3_window_t *win);
 
 T3_WINDOW_LOCAL extern t3_window_t *_t3_terminal_window;
+T3_WINDOW_LOCAL extern t3_window_t *_t3_scratch_terminal_window;
 
 enum {
 	_T3_TERM_UNKNOWN,

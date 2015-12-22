@@ -653,13 +653,15 @@ int t3_term_init(int fd, const char *term) {
 	if (_t3_terminal_window == NULL) {
 		if ((_t3_terminal_window = t3_win_new(NULL, _t3_lines, _t3_columns, 0, 0, 0)) == NULL)
 			return T3_ERR_ERRNO;
-		if ((_t3_old_data.data = malloc(sizeof(t3_attr_t) * INITIAL_ALLOC)) == NULL)
+		if ((_t3_scratch_terminal_window = t3_win_new(NULL, _t3_lines, _t3_columns, 0, 0, 0)) == NULL)
 			return T3_ERR_ERRNO;
-		_t3_old_data.allocated = INITIAL_ALLOC;
 		/* Remove terminal window from the window stack. */
 		_t3_remove_window(_t3_terminal_window);
+		_t3_remove_window(_t3_scratch_terminal_window);
 	} else {
 		if (!t3_win_resize(_t3_terminal_window, _t3_lines, _t3_columns))
+			return T3_ERR_ERRNO;
+		if (!t3_win_resize(_t3_scratch_terminal_window, _t3_lines, _t3_columns))
 			return T3_ERR_ERRNO;
 	}
 
@@ -784,7 +786,7 @@ void t3_term_deinit(void) {
 	CLEAR(_t3_cnorm, free);
 
 	CLEAR(_t3_terminal_window, t3_win_del);
-	CLEAR(_t3_old_data.data, free);
+	CLEAR(_t3_scratch_terminal_window, t3_win_del);
 	_t3_free_output_buffer();
 	_t3_free_attr_map();
 	if (transcript_init_done) {

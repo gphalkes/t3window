@@ -101,7 +101,7 @@ int _t3_colors, /**< @internal Terminal info: number of colors supported. */
 	_t3_pairs; /**< @internal Terminal info: number of color pairs supported. */
 
 t3_window_t *_t3_terminal_window; /**< @internal t3_window_t struct representing the last drawn terminal state. */
-line_data_t _t3_old_data; /**< @internal line_data_t struct used in terminal update to save previous line state. */
+t3_window_t *_t3_scratch_terminal_window; /**< @internal t3_window_t struct used in the terminal update. */
 
 int _t3_lines, /**< @internal Size of terminal (lines). */
 	_t3_columns; /**< @internal Size of terminal (columns). */
@@ -319,7 +319,7 @@ t3_bool t3_term_resize(void) {
 		t3_term_redraw();
 	}
 
-	return t3_win_resize(_t3_terminal_window, _t3_lines, _t3_columns);
+	return t3_win_resize(_t3_terminal_window, _t3_lines, _t3_columns) && t3_win_resize(_t3_scratch_terminal_window, _t3_lines, _t3_columns);
 #else
 	return t3_true;
 #endif
@@ -602,30 +602,34 @@ void t3_term_update(void) {
 	}
 
 	for (i = 0; i < _t3_lines; i++) {
+		SWAP_LINES(_t3_scratch_terminal_window->lines[i], _t3_terminal_window->lines[i]);
+		_t3_win_refresh_term_line(i);
+	}
+
+	for (i = 0; i < _t3_lines; i++) {
 		int old_idx = 0, new_idx = 0, width, old_width, last_width = -1;
 		uint32_t old_block_size, new_block_size;
 		size_t old_block_size_bytes, new_block_size_bytes;
+		line_data_t *old_data = &_t3_scratch_terminal_window->lines[i];
+		line_data_t *new_data = &_t3_terminal_window->lines[i];
 
-		SWAP_LINES(_t3_old_data, _t3_terminal_window->lines[i]);
-		_t3_win_refresh_term_line(i);
+		width = new_data->start;
+		old_width = old_data->start;
 
-		width = _t3_terminal_window->lines[i].start;
-		old_width = _t3_old_data.start;
-
-		if (width > old_width && _t3_old_data.width > 0) {
+		if (width > old_width && old_data->width > 0) {
 			int spaces;
-			_t3_do_cup(i, _t3_old_data.start);
+			_t3_do_cup(i, old_data->start);
 			_t3_set_attrs(0);
 
-			if (_t3_old_data.start + _t3_old_data.width < width) {
-				spaces = _t3_old_data.width;
-				old_idx = _t3_old_data.length;
-				old_width = _t3_old_data.start + _t3_old_data.width;
+			if (old_data->start + old_data->width < width) {
+				spaces = old_data->width;
+				old_idx = old_data->length;
+				old_width = old_data->start + old_data->width;
 				last_width = old_width;
 			} else {
-				spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start;
-				while (old_idx < _t3_old_data.length) {
-					old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
+				spaces = new_data->start - old_data->start;
+				while (old_idx < old_data->length) {
+					old_block_size = _t3_get_value(old_data->data + old_idx, &old_block_size_bytes);
 					if (old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) > width)
 						break;
 					old_width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
@@ -634,11 +638,11 @@ void t3_term_update(void) {
 				last_width = width;
 			}
 
-			for (spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start; spaces > 0; spaces--)
+			for (spaces = new_data->start - old_data->start; spaces > 0; spaces--)
 				t3_term_putc(' ');
 		}
 
-		while (new_idx != _t3_terminal_window->lines[i].length) {
+		while (new_idx != new_data->length) {
 			int saved_old_idx, saved_new_idx, saved_width, same_count = 0;
 
 			/* Only check if old and new are the same if we are checking the same position. */
@@ -647,13 +651,13 @@ void t3_term_update(void) {
 				saved_new_idx = new_idx;
 				saved_width = width;
 
-				while (new_idx < _t3_terminal_window->lines[i].length && old_idx < _t3_old_data.length) {
-					old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
-					new_block_size = _t3_get_value(_t3_terminal_window->lines[i].data + new_idx, &new_block_size_bytes);
+				while (new_idx < new_data->length && old_idx < old_data->length) {
+					old_block_size = _t3_get_value(old_data->data + old_idx, &old_block_size_bytes);
+					new_block_size = _t3_get_value(new_data->data + new_idx, &new_block_size_bytes);
 
 					/* Check if the next blocks are equal. If not, break. */
-					if (old_block_size != new_block_size || memcmp(_t3_old_data.data + old_idx + old_block_size_bytes,
-							_t3_terminal_window->lines[i].data + new_idx + new_block_size_bytes, old_block_size >> 1) != 0)
+					if (old_block_size != new_block_size || memcmp(old_data->data + old_idx + old_block_size_bytes,
+							new_data->data + new_idx + new_block_size_bytes, old_block_size >> 1) != 0)
 						break;
 					same_count++;
 					width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
@@ -662,10 +666,10 @@ void t3_term_update(void) {
 					new_idx += (new_block_size >> 1) + new_block_size_bytes;
 				}
 
-				if (new_idx >= _t3_terminal_window->lines[i].length)
+				if (new_idx >= new_data->length)
 					break;
 
-				if (same_count < 3 && old_idx < _t3_old_data.length) {
+				if (same_count < 3 && old_idx < old_data->length) {
 					old_idx = saved_old_idx;
 					new_idx = saved_new_idx;
 					old_width = width = saved_width;
@@ -687,33 +691,33 @@ void t3_term_update(void) {
 				t3_attr_t new_attrs;
 				size_t new_attrs_bytes;
 
-				new_block_size = _t3_get_value(_t3_terminal_window->lines[i].data + new_idx, &new_block_size_bytes);
+				new_block_size = _t3_get_value(new_data->data + new_idx, &new_block_size_bytes);
 				new_idx += new_block_size_bytes;
-				new_attrs = _t3_get_attr(_t3_get_value(_t3_terminal_window->lines[i].data + new_idx, &new_attrs_bytes));
+				new_attrs = _t3_get_attr(_t3_get_value(new_data->data + new_idx, &new_attrs_bytes));
 
 				if ((new_attrs & T3_ATTR_USER) && user_callback != NULL) {
-					user_callback(_t3_terminal_window->lines[i].data + new_idx + new_attrs_bytes, (new_block_size >> 1) - new_attrs_bytes,
+					user_callback(new_data->data + new_idx + new_attrs_bytes, (new_block_size >> 1) - new_attrs_bytes,
 						_T3_BLOCK_SIZE_TO_WIDTH(new_block_size), new_attrs);
 				} else {
 					if (new_attrs & T3_ATTR_ACS) {
-						if (!t3_term_acs_available(_t3_terminal_window->lines[i].data[new_idx + new_attrs_bytes])) {
+						if (!t3_term_acs_available(new_data->data[new_idx + new_attrs_bytes])) {
 							new_attrs &= ~T3_ATTR_ACS;
 							if (new_attrs != _t3_attrs)
 								_t3_set_attrs(new_attrs);
-							t3_term_puts(get_default_acs(_t3_terminal_window->lines[i].data[new_idx + new_attrs_bytes]));
+							t3_term_puts(get_default_acs(new_data->data[new_idx + new_attrs_bytes]));
 						} else {
 							if (new_attrs != _t3_attrs)
 								_t3_set_attrs(new_attrs);
 							/* ACS characters should be passed directly to the terminal, without
 							   character-set conversion. */
 							_t3_output_buffer_print();
-							fwrite(_t3_terminal_window->lines[i].data + new_idx + new_attrs_bytes, 1,
+							fwrite(new_data->data + new_idx + new_attrs_bytes, 1,
 								(new_block_size >> 1) - new_attrs_bytes, _t3_putp_file);
 						}
 					} else {
 						if (new_attrs != _t3_attrs)
 							_t3_set_attrs(new_attrs);
-						t3_term_putn(_t3_terminal_window->lines[i].data + new_idx + new_attrs_bytes,
+						t3_term_putn(new_data->data + new_idx + new_attrs_bytes,
 							(new_block_size >> 1) - new_attrs_bytes);
 					}
 				}
@@ -721,20 +725,20 @@ void t3_term_update(void) {
 				width += _T3_BLOCK_SIZE_TO_WIDTH(new_block_size);
 				same_count--;
 
-				while (old_idx < _t3_old_data.length) {
-					old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
+				while (old_idx < old_data->length) {
+					old_block_size = _t3_get_value(old_data->data + old_idx, &old_block_size_bytes);
 					if (old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) > width)
 						break;
 					old_width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
 					old_idx += (old_block_size >> 1) + old_block_size_bytes;
 				}
-			} while ((old_width != width || same_count > 0) && new_idx < _t3_terminal_window->lines[i].length);
+			} while ((old_width != width || same_count > 0) && new_idx < new_data->length);
 			last_width = width;
 			_t3_output_buffer_print();
 		}
 
 		/* Clear the terminal line if the new line is shorter than the old one. */
-		if (_t3_terminal_window->lines[i].start + _t3_terminal_window->lines[i].width < _t3_old_data.start + _t3_old_data.width &&
+		if (new_data->start + new_data->width < old_data->start + old_data->width &&
 				width < _t3_terminal_window->width)
 		{
 			if (last_width < 0)
@@ -746,7 +750,7 @@ void t3_term_update(void) {
 			if (_t3_el != NULL) {
 				_t3_putp(_t3_el);
 			} else {
-				int max = _t3_old_data.start + _t3_old_data.width;
+				int max = old_data->start + old_data->width;
 				for (; width < max; width++)
 					t3_term_putc(' ');
 			}
