@@ -595,7 +595,9 @@ int t3_term_init(int fd, const char *term) {
 		}
 
 		if ((_t3_putp_file = fdopen(_t3_terminal_out_fd, "w")) == NULL) {
+			int saved_errno = errno;
 			close(_t3_terminal_out_fd);
+			errno = saved_errno;
 			return T3_ERR_ERRNO;
 		}
 
