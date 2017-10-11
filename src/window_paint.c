@@ -13,6 +13,15 @@
 */
 /** @file */
 
+/* The window data is stored in a special way. The data is split into so-called blocks,
+   where a block represents a single on-screen entity (character with accents etc.). The
+   encoding used is the following:
+   - length of the block data (i.e. not including this value) * 2 + screen width of
+     the block - 1, UTF-8 encoded.
+   - the integer mapped attributes, UTF-8 encoded.
+   - one or more UTF-8 encoded codepoints.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <unictype.h>

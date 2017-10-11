@@ -571,6 +571,23 @@ void t3_term_update_cursor(void) {
 	fflush(_t3_putp_file);
 }
 
+static void set_previous_coordinates() {
+	for (t3_window_t *ptr = _t3_head; ptr != NULL;) {
+		ptr->previous_x = ptr->x;
+		ptr->previous_y = ptr->y;
+		if (ptr->head != NULL) {
+			ptr = ptr->head;
+		} else if (ptr->next != NULL) {
+			ptr = ptr->next;
+		} else {
+			while (ptr != NULL && ptr->next == NULL)
+				ptr = ptr->parent;
+			if (ptr != NULL)
+				ptr = ptr->next;
+		}
+	}
+}
+
 /** Update the terminal, drawing all changes since last refresh.
 
     After changing window contents, this function should be called to make those
@@ -605,6 +622,7 @@ void t3_term_update(void) {
 		SWAP_LINES(_t3_scratch_terminal_window->lines[i], _t3_terminal_window->lines[i]);
 		_t3_win_refresh_term_line(i);
 	}
+	_t3_optimize_terminal(_t3_scratch_terminal_window, _t3_terminal_window);
 
 	for (i = 0; i < _t3_lines; i++) {
 		int old_idx = 0, new_idx = 0, width, old_width, last_width = -1;
@@ -787,6 +805,7 @@ void t3_term_update(void) {
 	}
 
 	fflush(_t3_putp_file);
+	set_previous_coordinates();
 }
 
 /** Redraw the entire terminal from scratch. */

@@ -46,6 +46,7 @@ typedef struct {
 
 struct t3_window_t {
 	int x, y; /* X and Y coordinates of the t3_window_t. These may be relative to parent, depending on relation. */
+	int previous_x, previous_y; /* Previous X and Y coordinates of the t3_window_t. For tracking movements between calls to t3_term_update. */
 	int paint_x, paint_y; /* Drawing cursor */
 	int width, height; /* Height and width of the t3_window_t */
 	int depth; /* Depth in stack. Higher values are deeper and thus obscured by Windows with lower depth. */
@@ -65,6 +66,7 @@ struct t3_window_t {
 	t3_window_t *next;
 	t3_window_t *prev;
 
+	/* Pointers for the depth sorted list of child windows. Note that the child windows are not included in the main list. */
 	t3_window_t *head;
 	t3_window_t *tail;
 };
@@ -141,7 +143,6 @@ T3_WINDOW_LOCAL extern t3_attr_t _t3_ncv;
 T3_WINDOW_LOCAL extern t3_bool _t3_bce;
 T3_WINDOW_LOCAL extern int _t3_colors, _t3_pairs;
 T3_WINDOW_LOCAL extern char _t3_alternate_chars[256];
-T3_WINDOW_LOCAL extern line_data_t _t3_old_data;
 T3_WINDOW_LOCAL extern t3_bool _t3_show_cursor;
 T3_WINDOW_LOCAL extern int _t3_cursor_y, _t3_cursor_x;
 T3_WINDOW_LOCAL extern t3_acs_override_t _t3_acs_override;
@@ -163,4 +164,15 @@ T3_WINDOW_LOCAL void _t3_free_attr_map(void);
 T3_WINDOW_LOCAL uint32_t _t3_get_value_int(const char *s, size_t *size);
 T3_WINDOW_LOCAL size_t _t3_put_value(uint32_t c, char *dst);
 T3_WINDOW_LOCAL int _t3_modifier_hack;
+
+T3_WINDOW_LOCAL void _t3_optimize_terminal(const t3_window_t *current_window, const t3_window_t *new_window);
+
+typedef struct copy_hint_t {
+	t3_window_t *win; /* t3_window_t in which the copy took place. */
+	int x, y, width, height; /* Description of the region that is copied. */
+	int scroll, shift; /* Rows of scroll and columns of shift that were applied. */
+	struct copy_hint_t *next; /* Link to the next copy hint. */
+} copy_hint_t;
+
+T3_WINDOW_LOCAL copy_hint_t *_t3_copy_hint_head;
 #endif

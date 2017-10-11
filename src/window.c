@@ -328,9 +328,13 @@ void t3_win_del(t3_window_t *win) {
 		return;
 
 	_t3_remove_window(win);
+	for (copy_hint_t *copy_hint_ptr = _t3_copy_hint_head; copy_hint_ptr != NULL; copy_hint_ptr = copy_hint_ptr->next) {
+		if (copy_hint_ptr->win == win)
+			copy_hint_ptr->win = NULL;
+	}
+
 	/* FIXME: this does not take into account anchors and restrict windows.
 	   Setting those will require a full scan of the set of windows. */
-
 	/* Make child windows stand alone windows. */
 	while (win->head != NULL)
 		t3_win_set_parent(win->head, NULL);
@@ -608,6 +612,20 @@ void t3_win_show(t3_window_t *win) {
 /** Make a t3_window_t invisible. */
 void t3_win_hide(t3_window_t *win) {
 	win->shown = t3_false;
+}
+
+void t3_win_add_copy_hint(t3_window_t *win, int x, int y, int width, int height, int scroll_rows, int shift_columns) {
+	copy_hint_t *new_copy_hint;
+	if ((new_copy_hint = malloc(sizeof(copy_hint_t))) == NULL) return;
+	new_copy_hint->win = win;
+	new_copy_hint->x = x;
+	new_copy_hint->y = y;
+	new_copy_hint->width = width;
+	new_copy_hint->height = height;
+	new_copy_hint->scroll = scroll_rows;
+	new_copy_hint->shift = shift_columns;
+	new_copy_hint->next = _t3_copy_hint_head;
+	_t3_copy_hint_head = new_copy_hint;
 }
 
 /** @} */

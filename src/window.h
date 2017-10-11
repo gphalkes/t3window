@@ -97,6 +97,7 @@ T3_WINDOW_API void t3_win_clrtoeol(t3_window_t *win);
 T3_WINDOW_API void t3_win_clrtobot(t3_window_t *win);
 
 T3_WINDOW_API t3_window_t *t3_win_at_location(int search_y, int search_x);
+T3_WINDOW_API void t3_win_add_copy_hint(t3_window_t *win, int x, int y, int width, int height, int scroll_rows, int shift_columns);
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
