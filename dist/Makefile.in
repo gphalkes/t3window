@@ -58,7 +58,7 @@ OBJECTS=<OBJECTS>
 
 all: src/libt3window.la
 
-.PHONY: all clean dist-clean install uninstall
+.PHONY: all clean dist-clean distclean install uninstall
 .SUFFIXES: .c .o .lo .la .mo .po
 .IGNORE: uninstall
 
@@ -66,7 +66,9 @@ clean:
 	rm -rf src/*.lo src/generated/*.lo src/.libs src/generated/.libs src/libt3window.la
 
 dist-clean: clean
-	rm -rf Makefile config.log libt3window.pc
+	rm -rf Makefile config.log libt3window.pc .Makefile* .config*
+
+distclean: dist-clean
 
 .c.lo:
 	$(SILENTCCLT) $(LIBTOOL) $(SILENCELT) --mode=compile --tag=CC $(CC) -shared \
@@ -91,8 +93,6 @@ install: all
 	chmod 0644 $(_libdir)/libt3window.la
 	$(INSTALL) -d $(_includedir)/t3/window/t3window
 	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_errors.h src/terminal.h src/utf8.h $(_includedir)/t3/window/t3window
-	$(INSTALL) -d $(_docdir)/API/search
-	( cd doc ; find API -type f ) | while read X ; do $(INSTALL) -m0644 doc/$${X} $(_docdir)/$${X} ; done
 	$(INSTALL) -m0644 COPYING README Changelog $(_docdir)
 	$(INSTALL) -d $(_pkgconfigdir)
 	$(INSTALL) -m0644 libt3window.pc $(_pkgconfigdir)

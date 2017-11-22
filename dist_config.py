@@ -4,7 +4,7 @@ package = 'libt3window'
 excludesrc = '/(Makefile|TODO.*|SciTE.*|run\.sh|test\.c)$'
 auxsources= [ 'src/window_api.h', 'src/window_errors.h', 'src/window_shared.c' ]
 extrabuilddirs = [ 'doc' ]
-auxfiles = [ 'doc/API' ]
+auxfiles = [ 'doc/doxygen.conf', 'doc/DoxygenLayout.xml', 'doc/main_doc.h', 'doc/examples/*' ]
 
 versioninfo = '0:0:0'
 
