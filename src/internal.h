@@ -161,5 +161,5 @@ T3_WINDOW_LOCAL void _t3_free_attr_map(void);
 #define _t3_get_value(s, size) (((s)[0] & 0x80) ? _t3_get_value_int(s, size) : (uint32_t) (*(size) = 1, (s)[0]))
 T3_WINDOW_LOCAL uint32_t _t3_get_value_int(const char *s, size_t *size);
 T3_WINDOW_LOCAL size_t _t3_put_value(uint32_t c, char *dst);
-T3_WINDOW_LOCAL int _t3_modifier_hack;
+T3_WINDOW_LOCAL extern int _t3_modifier_hack;
 #endif
