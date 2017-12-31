@@ -186,6 +186,7 @@ static const char *get_default_acs(int idx) {
 	switch (_t3_acs_override) {
 		default:
 		case _T3_ACS_AUTO:
+		case _T3_ACS_ACS:
 		case _T3_ACS_UTF8:
 			retval = _t3_default_alternate_chars[idx];
 			break;
@@ -696,7 +697,8 @@ void t3_term_update(void) {
 						_T3_BLOCK_SIZE_TO_WIDTH(new_block_size), new_attrs);
 				} else {
 					if (new_attrs & T3_ATTR_ACS) {
-						if (!t3_term_acs_available(_t3_terminal_window->lines[i].data[new_idx + new_attrs_bytes])) {
+						if ((_t3_acs_override == _T3_ACS_AUTO && _t3_term_encoding == _T3_TERM_UTF8) ||
+								!t3_term_acs_available(_t3_terminal_window->lines[i].data[new_idx + new_attrs_bytes])) {
 							new_attrs &= ~T3_ATTR_ACS;
 							if (new_attrs != _t3_attrs)
 								_t3_set_attrs(new_attrs);
@@ -844,7 +846,7 @@ int t3_term_strwidth(const char *str) {
 t3_bool t3_term_acs_available(int idx) {
 	if (idx < 0 || idx > 127)
 		return t3_false;
-	return _t3_alternate_chars[idx] != 0 && _t3_acs_override == _T3_ACS_AUTO;
+	return _t3_alternate_chars[idx] != 0 && (_t3_acs_override == _T3_ACS_AUTO || _t3_acs_override == _T3_ACS_ACS);
 }
 
 /** Combine attributes, with priority.

@@ -530,6 +530,8 @@ static void integrate_environment(void) {
 			_t3_acs_override = _T3_ACS_UTF8;
 		} else if (check_opt(opts, "acs=auto")) {
 			_t3_acs_override = _T3_ACS_AUTO;
+		} else if (check_opt(opts, "acs=force")) {
+			_t3_acs_override = _T3_ACS_ACS;
 		} else if (check_num_opt(opts, "colors=", &value)) {
 			override_colors(value, _t3_pairs);
 		} else if (check_num_opt(opts, "pairs=", &value)) {

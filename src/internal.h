@@ -93,7 +93,8 @@ enum {
 typedef enum {
 	_T3_ACS_AUTO,
 	_T3_ACS_ASCII,
-	_T3_ACS_UTF8
+	_T3_ACS_UTF8,
+	_T3_ACS_ACS
 } t3_acs_override_t;
 
 T3_WINDOW_LOCAL extern int _t3_term_encoding, _t3_term_combining, _t3_term_double_width;
