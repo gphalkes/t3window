@@ -821,14 +821,14 @@ void t3_term_putp(const char *str) {
 */
 int t3_term_strwidth(const char *str) {
 	size_t bytes_read, n = strlen(str);
-	int width, retval = 0;
+	int width, width_state = 0, retval = 0;
 	uint32_t c;
 
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
 		bytes_read = n;
 		c = t3_utf8_get(str, &bytes_read);
 
-		width = t3_utf8_wcwidth(c);
+		width = t3_utf8_wcwidth_ext(c, &width_state);
 		if (width < 0)
 			continue;
 		retval += width;

@@ -3,6 +3,11 @@ Version 0.2.7:
 	- Prefer to use Unicode line-drawing characters if they are available. Some
 	  terminals explicitly disable the alternate character set if UTF-8 encoding
 	  is enabled, resulting in bad output.
+	- Internal tables updated to Unicode 10.0
+
+	Bug fixes:
+	- Conjoining Jamo (Hangul) is now displayed correctly when passed as a
+	  single string.
 
 Version 0.2.6:
 	Bug fixes:

@@ -37,6 +37,7 @@ T3_WINDOW_API size_t t3_utf8_put(uint32_t c, char *dst);
 
 T3_WINDOW_API int t3_utf8_wcwidth(uint32_t c);
 
+T3_WINDOW_API int t3_utf8_wcwidth_ext(uint32_t c, int *state);
 /** @} */
 #ifdef __cplusplus
 } /* extern "C" */

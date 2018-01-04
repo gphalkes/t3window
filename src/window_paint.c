@@ -587,7 +587,6 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
 	return result;
 }
 
-
 /** Add a string with explicitly specified size to a t3_window_t with specified attributes.
     @param win The t3_window_t to add the string to.
     @param str The string to add.
@@ -600,6 +599,10 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
     The default attributes are combined with the specified attributes, with
     @p attr used as the priority attributes. All other t3_win_add* functions are
     (indirectly) implemented using this function.
+
+    It is important that combining characters are provided in the same string as the
+    characters they are to combine with. In particular, this function does not check for
+    conjoining Jamo in the existing window data and explicitly prevents joining.
 */
 int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attrs) {
 	size_t bytes_read;
@@ -617,11 +620,21 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attrs)
 	if (attrs_idx < 0)
 		return T3_ERR_OUT_OF_MEMORY;
 
+	int width_state = 0;
 	for (; n > 0; n -= bytes_read, str += bytes_read) {
 		bytes_read = n;
 		c = t3_utf8_get(str, &bytes_read);
 
-		width = t3_utf8_wcwidth(c);
+		int old_width_state = width_state;
+		width = t3_utf8_wcwidth_ext(c, &width_state);
+		if (old_width_state != 0 && width_state == 0) {
+			/* Ending a block with a conjoining Jamo character can cause problems when the
+			   succeeding cell later is overwritten with a joining character. To prevent this
+			   issue, insert a zero-with non-joiner. */
+			if (width_state != 0) {
+				_win_add_zerowidth(win, "\xE2\x80\x8C", 3);
+			}
+		}
 		/* UC_CATEGORY_MASK_Cn is for unassigned/reserved code points. These are
 		   not necessarily unprintable. */
 		if (width < 0 || uc_is_general_category_withtable(c, T3_UTF8_CONTROL_MASK)) {
@@ -640,6 +653,12 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attrs)
 
 		if (!_win_write_blocks(win, block, block_bytes))
 			return T3_ERR_ERRNO;
+	}
+	/* Ending a block with a conjoining Jamo character can cause problems when the
+	   succeeding cell later is overwritten with a joining character. To prevent this
+	   issue, insert a zero-with non-joiner. */
+	if (width_state != 0) {
+		_win_add_zerowidth(win, "\xE2\x80\x8C", 3);
 	}
 	return retval;
 }

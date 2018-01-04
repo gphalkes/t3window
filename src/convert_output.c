@@ -27,7 +27,7 @@
 #include "internal.h"
 #include "curses_interface.h"
 #include "utf8.h"
-#include "generated/available_since.h"
+#include "generated/chardata.h"
 
 #define CONV_BUFFER_LEN (160)
 
@@ -178,12 +178,15 @@ void _t3_output_buffer_print(void) {
 		size_t idx, codepoint_len, output_start;
 		uint32_t c;
 		uint_fast8_t available_since;
-		/* Filter out combining characters if the terminal is known not to support them (e.g. gnome-terminal). */
+		/* Filter out combining characters if the terminal is known not to support them (e.g. gnome-terminal).
+		   If the character is accepted, then don't do anything. If the character has to be filtered out, print
+		   the acceptable characters up to now and then print replacement characters if needed, moving the
+		   acceptable pointer up to after the character to skip. */
 		/* FIXME: should we filter out other zero-width characters? */
 		for (idx = 0, output_start = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_utf8_get(nfc_output + idx, &codepoint_len);
-			available_since = get_available_since(c);
+			available_since = get_chardata(c) & 0x3f;
 
 			if (_t3_term_combining < available_since && uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M)) {
 				fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
@@ -314,9 +317,9 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
 		for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
 			codepoint_len = nfc_output_len - idx;
 			c = t3_utf8_get(nfc_output + idx, &codepoint_len);
-			available_since = get_available_since(c);
+			available_since = get_chardata(c) & 0x3f;
 
-			if (_t3_term_combining < get_available_since(c) && uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M))
+			if (_t3_term_combining < available_since && uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M))
 				return t3_false;
 			if (_t3_term_double_width < available_since && t3_utf8_wcwidth(c) == 2)
 				return t3_false;

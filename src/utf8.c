@@ -13,6 +13,30 @@
 */
 #include <uniwidth.h>
 #include "utf8.h"
+#include "generated/chardata.h"
+
+/* Returns whether a codepoint is one of the conjoining Jamo L codepoints. */
+static t3_bool is_conjoining_jamo_l(uint32_t c) {
+	return c >= 0x1100 && c <= 0x1112;
+}
+
+/* Returns whether a codepoint is one of the conjoining Jamo V codepoints. */
+static t3_bool is_conjoining_jamo_v(uint32_t c) {
+	return c >= 0x1161 && c <= 0x1175;
+}
+
+// Returns whether a codepoint is one of the conjoining Jamo T codepoints.
+static t3_bool is_conjoining_jamo_t(uint32_t c) {
+	return c >= 0x11A7 && c <= 0x11C2;
+}
+
+// Returns whether a codepoint is one of the conjoining Jamo LV codepoints.
+static t3_bool is_conjoining_jamo_lv(uint32_t c) {
+	if (c >= 0xAC00 && c <= 0xD788) {
+		return (c - 0xAC00) % 28 == 0;
+	}
+	return false;
+}
 
 /** Get the first codepoint represented by a UTF-8 string.
     @param src The UTF-8 string to parse.
@@ -153,17 +177,42 @@ size_t t3_utf8_put(uint32_t c, char *dst) {
 
 /** Get the width of a Unicode codepoint.
 
-    This function is a wrapper around uc_width, which takes into account that
-    for some characters uc_width returns a value that is different from what
-    terminals actually use.
+    This function returns the width of a codepoint as a terminal would print
+    it. This is mostly similar to the result of wcwidth, with the exception
+    of some characters where terminals actually use a different value.
 */
 int t3_utf8_wcwidth(uint32_t c) {
-	static const char nul;
-	if (c >= 0x1160 && c < 0x11fa)
+	return (int)(get_chardata(c) >> 6) - 1;
+}
+
+typedef enum {
+	JAMO_NONE,
+	JAMO_L,
+	JAMO_LV,
+} JamoState;
+
+/** Get the width of a Unicode codepoint, taking previous state into account.
+
+    Like t3_utf8_wcwidth, but with the added possibility to track the state of
+    conjoining Jamo, which modifies the width of some characters.
+
+    @p state should be initialized with 0.
+*/
+int t3_utf8_wcwidth_ext(uint32_t c, int *state) {
+	if (is_conjoining_jamo_l(c)) {
+		*state = JAMO_L;
+		return t3_utf8_wcwidth(c);
+	} else if (*state == JAMO_L && is_conjoining_jamo_v(c)) {
+		*state = JAMO_LV;
 		return 0;
-	else if (c == 0x00ad)
-		return 1;
-	else if (c == 0)
-		return -1;
-	return uc_width(c, &nul);
+	} else if (*state == JAMO_LV && is_conjoining_jamo_t(c)) {
+		*state = JAMO_NONE;
+		return 0;
+	} else if (is_conjoining_jamo_lv(c)) {
+		*state = JAMO_LV;
+		return t3_utf8_wcwidth(c);
+	} else {
+		*state = JAMO_NONE;
+		return t3_utf8_wcwidth(c);
+	}
 }

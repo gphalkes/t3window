@@ -16,10 +16,18 @@ the following features:
   - Small code size.
 
 libt3window is part of the Tilde Terminal Toolkit (T3)
-[http://os.ghalkes.nl/t3/]
+[https://os.ghalkes.nl/t3/]
 
 libt3window is licensed under the GNU General Public License version 3. See the
 file COPYING for details.
+
+
+Documentation
+=============
+
+The full documentation for libt3window can be generated using doxygen. The
+documentation for the current version can be found at
+https://os.ghalkes.nl/doc/libt3window.
 
 
 Prerequisites and installation
@@ -62,7 +70,7 @@ Reporting bugs
 ==============
 
 If you think you have found a bug, please check that you are using the latest
-version of libt3window [http://os.ghalkes.nl/t3/libt3window.html]. When
+version of libt3window [https://os.ghalkes.nl/t3/libt3window.html]. When
 reporting bugs, please include a minimal example that demonstrates the problem.
 
 
