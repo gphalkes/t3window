@@ -33,6 +33,7 @@
 #include "internal.h"
 #include "convert_output.h"
 #include "utf8.h"
+#include "log.h"
 /* The curses header file defines too many symbols that get in the way of our
    own, so we have a separate C file which exports only those functions that
    we actually use. */
@@ -164,6 +165,14 @@ t3_acs_override_t _t3_acs_override;
 /** @internal Variable indicating what hack to obtain modifiers should be used, if any. */
 int _t3_modifier_hack;
 
+/** @internal Boolean indicating that a terminal size detection is in progress. */
+volatile size_detection_t _t3_detect_terminal_size = SIZE_DETECTION_NONE;
+
+/** @internal The detected number of lines of the terminal. */
+volatile int _t3_detected_lines;
+/** @internal The detected number of columns of the terminal. */
+volatile int _t3_detected_columns;
+
 /** Get fall-back character for alternate character set character (internal use only).
     @param idx The character to retrieve the fall-back character for.
     @return The fall-back character.
@@ -238,6 +247,17 @@ void _t3_do_cup(int line, int col) {
 	}
 }
 
+/** Trigger the detection of the terminal size. */
+void _t3_trigger_terminal_size_detection(void) {
+	_t3_detect_terminal_size = SIZE_DETECTION_TRIGGERED;
+	_t3_do_cup(32767, 32767);
+	/* Send ANSI cursor reporting string. */
+	if (_t3_terminal_is_screen)
+		_t3_putp("\033P\033[6n\033\\");
+	else
+		_t3_putp("\033[6n");
+}
+
 /** Get the string describing the current character set used by the library.
 
     The reason this function is provided, is that although the library initially
@@ -304,11 +324,22 @@ t3_bool t3_term_resize(void) {
 #ifdef HAS_WINSIZE_IOCTL
 	struct winsize wsz;
 
-	if (ioctl(_t3_terminal_out_fd, TIOCGWINSZ, &wsz) < 0)
-		return t3_true;
-
-	_t3_lines = wsz.ws_row;
-	_t3_columns = wsz.ws_col;
+	if (ioctl(_t3_terminal_out_fd, TIOCGWINSZ, &wsz) == 0) {
+		_t3_lines = wsz.ws_row;
+		_t3_columns = wsz.ws_col;
+	} else
+#endif
+	{
+		if (_t3_detect_terminal_size == SIZE_DETECTION_NONE) {
+			_t3_trigger_terminal_size_detection();
+		} else if (_t3_detect_terminal_size == SIZE_DETECTION_DONE) {
+			_t3_lines = _t3_detected_lines;
+			_t3_columns = _t3_detected_columns;
+			_t3_detect_terminal_size = SIZE_DETECTION_NONE;
+		} else {
+			return t3_true;
+		}
+	}
 
 	if (_t3_columns == _t3_terminal_window->width && _t3_lines == _t3_terminal_window->height)
 		return t3_true;
@@ -321,9 +352,6 @@ t3_bool t3_term_resize(void) {
 	}
 
 	return t3_win_resize(_t3_terminal_window, _t3_lines, _t3_columns);
-#else
-	return t3_true;
-#endif
 }
 
 /** Set the non-ANSI terminal drawing attributes.

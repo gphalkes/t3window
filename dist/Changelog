@@ -4,10 +4,14 @@ Version 0.2.7:
 	  terminals explicitly disable the alternate character set if UTF-8 encoding
 	  is enabled, resulting in bad output.
 	- Internal tables updated to Unicode 10.0
+	- Terminal size detection is done based on cursor position reporting if
+	  no other information is available.
 
 	Bug fixes:
 	- Conjoining Jamo (Hangul) is now displayed correctly when passed as a
 	  single string.
+	- Fix the name of the terminfo entry for the number of columns on the
+	  terminal.
 
 Version 0.2.6:
 	Bug fixes:

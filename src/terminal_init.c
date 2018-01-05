@@ -13,6 +13,7 @@
 */
 /** @file */
 
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <stdlib.h>
@@ -56,12 +57,12 @@ static t3_bool initialised, /**< Boolean indicating whether the terminal has bee
 	seqs_initialised, /**< Boolean indicating whether the terminal control sequences have been initialised. */
 	transcript_init_done; /**< Boolean indicating whether @c transcript_init was called. */
 
-/** Store whether the terminal is actually the screen program.
+/** @internal Store whether the terminal is actually the screen program.
 
     If set, the terminal-capabilities detection will send extra pass-through
 	markers before and after the cursor position request to ensure we get
 	results. */
-static t3_bool terminal_is_screen;
+t3_bool _t3_terminal_is_screen;
 
 
 static char *smcup, /**< Terminal control string: start cursor positioning mode. */
@@ -267,7 +268,7 @@ static void send_test_string(const char *str) {
 
 	fputs(str, _t3_putp_file);
 	/* Send ANSI cursor reporting string. */
-	if (terminal_is_screen)
+	if (_t3_terminal_is_screen)
 		_t3_putp("\033P\033[6n\033\\");
 	else
 		_t3_putp("\033[6n");
@@ -573,6 +574,7 @@ int t3_term_init(int fd, const char *term) {
 	struct ttysize wsz;
 #endif
 	struct termios new_params;
+	t3_bool detect_terminal_size = t3_false;
 
 	init_log();
 
@@ -631,12 +633,11 @@ int t3_term_init(int fd, const char *term) {
 	} else
 #endif
 	{
-		char *lines_env = getenv("LINES");
-		char *columns_env = getenv("COLUMNS");
-		if (lines_env == NULL || columns_env == NULL || (_t3_lines = atoi(lines_env)) == 0 || (_t3_columns = atoi(columns_env)) == 0) {
-			if ((_t3_lines = _t3_tigetnum("lines")) < 0 || (_t3_columns = _t3_tigetnum("columns")) < 0)
-				return T3_ERR_NO_SIZE_INFO;
-		}
+		/* Trigger detection of the terminal size. These static values might not be correct, and
+		   cursor reporting may give us a much better idea. */
+		detect_terminal_size = t3_true;
+		if ((_t3_lines = _t3_tigetnum("lines")) < 0 || (_t3_columns = _t3_tigetnum("cols")) < 0)
+			return T3_ERR_NO_SIZE_INFO;
 	}
 
 	if (!transcript_init_done) {
@@ -697,13 +698,17 @@ int t3_term_init(int fd, const char *term) {
 
 		if (term != NULL || (term = getenv("TERM")) != NULL)
 			if (strcmp(term , "screen") == 0)
-				terminal_is_screen = t3_true;
+				_t3_terminal_is_screen = t3_true;
 
 		#define GENERATE_STRINGS
 		#include "terminal_detection.h"
 		#undef GENERATE_STRINGS
 		_t3_putp(_t3_clear);
 		fflush(_t3_putp_file);
+	}
+
+	if (detect_terminal_size) {
+		_t3_trigger_terminal_size_detection();
 	}
 
 	/* Make sure the cursor is visible */

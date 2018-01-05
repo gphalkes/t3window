@@ -163,4 +163,16 @@ T3_WINDOW_LOCAL void _t3_free_attr_map(void);
 T3_WINDOW_LOCAL uint32_t _t3_get_value_int(const char *s, size_t *size);
 T3_WINDOW_LOCAL size_t _t3_put_value(uint32_t c, char *dst);
 T3_WINDOW_LOCAL extern int _t3_modifier_hack;
+
+typedef enum {
+	SIZE_DETECTION_NONE,
+	SIZE_DETECTION_TRIGGERED,
+	SIZE_DETECTION_DONE
+} size_detection_t;
+T3_WINDOW_LOCAL extern volatile size_detection_t _t3_detect_terminal_size;
+T3_WINDOW_LOCAL extern volatile int _t3_detected_lines;
+T3_WINDOW_LOCAL extern volatile int _t3_detected_columns;
+T3_WINDOW_LOCAL extern t3_bool _t3_terminal_is_screen;
+
+T3_WINDOW_LOCAL void _t3_trigger_terminal_size_detection(void);
 #endif

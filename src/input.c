@@ -19,12 +19,15 @@
 #include <sys/select.h>
 #else
 #include <sys/time.h>
-#include <sys/types.h>
 #endif
 #include <transcript/transcript.h>
+#include <sys/types.h>
+#include <signal.h>
+
 #include "window.h"
 #include "internal.h"
 #include "generated/versions.h"
+#include "log.h"
 
 /** @addtogroup t3window_term */
 /** @{ */
@@ -137,13 +140,15 @@ static int digit_value(int c) {
 }
 
 /** Handle a character read from the terminal to check for position reports.
-    @arg c The character read from the terminal.
+    @param c The character read from the terminal.
+    @param process A function to call once a position report has been received. Its
+        return value will be returned by this function.
 
-    The postion reports may generated as a response to the terminal
+    The position reports may generated as a response to the terminal
     initialization. They are used to determine the used character set and
     capabilities of the terminal.
 */
-static t3_bool parse_position_reports(int c) {
+static t3_bool parse_position_reports(int c, t3_bool (*process)(int row, int col)) {
 	static detection_state_t detection_state = STATE_INITIAL;
 	static int row, column;
 
@@ -176,7 +181,7 @@ static t3_bool parse_position_reports(int c) {
 				column = column * 10 + digit_value(c);
 			} else if (c == 'R') {
 				detection_state = STATE_INITIAL;
-				return process_position_report(row, column);
+				return process(row, column);
 			} else {
 				detection_state = STATE_INITIAL;
 			}
@@ -186,6 +191,20 @@ static t3_bool parse_position_reports(int c) {
 			break;
 	}
 	return t3_false;
+}
+
+/** Use the values from a position report to detect the terminal size. */
+static t3_bool detect_terminal_size(int row, int col) {
+	lprintf("Detected terminal size %dx%d\n", row, col);
+	if (row > 0 && col > 0) {
+		_t3_detected_lines = row;
+		_t3_detected_columns = col;
+		_t3_detect_terminal_size = SIZE_DETECTION_DONE;
+		kill(getpid(), SIGWINCH);
+	} else {
+		_t3_detect_terminal_size = SIZE_DETECTION_DONE;
+	}
+	return t3_true;
 }
 
 /** Read a character from @c stdin, continueing after interrupts.
@@ -201,10 +220,11 @@ static int safe_read_char(void) {
 			continue;
 		} else if (retval >= 1) {
 			if (detecting_terminal_capabilities) {
-				if (parse_position_reports((int) c)) {
+				if (parse_position_reports((int) c, process_position_report)) {
 					stored_key = T3_WARN_UPDATE_TERMINAL;
-					return c;
 				}
+			} else if (_t3_detect_terminal_size == SIZE_DETECTION_TRIGGERED) {
+				parse_position_reports((int) c, detect_terminal_size);
 			}
 			return (int) (unsigned char) c;
 		} else if (retval == 0) {
