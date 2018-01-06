@@ -249,8 +249,15 @@ void _t3_do_cup(int line, int col) {
 
 /** Trigger the detection of the terminal size. */
 void _t3_trigger_terminal_size_detection(void) {
+	/* Don't attempt to detect the size of the terminal if it would result in
+	   thousands of cursor increments. */
+	if (_t3_cup == NULL && _t3_vpa == NULL && (_t3_cud == NULL || _t3_cuf == NULL))
+		return;
 	_t3_detect_terminal_size = SIZE_DETECTION_TRIGGERED;
-	_t3_do_cup(32767, 32767);
+	/* Attempt to put the cursor down in the bottom corner by moving it to coordinates
+	   which are pretty much guaranteed to be off screen, keeping in mind the limitations
+	   that some implementations may impose. */
+	_t3_do_cup(9999, 9999);
 	/* Send ANSI cursor reporting string. */
 	if (_t3_terminal_is_screen)
 		_t3_putp("\033P\033[6n\033\\");
