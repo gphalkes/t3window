@@ -64,9 +64,7 @@ TODO list:
     @brief Swap two line_data_t structures. Used in ::t3_term_update. */
 #define SWAP_LINES(a, b) do { line_data_t save; save = (a); (a) = (b); (b) = save; } while (0)
 
-char *_t3_smcup, /**< @internal Terminal control string: start cursor positioning mode. */
-	*_t3_rmcup, /**< @internal Terminal control string: stop cursor positioning mode. */
-	*_t3_cup, /**< @internal Terminal control string: position cursor. */
+char *_t3_cup, /**< @internal Terminal control string: position cursor. */
 	*_t3_sc, /**< @internal Terminal control string: save cursor position. */
 	*_t3_rc, /**< @internal Terminal control string: restore cursor position. */
 	*_t3_clear, /**< @internal Terminal control string: clear terminal. */

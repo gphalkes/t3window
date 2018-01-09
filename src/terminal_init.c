@@ -348,10 +348,16 @@ static int init_sequences(const char *term) {
 	_t3_rev = get_ti_string("rev");
 	_t3_blink = get_ti_string("blink");
 	_t3_dim = get_ti_string("dim");
-	_t3_smacs = get_ti_string("smacs");
 
-	if (_t3_smacs != NULL && ((_t3_rmacs = get_ti_string("rmacs")) == NULL || isreset(_t3_rmacs)))
-		_t3_reset_required_mask |= T3_ATTR_ACS;
+	/* Using the alternate character set for ANSI terminals is not a good idea, as
+	   the ANSI standard (or ECMA 48) doesn't define it. This can lead to bad results,
+	   thus using either ASCII or UTF-8 line drawing is better. */
+	if (strcmp(term, "ansi") != 0) {
+		_t3_smacs = get_ti_string("smacs");
+
+		if (_t3_smacs != NULL && ((_t3_rmacs = get_ti_string("rmacs")) == NULL || isreset(_t3_rmacs)))
+			_t3_reset_required_mask |= T3_ATTR_ACS;
+	}
 
 	/* If rmul and rmacs are the same, there is a good chance it simply
 	   resets everything. */
@@ -402,7 +408,7 @@ static int init_sequences(const char *term) {
 	_t3_civis = get_ti_string("civis");
 	_t3_cnorm = get_ti_string("cnorm");
 
-	if ((acsc = get_ti_string("acsc")) != NULL) {
+	if (_t3_smacs != NULL && (acsc = get_ti_string("acsc")) != NULL) {
 		if (_t3_sgr != NULL || _t3_smacs != NULL) {
 			size_t i;
 			for (i = 0; i < strlen(acsc); i += 2)
