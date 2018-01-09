@@ -10,8 +10,10 @@ Version 0.2.7:
 	Bug fixes:
 	- Conjoining Jamo (Hangul) is now displayed correctly when passed as a
 	  single string.
-	- Fix the name of the terminfo entry for the number of columns on the
-	  terminal.
+	- Use the correct name of the terminfo entry for the number of columns on
+	  the terminal.
+	- Use the characters for line drawing provided by the terminfo entry,
+	  rather than the vt100 ones.
 
 Version 0.2.6:
 	Bug fixes:

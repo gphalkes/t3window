@@ -744,8 +744,8 @@ void t3_term_update(void) {
 							/* ACS characters should be passed directly to the terminal, without
 							   character-set conversion. */
 							_t3_output_buffer_print();
-							fwrite(_t3_terminal_window->lines[i].data + new_idx + new_attrs_bytes, 1,
-								(new_block_size >> 1) - new_attrs_bytes, _t3_putp_file);
+							fwrite(_t3_alternate_chars + _t3_terminal_window->lines[i].data[new_idx + new_attrs_bytes],
+									1, 1, _t3_putp_file);
 						}
 					} else {
 						if (new_attrs != _t3_attrs)
