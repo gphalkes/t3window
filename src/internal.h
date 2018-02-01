@@ -25,48 +25,53 @@
 
 #include "window_api.h"
 
-#define WIDTH_TO_META(_w) (((_w) & 3) << CHAR_BIT)
+#define WIDTH_TO_META(_w) (((_w)&3) << CHAR_BIT)
 
 #define WIDTH_MASK (3 << CHAR_BIT)
 #define META_MASK (~((1 << CHAR_BIT) - 1))
 
-#define BASIC_ATTRS (T3_ATTR_UNDERLINE | T3_ATTR_BOLD | T3_ATTR_REVERSE | T3_ATTR_BLINK | T3_ATTR_DIM | T3_ATTR_ACS)
+#define BASIC_ATTRS \
+  (T3_ATTR_UNDERLINE | T3_ATTR_BOLD | T3_ATTR_REVERSE | T3_ATTR_BLINK | T3_ATTR_DIM | T3_ATTR_ACS)
 
 #define INITIAL_ALLOC 80
 
 #define _T3_BLOCK_SIZE_TO_WIDTH(x) ((int)((x & 1) + 1))
 
 typedef struct {
-	char *data; /* Data bytes. */
-	int start; /* Offset of data bytes in screen cells from the edge of the t3_window_t. */
-	int width; /* Width in cells of the the data. */
-	int length; /* Length in bytes. */
-	int allocated; /* Allocated number of bytes. */
+  char *data;    /* Data bytes. */
+  int start;     /* Offset of data bytes in screen cells from the edge of the t3_window_t. */
+  int width;     /* Width in cells of the the data. */
+  int length;    /* Length in bytes. */
+  int allocated; /* Allocated number of bytes. */
 } line_data_t;
 
 struct t3_window_t {
-	int x, y; /* X and Y coordinates of the t3_window_t. These may be relative to parent, depending on relation. */
-	int paint_x, paint_y; /* Drawing cursor */
-	int width, height; /* Height and width of the t3_window_t */
-	int depth; /* Depth in stack. Higher values are deeper and thus obscured by Windows with lower depth. */
-	int relation; /* Relation of this t3_window_t to parent. See window.h for values. */
-	int cached_pos_line;
-	int cached_pos;
-	int cached_pos_width;
-	t3_attr_t default_attrs; /* Default attributes to be combined with drawing attributes.
-	                           Mostly useful for background specification. */
-	t3_bool shown; /* Indicates whether this t3_window_t is visible. */
-	line_data_t *lines; /* The contents of the t3_window_t. */
-	t3_window_t *parent; /* t3_window_t used for clipping. */
-	t3_window_t *anchor; /* t3_window_t for relative placment. */
-	t3_window_t *restrictw; /* t3_window_t for restricting the placement of the window. [restrict is seen as keyword by clang :-(]*/
+  int x,
+      y; /* X and Y coordinates of the t3_window_t. These may be relative to parent, depending on
+            relation. */
+  int paint_x, paint_y; /* Drawing cursor */
+  int width, height;    /* Height and width of the t3_window_t */
+  int depth;    /* Depth in stack. Higher values are deeper and thus obscured by Windows with lower
+                   depth. */
+  int relation; /* Relation of this t3_window_t to parent. See window.h for values. */
+  int cached_pos_line;
+  int cached_pos;
+  int cached_pos_width;
+  t3_attr_t default_attrs; /* Default attributes to be combined with drawing attributes.
+                             Mostly useful for background specification. */
+  t3_bool shown;           /* Indicates whether this t3_window_t is visible. */
+  line_data_t *lines;      /* The contents of the t3_window_t. */
+  t3_window_t *parent;     /* t3_window_t used for clipping. */
+  t3_window_t *anchor;     /* t3_window_t for relative placment. */
+  t3_window_t *restrictw;  /* t3_window_t for restricting the placement of the window. [restrict is
+                              seen as keyword by clang :-(]*/
 
-	/* Pointers for linking into depth sorted list. */
-	t3_window_t *next;
-	t3_window_t *prev;
+  /* Pointers for linking into depth sorted list. */
+  t3_window_t *next;
+  t3_window_t *prev;
 
-	t3_window_t *head;
-	t3_window_t *tail;
+  t3_window_t *head;
+  t3_window_t *tail;
 };
 
 T3_WINDOW_LOCAL t3_bool _t3_win_refresh_term_line(int line);
@@ -76,26 +81,19 @@ T3_WINDOW_LOCAL void _t3_remove_window(t3_window_t *win);
 T3_WINDOW_LOCAL extern t3_window_t *_t3_terminal_window;
 
 enum {
-	_T3_TERM_UNKNOWN,
-	_T3_TERM_UTF8,
-	_T3_TERM_GB18030,
-	_T3_TERM_SINGLE_BYTE, /* Generic single byte encoding. Pray that LC_CTYPE has been set correctly. */
-	_T3_TERM_CJK, /* One of the CJK encodings has been detected. More detection required. */
-	_T3_TERM_CJK_SHIFT_JIS,
-	_T3_TERM_GBK
+  _T3_TERM_UNKNOWN,
+  _T3_TERM_UTF8,
+  _T3_TERM_GB18030,
+  _T3_TERM_SINGLE_BYTE, /* Generic single byte encoding. Pray that LC_CTYPE has been set correctly.
+                           */
+  _T3_TERM_CJK,         /* One of the CJK encodings has been detected. More detection required. */
+  _T3_TERM_CJK_SHIFT_JIS,
+  _T3_TERM_GBK
 };
 
-enum {
-	_T3_MODHACK_NONE,
-	_T3_MODHACK_LINUX
-};
+enum { _T3_MODHACK_NONE, _T3_MODHACK_LINUX };
 
-typedef enum {
-	_T3_ACS_AUTO,
-	_T3_ACS_ASCII,
-	_T3_ACS_UTF8,
-	_T3_ACS_ACS
-} t3_acs_override_t;
+typedef enum { _T3_ACS_AUTO, _T3_ACS_ASCII, _T3_ACS_UTF8, _T3_ACS_ACS } t3_acs_override_t;
 
 T3_WINDOW_LOCAL extern int _t3_term_encoding, _t3_term_combining, _t3_term_double_width;
 T3_WINDOW_LOCAL extern char _t3_current_charset[80];
@@ -104,39 +102,13 @@ T3_WINDOW_LOCAL extern int _t3_terminal_in_fd;
 T3_WINDOW_LOCAL extern int _t3_terminal_out_fd;
 T3_WINDOW_LOCAL extern fd_set _t3_inset;
 
-T3_WINDOW_LOCAL extern char *_t3_cup,
-	*_t3_sc,
-	*_t3_rc,
-	*_t3_clear,
-	*_t3_home,
-	*_t3_vpa,
-	*_t3_hpa,
-	*_t3_cud,
-	*_t3_cud1,
-	*_t3_cuf,
-	*_t3_cuf1,
-	*_t3_civis,
-	*_t3_cnorm,
-	*_t3_sgr,
-	*_t3_setaf,
-	*_t3_setab,
-	*_t3_op,
-	*_t3_smacs,
-	*_t3_rmacs,
-	*_t3_sgr0,
-	*_t3_smul,
-	*_t3_rmul,
-	*_t3_rev,
-	*_t3_bold,
-	*_t3_blink,
-	*_t3_dim,
-	*_t3_setf,
-	*_t3_setb,
-	*_t3_el,
-	*_t3_scp;
+T3_WINDOW_LOCAL extern char *_t3_cup, *_t3_sc, *_t3_rc, *_t3_clear, *_t3_home, *_t3_vpa, *_t3_hpa,
+    *_t3_cud, *_t3_cud1, *_t3_cuf, *_t3_cuf1, *_t3_civis, *_t3_cnorm, *_t3_sgr, *_t3_setaf,
+    *_t3_setab, *_t3_op, *_t3_smacs, *_t3_rmacs, *_t3_sgr0, *_t3_smul, *_t3_rmul, *_t3_rev,
+    *_t3_bold, *_t3_blink, *_t3_dim, *_t3_setf, *_t3_setb, *_t3_el, *_t3_scp;
 T3_WINDOW_LOCAL extern int _t3_lines, _t3_columns;
 T3_WINDOW_LOCAL extern const char *_t3_default_alternate_chars[256];
-T3_WINDOW_LOCAL extern t3_attr_t _t3_attrs, _t3_ansi_attrs,	_t3_reset_required_mask;
+T3_WINDOW_LOCAL extern t3_attr_t _t3_attrs, _t3_ansi_attrs, _t3_reset_required_mask;
 T3_WINDOW_LOCAL extern t3_attr_t _t3_ncv;
 T3_WINDOW_LOCAL extern t3_bool _t3_bce;
 T3_WINDOW_LOCAL extern int _t3_colors, _t3_pairs;
@@ -159,15 +131,16 @@ T3_WINDOW_LOCAL t3_attr_t _t3_get_attr(int idx);
 T3_WINDOW_LOCAL void _t3_init_attr_map(void);
 T3_WINDOW_LOCAL void _t3_free_attr_map(void);
 
-#define _t3_get_value(s, size) (((s)[0] & 0x80) ? _t3_get_value_int(s, size) : (uint32_t) (*(size) = 1, (s)[0]))
+#define _t3_get_value(s, size) \
+  (((s)[0] & 0x80) ? _t3_get_value_int(s, size) : (uint32_t)(*(size) = 1, (s)[0]))
 T3_WINDOW_LOCAL uint32_t _t3_get_value_int(const char *s, size_t *size);
 T3_WINDOW_LOCAL size_t _t3_put_value(uint32_t c, char *dst);
 T3_WINDOW_LOCAL extern int _t3_modifier_hack;
 
 typedef enum {
-	SIZE_DETECTION_NONE,
-	SIZE_DETECTION_TRIGGERED,
-	SIZE_DETECTION_DONE
+  SIZE_DETECTION_NONE,
+  SIZE_DETECTION_TRIGGERED,
+  SIZE_DETECTION_DONE
 } size_detection_t;
 T3_WINDOW_LOCAL extern volatile size_detection_t _t3_detect_terminal_size;
 T3_WINDOW_LOCAL extern volatile int _t3_detected_lines;

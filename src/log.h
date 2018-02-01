@@ -32,10 +32,10 @@ T3_WINDOW_LOCAL void init_log(void);
 /* Note: these must be declared with T3_WINDOW_API such that they can be accessed
    from the clipboard modules. */
 T3_WINDOW_API void lprintf(const char *fmt, ...)
-	#ifdef __GNUC__
-	__attribute__((format(printf, 1, 2)))
-	#endif
-	;
+#ifdef __GNUC__
+    __attribute__((format(printf, 1, 2)))
+#endif
+    ;
 #else
 #define init_log()
 #define lprintf(fmt, ...)

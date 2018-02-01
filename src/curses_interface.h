@@ -14,8 +14,8 @@
 #ifndef CURSES_INTERFACE_H
 #define CURSES_INTERFACE_H
 
-#include <stdio.h>
 #include "window_api.h"
+#include <stdio.h>
 
 T3_WINDOW_LOCAL extern FILE *_t3_putp_file;
 

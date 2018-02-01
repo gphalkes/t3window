@@ -11,35 +11,33 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
 #include "log.h"
+
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef _T3_WINDOW_DEBUG
 static FILE *log_file;
 
-static void close_log(void) {
-	fclose(log_file);
-}
+static void close_log(void) { fclose(log_file); }
 
 void init_log(void) {
-	if (log_file == NULL) {
-		log_file = fopen("libt3windowlog.txt", "a");
-		if (log_file)
-			atexit(close_log);
-	}
+  if (log_file == NULL) {
+    log_file = fopen("libt3windowlog.txt", "a");
+    if (log_file) atexit(close_log);
+  }
 }
 
 void lprintf(const char *fmt, ...) {
-	if (log_file) {
-		va_list args;
+  if (log_file) {
+    va_list args;
 
-		va_start(args, fmt);
-		vfprintf(log_file, fmt, args);
-		fflush(log_file);
-		va_end(args);
-	}
+    va_start(args, fmt);
+    vfprintf(log_file, fmt, args);
+    fflush(log_file);
+    va_end(args);
+  }
 }
 
 #endif

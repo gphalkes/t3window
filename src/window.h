@@ -36,20 +36,20 @@ extern "C" {
 
     The anchor points can be used to define the relative positioning of two
     windows. For example, using T3_PARENT(T3_ANCHOR_TOPRIGHT) | T3_CHILD(T3_ANCHOR_TOPLEFT)
-	allows positioning of one window left of another.
+        allows positioning of one window left of another.
 
-	@ingroup t3window_other
+        @ingroup t3window_other
 */
 enum t3_win_anchor_t {
-	T3_ANCHOR_TOPLEFT,
-	T3_ANCHOR_TOPRIGHT,
-	T3_ANCHOR_BOTTOMLEFT,
-	T3_ANCHOR_BOTTOMRIGHT,
-	T3_ANCHOR_CENTER,
-	T3_ANCHOR_TOPCENTER,
-	T3_ANCHOR_BOTTOMCENTER,
-	T3_ANCHOR_CENTERLEFT,
-	T3_ANCHOR_CENTERRIGHT
+  T3_ANCHOR_TOPLEFT,
+  T3_ANCHOR_TOPRIGHT,
+  T3_ANCHOR_BOTTOMLEFT,
+  T3_ANCHOR_BOTTOMRIGHT,
+  T3_ANCHOR_CENTER,
+  T3_ANCHOR_TOPCENTER,
+  T3_ANCHOR_BOTTOMCENTER,
+  T3_ANCHOR_CENTERLEFT,
+  T3_ANCHOR_CENTERRIGHT
 };
 
 /** An opaque struct representing a window which can be shown on the terminal.
@@ -57,8 +57,10 @@ enum t3_win_anchor_t {
 */
 typedef struct t3_window_t t3_window_t;
 
-T3_WINDOW_API t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x, int depth);
-T3_WINDOW_API t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int y, int x, int depth);
+T3_WINDOW_API t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x,
+                                      int depth);
+T3_WINDOW_API t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int y,
+                                               int x, int depth);
 T3_WINDOW_API void t3_win_del(t3_window_t *win);
 
 T3_WINDOW_API t3_bool t3_win_set_parent(t3_window_t *win, t3_window_t *parent);
@@ -87,7 +89,8 @@ T3_WINDOW_API int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3
 T3_WINDOW_API int t3_win_addstr(t3_window_t *win, const char *str, t3_attr_t attr);
 T3_WINDOW_API int t3_win_addch(t3_window_t *win, char c, t3_attr_t attr);
 
-T3_WINDOW_API int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_attr_t attr, int rep);
+T3_WINDOW_API int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_attr_t attr,
+                                    int rep);
 T3_WINDOW_API int t3_win_addstrrep(t3_window_t *win, const char *str, t3_attr_t attr, int rep);
 T3_WINDOW_API int t3_win_addchrep(t3_window_t *win, char c, t3_attr_t attr, int rep);
 

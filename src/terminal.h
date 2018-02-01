@@ -36,8 +36,8 @@ extern "C" {
     The second 8 bits represent the minor version.
     The third 8 bits represent the major version.
 
-	At runtime, the value of T3_WINDOW_VERSION can be retrieved by calling
-	::t3_window_get_version.
+        At runtime, the value of T3_WINDOW_VERSION can be retrieved by calling
+        ::t3_window_get_version.
 
     @internal
     The value 0 is an invalid value which should be replaced by the script
@@ -70,10 +70,13 @@ typedef int t3_attr_t;
     See ::t3_term_get_caps for details on how to use this struct.
 */
 typedef struct {
-	t3_attr_t highlights; /**< The supported attributes other then color attributes. This is a bitmask of T3_ATTR_* flags. */
-	int colors; /**< The maximum number of supported colors, or 0 if color is not supported. */
-	int pairs; /**< The maximum number of color pairs that are supported by this terminal, or 0 if color is not supported. */
-	int cap_flags; /**< A bitmask of T3_TERM_CAP_* flags indicating capabilities of the terminal. */
+  t3_attr_t
+      highlights; /**< The supported attributes other then color attributes. This is a bitmask of
+                     T3_ATTR_* flags. */
+  int colors;     /**< The maximum number of supported colors, or 0 if color is not supported. */
+  int pairs;     /**< The maximum number of color pairs that are supported by this terminal, or 0 if
+                    color is not supported. */
+  int cap_flags; /**< A bitmask of T3_TERM_CAP_* flags indicating capabilities of the terminal. */
 } t3_term_caps_t;
 
 /** Terminal capability flag: terminal can set foreground. */
@@ -95,44 +98,46 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 /** Use callback for drawing the characters.
 
     When T3_ATTR_USER is set all other attribute bits are ignored. These can be used by
-    the callback to determine the drawing style. The callback is set with ::t3_term_set_user_callback.
-	Note that the callback is responsible for outputing the characters as well (using ::t3_term_putc).
+    the callback to determine the drawing style. The callback is set with
+   ::t3_term_set_user_callback.
+        Note that the callback is responsible for outputing the characters as well (using
+   ::t3_term_putc).
 */
-#define T3_ATTR_USER ((t3_attr_t) (1L << 0))
+#define T3_ATTR_USER ((t3_attr_t)(1L << 0))
 /** Draw characters with underlining. */
-#define T3_ATTR_UNDERLINE ((t3_attr_t) (1L << 1))
+#define T3_ATTR_UNDERLINE ((t3_attr_t)(1L << 1))
 /** Draw characters with bold face/bright appearance. */
-#define T3_ATTR_BOLD ((t3_attr_t) (1L << 2))
+#define T3_ATTR_BOLD ((t3_attr_t)(1L << 2))
 /** Draw characters with reverse video. */
-#define T3_ATTR_REVERSE ((t3_attr_t) (1L << 3))
+#define T3_ATTR_REVERSE ((t3_attr_t)(1L << 3))
 /** Draw characters blinking. */
-#define T3_ATTR_BLINK ((t3_attr_t) (1L << 4))
+#define T3_ATTR_BLINK ((t3_attr_t)(1L << 4))
 /** Draw characters with dim appearance. */
-#define T3_ATTR_DIM ((t3_attr_t) (1L << 5))
+#define T3_ATTR_DIM ((t3_attr_t)(1L << 5))
 /** Draw characters with alternate character set (for line drawing etc). */
-#define T3_ATTR_ACS ((t3_attr_t) (1L << 6))
+#define T3_ATTR_ACS ((t3_attr_t)(1L << 6))
 /** Draw characters with fallback alternate character set (for line drawing etc).
 
     This attribute will result if the terminal can not combine color video with
-	drawing characters with the alternate character set. This attribute should
-	not be used directly. */
-#define T3_ATTR_FALLBACK_ACS ((t3_attr_t) (1L << 7))
+        drawing characters with the alternate character set. This attribute should
+        not be used directly. */
+#define T3_ATTR_FALLBACK_ACS ((t3_attr_t)(1L << 7))
 
 /** Bit number of the least significant color attribute bit. */
 #define T3_ATTR_COLOR_SHIFT 8
 /** Convert a color number to a foreground color attribute. */
-#define T3_ATTR_FG(x) (((((t3_attr_t) (x)) & 0xff) + 1) << T3_ATTR_COLOR_SHIFT)
+#define T3_ATTR_FG(x) (((((t3_attr_t)(x)) & 0xff) + 1) << T3_ATTR_COLOR_SHIFT)
 /** Convert a color number to a background color attribute. */
-#define T3_ATTR_BG(x) (((((t3_attr_t) (x)) & 0xff) + 1) << (T3_ATTR_COLOR_SHIFT + 9))
+#define T3_ATTR_BG(x) (((((t3_attr_t)(x)) & 0xff) + 1) << (T3_ATTR_COLOR_SHIFT + 9))
 /** Bitmask to leave only the foreground color in a ::t3_attr_t value. */
 #define T3_ATTR_FG_MASK (0x1ff << T3_ATTR_COLOR_SHIFT)
 /** Bitmask to leave only the background color in a ::t3_attr_t value. */
 #define T3_ATTR_BG_MASK (0x1ff << (T3_ATTR_COLOR_SHIFT + 9))
 
 /** Foreground color unspecified. */
-#define T3_ATTR_FG_UNSPEC ((t3_attr_t) 0L)
+#define T3_ATTR_FG_UNSPEC ((t3_attr_t)0L)
 /** Foreground color default. */
-#define T3_ATTR_FG_DEFAULT (((t3_attr_t) 257) << (T3_ATTR_COLOR_SHIFT))
+#define T3_ATTR_FG_DEFAULT (((t3_attr_t)257) << (T3_ATTR_COLOR_SHIFT))
 /** Foreground color black. */
 #define T3_ATTR_FG_BLACK T3_ATTR_FG(0)
 /** Foreground color red. */
@@ -151,9 +156,9 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 #define T3_ATTR_FG_WHITE T3_ATTR_FG(7)
 
 /** Background color unspecified. */
-#define T3_ATTR_BG_UNSPEC ((t3_attr_t) 0L)
+#define T3_ATTR_BG_UNSPEC ((t3_attr_t)0L)
 /** Background color default. */
-#define T3_ATTR_BG_DEFAULT (((t3_attr_t) 257) << (T3_ATTR_COLOR_SHIFT + 9))
+#define T3_ATTR_BG_DEFAULT (((t3_attr_t)257) << (T3_ATTR_COLOR_SHIFT + 9))
 /** Background color black. */
 #define T3_ATTR_BG_BLACK T3_ATTR_BG(0)
 /** Background color red. */
@@ -174,31 +179,31 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 
 /** Alternate character set symbolic constants. */
 enum {
-	T3_ACS_TTEE = 'w', /**< Tee pointing down. */
-	T3_ACS_RTEE = 'u', /**< Tee pointing left. */
-	T3_ACS_LTEE = 't', /**< Tee pointing right. */
-	T3_ACS_BTEE = 'v', /**< Tee pointing up. */
-	T3_ACS_ULCORNER = 'l', /**< Upper left corner. */
-	T3_ACS_URCORNER = 'k', /**< Upper right corner. */
-	T3_ACS_LLCORNER = 'm', /**< Lower left corner. */
-	T3_ACS_LRCORNER = 'j', /**< Lower right corner. */
-	T3_ACS_HLINE = 'q', /**< Horizontal line. */
-	T3_ACS_VLINE = 'x', /**< Vertical line. */
-	T3_ACS_UARROW = '-', /**< Arrow pointing up. */
-	T3_ACS_DARROW = '.', /**< Arrow pointing down. */
-	T3_ACS_LARROW = ',', /**< Arrow pointing left. */
-	T3_ACS_RARROW = '+', /**< Arrow pointing right. */
-	T3_ACS_BOARD = 'h', /**< Board of squares. */
-	T3_ACS_CKBOARD = 'a', /**< Checker board pattern (stipple). */
-	T3_ACS_BULLET = '~', /**< Bullet. */
-	T3_ACS_DIAMOND = '`', /**< Diamond. */
-	T3_ACS_BLOCK = '0' /**< Solid block. */
-	/* FIXME: add all the different known ACS chars */
+  T3_ACS_TTEE = 'w',     /**< Tee pointing down. */
+  T3_ACS_RTEE = 'u',     /**< Tee pointing left. */
+  T3_ACS_LTEE = 't',     /**< Tee pointing right. */
+  T3_ACS_BTEE = 'v',     /**< Tee pointing up. */
+  T3_ACS_ULCORNER = 'l', /**< Upper left corner. */
+  T3_ACS_URCORNER = 'k', /**< Upper right corner. */
+  T3_ACS_LLCORNER = 'm', /**< Lower left corner. */
+  T3_ACS_LRCORNER = 'j', /**< Lower right corner. */
+  T3_ACS_HLINE = 'q',    /**< Horizontal line. */
+  T3_ACS_VLINE = 'x',    /**< Vertical line. */
+  T3_ACS_UARROW = '-',   /**< Arrow pointing up. */
+  T3_ACS_DARROW = '.',   /**< Arrow pointing down. */
+  T3_ACS_LARROW = ',',   /**< Arrow pointing left. */
+  T3_ACS_RARROW = '+',   /**< Arrow pointing right. */
+  T3_ACS_BOARD = 'h',    /**< Board of squares. */
+  T3_ACS_CKBOARD = 'a',  /**< Checker board pattern (stipple). */
+  T3_ACS_BULLET = '~',   /**< Bullet. */
+  T3_ACS_DIAMOND = '`',  /**< Diamond. */
+  T3_ACS_BLOCK = '0'     /**< Solid block. */
+                         /* FIXME: add all the different known ACS chars */
 };
 
-#define T3_TERM_KEY_CTRL (1<<0)
-#define T3_TERM_KEY_META (1<<1)
-#define T3_TERM_KEY_SHIFT (1<<2)
+#define T3_TERM_KEY_CTRL (1 << 0)
+#define T3_TERM_KEY_META (1 << 1)
+#define T3_TERM_KEY_SHIFT (1 << 2)
 
 #include "window_errors.h"
 

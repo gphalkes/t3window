@@ -15,9 +15,12 @@
 #if defined(GENERATE_STRINGS)
 #define TEST(_str, _code) send_test_string(_str);
 #elif defined(GENERATE_CODE)
-#define TEST(_str, _code) if (test++ == report_nr) { _code }
+#define TEST(_str, _code)    \
+  if (test++ == report_nr) { \
+    _code                    \
+  }
 {
-	int test = 0;
+  int test = 0;
 #endif
 
 /*======================
@@ -26,8 +29,8 @@
 /* The tests defined here can use the variable column to check the reported width
    of the given test string. Test are executed in the order presented here.
 */
-//FIXME: test for more encodings here
-//FIXME: extend the GB18030 testing
+// FIXME: test for more encodings here
+// FIXME: extend the GB18030 testing
 
 /*=== Basic character set detection ===*/
 
@@ -37,48 +40,36 @@
 
    U+00E5 LATIN SMALL LETTER A WITH RING ABOVE,
    U+0E3F THAI CURRENCY SYMBOL BAHT, U+2592 MEDIUM SHADE */
-TEST("\xc3\xa5\xe0\xb8\xbf\xe2\x96\x92",
-	if (column == 3)
-		_t3_term_encoding = _T3_TERM_UTF8;
-	else if (column == 6)
-		_t3_term_encoding = _T3_TERM_CJK;
-)
+TEST("\xc3\xa5\xe0\xb8\xbf\xe2\x96\x92", if (column == 3) _t3_term_encoding = _T3_TERM_UTF8;
+     else if (column == 6) _t3_term_encoding = _T3_TERM_CJK;)
 
 /* Test for GB18030. For EUC type encodings, this will be length two because the
    bytes with the high bit set will be ignored. For UTF-8, the characters with
    the high bit set will be replaced by the replacement character, thus reporing
    the widht as 4.
    U+00DE LATIN CAPITAL LETTER THORN */
-TEST("\x81\x30\x89\x37",
-	if (_t3_term_encoding == _T3_TERM_UNKNOWN) {
-		if (column == 1)
-			_t3_term_encoding = _T3_TERM_GB18030;
-		if (column == 2)
-			_t3_term_encoding = _T3_TERM_GBK; //FIXME: or GB2312 for some encoding of it
-		else if (column == 4)
-			_t3_term_encoding = _T3_TERM_SINGLE_BYTE;
-	}
-)
+TEST("\x81\x30\x89\x37", if (_t3_term_encoding == _T3_TERM_UNKNOWN) {
+  if (column == 1) _t3_term_encoding = _T3_TERM_GB18030;
+  if (column == 2)
+    _t3_term_encoding = _T3_TERM_GBK;  // FIXME: or GB2312 for some encoding of it
+  else if (column == 4)
+    _t3_term_encoding = _T3_TERM_SINGLE_BYTE;
+})
 
 /*=== Combining character sequences ===*/
 
 /* [4.0] U+002E FULL STOP / U+0350 COMBINING RIGHT ARROWHEAD ABOVE */
 TEST("\x2e\xcd\x90", /* UTF-8 version */
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1)
-		_t3_term_combining = T3_UNICODE_40;
-)
+     if (_t3_term_encoding == _T3_TERM_UTF8 && column == 1) _t3_term_combining = T3_UNICODE_40;)
 TEST("\x2e\x81\x30\xc4\x36", /* GB-18030 version */
-	if (_t3_term_encoding == _T3_TERM_GB18030)
-		_t3_term_combining = T3_UNICODE_40;
-)
+     if (_t3_term_encoding == _T3_TERM_GB18030) _t3_term_combining = T3_UNICODE_40;)
 
 /*=== Double-width character sequences ===*/
 
-/* [1.1] U+5208 CJK UNIFIED IDEOGRAPH-5208, [4.0] U+FE47 PRESENTATION FORM FOR VERTICAL LEFT SQUARE BRACKET */
+/* [1.1] U+5208 CJK UNIFIED IDEOGRAPH-5208, [4.0] U+FE47 PRESENTATION FORM FOR VERTICAL LEFT SQUARE
+ * BRACKET */
 TEST("\xe5\x88\x88\xef\xb9\x87",
-	if (_t3_term_encoding == _T3_TERM_UTF8 && column == 4)
-		_t3_term_double_width = T3_UNICODE_40;
-)
+     if (_t3_term_encoding == _T3_TERM_UTF8 && column == 4) _t3_term_double_width = T3_UNICODE_40;)
 
 #include "generated/capability_test.h"
 
@@ -87,11 +78,11 @@ TEST("\xe5\x88\x88\xef\xb9\x87",
   ==============================================*/
 
 #if defined(GENERATE_CODE)
-	if (detecting_terminal_capabilities && test - 1 == report_nr) {
-		detecting_terminal_capabilities = t3_false;
-		finish_detection();
-		result = t3_true;
-	}
+if (detecting_terminal_capabilities && test - 1 == report_nr) {
+  detecting_terminal_capabilities = t3_false;
+  finish_detection();
+  result = t3_true;
+}
 }
 #endif
 #undef TEST

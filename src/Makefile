@@ -41,4 +41,7 @@ CFLAGS += -DHAS_TIOCLINUX -DHAS_KDGKBENT
 
 test: | libt3window.la
 
-.PHONY: links
+clang-format:
+	clang-format -i *.c *.h
+
+.PHONY: clang-format
