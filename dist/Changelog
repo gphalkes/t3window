@@ -1,8 +1,10 @@
-Version 0.2.7:
+Version 0.3.0:
 	New features:
 	- Prefer to use Unicode line-drawing characters if they are available. Some
 	  terminals explicitly disable the alternate character set if UTF-8 encoding
 	  is enabled, resulting in bad output.
+	- Don't use the alternate characterset for line drawing if the terminal type
+	  is ansi, or if the smacs capability is not defined.
 	- Internal tables updated to Unicode 10.0
 	- Terminal size detection is done based on cursor position reporting if
 	  no other information is available.
@@ -14,6 +16,7 @@ Version 0.2.7:
 	  the terminal.
 	- Use the characters for line drawing provided by the terminfo entry,
 	  rather than the vt100 ones.
+	- Fix use of destroyed stack variable.
 
 Version 0.2.6:
 	Bug fixes:
