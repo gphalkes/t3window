@@ -11,12 +11,13 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "window.h"
 #include <ctype.h>
 #include <locale.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "window.h"
 
 #define ASSERT(_cond)                                                                        \
   do {                                                                                       \

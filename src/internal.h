@@ -23,6 +23,7 @@
 #endif
 #include <stdint.h>
 
+#include "window.h"
 #include "window_api.h"
 
 #define WIDTH_TO_META(_w) (((_w)&3) << CHAR_BIT)

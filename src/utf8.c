@@ -11,9 +11,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <uniwidth.h>
+
 #include "utf8.h"
 #include "generated/chardata.h"
-#include <uniwidth.h>
 
 /* Returns whether a codepoint is one of the conjoining Jamo L codepoints. */
 static t3_bool is_conjoining_jamo_l(uint32_t c) { return c >= 0x1100 && c <= 0x1112; }
