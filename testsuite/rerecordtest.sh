@@ -17,6 +17,11 @@ rm *
 
 build_test
 
-tdrerecord -s -o $TEST/recording.new $TEST/recording || fail "!! Could not rerecord test"
+tdrerecord -o $TEST/recording.new $TEST/recording || fail "!! Could not rerecord test"
+
+if ! tdcompare -v $TEST/recording{,.new} ; then
+	echo -e "\\033[31;1mTest $TEST has different visual result\\033[0m"
+	exit 1
+fi
 
 exit 0

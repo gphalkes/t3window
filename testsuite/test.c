@@ -15,6 +15,8 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <time.h>
+
 #include "window.h"
 
 #define ASSERT(_cond) do { if (!(_cond)) fatal("Assertion failed on line %s:%d: %s\n", __FILE__, __LINE__, #_cond); } while (0)
@@ -64,6 +66,9 @@ static int next(void) {
 static int test(void);
 
 int main(int argc, char *argv[]) {
+	/* 10 millisecond sleep, to allow the terminal to send the response to the
+	   terminal detection strings. This makes the tests more reliable. */
+	struct timespec sleep_time = { 0, 10000000L };
 	int c;
 
 	while ((c = getopt(argc, argv, "dih")) >= 0) {
@@ -88,6 +93,6 @@ int main(int argc, char *argv[]) {
 	ASSERT(t3_term_init(-1, NULL) == T3_ERR_SUCCESS);
 	atexit(t3_term_restore);
 	initialized = 1;
-
+	nanosleep(&sleep_time, NULL);
 	return test();
 }

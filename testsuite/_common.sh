@@ -31,3 +31,7 @@ build_test() {
 
 	gcc -g -Wall -I../../src -I../../include test.c -L../../src/.libs/ -lt3window -o test -Wl,-rpath=$PWD/../../src/.libs:$PWD/../../../transcript/src/.libs || fail "!! Could not compile test"
 }
+
+fixup_test() {
+	sed -i -r '/^send.*033\[2;.R/s/send +[0-9]+/send 0/' "$1"
+}

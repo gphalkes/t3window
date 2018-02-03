@@ -386,7 +386,14 @@ static int init_sequences(const char *term) {
   /* Using the alternate character set for ANSI terminals is not a good idea, as
      the ANSI standard (or ECMA 48) doesn't define it. This can lead to bad results,
      thus using either ASCII or UTF-8 line drawing is better. */
-  if (strcmp(term, "ansi") != 0) {
+  const char *safe_term = term;
+  if (safe_term == NULL) {
+    safe_term = getenv("TERM");
+    if (safe_term == NULL) {
+      safe_term = "";
+    }
+  }
+  if (strcmp(safe_term, "ansi") != 0) {
     _t3_smacs = get_ti_string("smacs");
 
     if (_t3_smacs != NULL && ((_t3_rmacs = get_ti_string("rmacs")) == NULL || isreset(_t3_rmacs))) {
