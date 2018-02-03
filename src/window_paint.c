@@ -66,21 +66,28 @@ static t3_bool ensure_space(line_data_t *line, size_t n) {
   int newsize;
   char *resized;
 
-  if (n > INT_MAX || INT_MAX - (int)n < line->length) return t3_false;
+  if (n > INT_MAX || INT_MAX - (int)n < line->length) {
+    return t3_false;
+  }
 
-  if (line->allocated > line->length + (int)n) return t3_true;
+  if (line->allocated > line->length + (int)n) {
+    return t3_true;
+  }
 
   newsize = line->allocated;
 
   do {
     /* Sanity check for overflow of allocated variable. Prevents infinite loops. */
-    if (newsize > INT_MAX / 2)
+    if (newsize > INT_MAX / 2) {
       newsize = INT_MAX;
-    else
+    } else {
       newsize *= 2;
+    }
   } while (newsize - line->length < (int)n);
 
-  if ((resized = realloc(line->data, sizeof(t3_attr_t) * newsize)) == NULL) return t3_false;
+  if ((resized = realloc(line->data, sizeof(t3_attr_t) * newsize)) == NULL) {
+    return t3_false;
+  }
   line->data = resized;
   line->allocated = newsize;
   return t3_true;
@@ -97,13 +104,17 @@ int _t3_map_attr(t3_attr_t attr) {
        ptr = attr_map[ptr].next) {
   }
 
-  if (ptr != -1) return ptr;
+  if (ptr != -1) {
+    return ptr;
+  }
 
   if (attr_map_fill >= attr_map_allocated) {
     int new_allocation = attr_map_allocated == 0 ? ATTR_MAP_START_SIZE : attr_map_allocated * 2;
     attr_map_t *new_map;
 
-    if ((new_map = realloc(attr_map, new_allocation * sizeof(attr_map_t))) == NULL) return -1;
+    if ((new_map = realloc(attr_map, new_allocation * sizeof(attr_map_t))) == NULL) {
+      return -1;
+    }
     attr_map = new_map;
     attr_map_allocated = new_allocation;
   }
@@ -119,7 +130,9 @@ int _t3_map_attr(t3_attr_t attr) {
     @param idx The mapped attribute index as returned by ::_t3_map_attr.
 */
 t3_attr_t _t3_get_attr(int idx) {
-  if (idx < 0 || idx > attr_map_fill) return 0;
+  if (idx < 0 || idx > attr_map_fill) {
+    return 0;
+  }
   return attr_map[idx].attr;
 }
 
@@ -128,7 +141,9 @@ t3_attr_t _t3_get_attr(int idx) {
 */
 void _t3_init_attr_map(void) {
   int i;
-  for (i = 0; i < ATTR_HASH_MAP_SIZE; i++) attr_hash_map[i] = -1;
+  for (i = 0; i < ATTR_HASH_MAP_SIZE; i++) {
+    attr_hash_map[i] = -1;
+  }
 }
 
 /** @internal
@@ -386,7 +401,9 @@ uint32_t _t3_get_value_int(const char *src, size_t *size) {
 
   *size = bytes_left + 1;
   src++;
-  for (; bytes_left > 0; bytes_left--) retval = (retval << 6) | (src++ [0] & 0x3f);
+  for (; bytes_left > 0; bytes_left--) {
+    retval = (retval << 6) | (src++ [0] & 0x3f);
+  }
   return retval;
 }
 
@@ -472,11 +489,17 @@ static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
   char new_block_size_str[6];
   int pos_width, i;
 
-  if (win->lines == NULL) return t3_false;
+  if (win->lines == NULL) {
+    return t3_false;
+  }
 
-  if (win->paint_y >= win->height) return t3_true;
+  if (win->paint_y >= win->height) {
+    return t3_true;
+  }
   /* Combining characters may be added _at_ width. */
-  if (win->paint_x > win->width) return t3_true;
+  if (win->paint_x > win->width) {
+    return t3_true;
+  }
 
   if (win->cached_pos_line != win->paint_y || win->cached_pos_width >= win->paint_x) {
     win->cached_pos_line = win->paint_y;
@@ -486,11 +509,14 @@ static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
 
   /* Simply drop characters that don't belong to any other character. */
   if (win->lines[win->paint_y].length == 0 || win->paint_x <= win->lines[win->paint_y].start ||
-      win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width)
+      win->paint_x > win->lines[win->paint_y].start + win->lines[win->paint_y].width) {
     return t3_true;
+  }
 
   /* Ensure we have space for n characters, and possibly extend the block size header by 1. */
-  if (!ensure_space(win->lines + win->paint_y, n + 1)) return t3_false;
+  if (!ensure_space(win->lines + win->paint_y, n + 1)) {
+    return t3_false;
+  }
 
   pos_width = win->cached_pos_width;
 
@@ -506,12 +532,16 @@ static t3_bool _win_add_zerowidth(t3_window_t *win, const char *str, size_t n) {
     pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
 
     /* Do the check for whether we found the insertion point here, so we don't update i. */
-    if (pos_width >= win->paint_x) break;
+    if (pos_width >= win->paint_x) {
+      break;
+    }
   }
 
   /* Check whether we are being asked to add a zero-width character in the middle
      of a double-width character. If so, ignore. */
-  if (pos_width > win->paint_x) return t3_true;
+  if (pos_width > win->paint_x) {
+    return t3_true;
+  }
 
   new_block_size = block_size + (n << 1);
   new_block_size_bytes = _t3_put_value(new_block_size, new_block_size_str);
@@ -557,13 +587,19 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
   uint32_t extra_spaces_attr;
   t3_bool result = t3_true;
 
-  if (win->lines == NULL) return t3_false;
+  if (win->lines == NULL) {
+    return t3_false;
+  }
 
-  if (win->paint_y >= win->height || win->paint_x >= win->width || n == 0) return t3_true;
+  if (win->paint_y >= win->height || win->paint_x >= win->width || n == 0) {
+    return t3_true;
+  }
 
   for (k = 0; k < n; k += (block_size >> 1) + block_size_bytes) {
     block_size = _t3_get_value(blocks + k, &block_size_bytes);
-    if (win->paint_x + width + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > win->width) break;
+    if (win->paint_x + width + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > win->width) {
+      break;
+    }
     width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
   }
 
@@ -581,7 +617,9 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
 
   if (win->lines[win->paint_y].length == 0) {
     /* Empty line. */
-    if (!ensure_space(win->lines + win->paint_y, n)) return t3_false;
+    if (!ensure_space(win->lines + win->paint_y, n)) {
+      return t3_false;
+    }
     win->lines[win->paint_y].start = win->paint_x;
     memcpy(win->lines[win->paint_y].data, blocks, n);
     win->lines[win->paint_y].length += n;
@@ -595,7 +633,9 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
 
     default_attr_size = create_space_block(_t3_map_attr(win->default_attrs), default_attr_str);
 
-    if (!ensure_space(win->lines + win->paint_y, n + diff * (default_attr_size))) return t3_false;
+    if (!ensure_space(win->lines + win->paint_y, n + diff * (default_attr_size))) {
+      return t3_false;
+    }
 
     for (i = diff; i > 0; i--) {
       memcpy(win->lines[win->paint_y].data + win->lines[win->paint_y].length, default_attr_str,
@@ -614,7 +654,9 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
 
     default_attr_size = create_space_block(_t3_map_attr(win->default_attrs), default_attr_str);
 
-    if (!ensure_space(win->lines + win->paint_y, n + diff * default_attr_size)) return t3_false;
+    if (!ensure_space(win->lines + win->paint_y, n + diff * default_attr_size)) {
+      return t3_false;
+    }
     memmove(win->lines[win->paint_y].data + n + diff * default_attr_size,
             win->lines[win->paint_y].data, win->lines[win->paint_y].length);
     memcpy(win->lines[win->paint_y].data, blocks, n);
@@ -646,7 +688,9 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
     for (i = win->cached_pos; i < win->lines[win->paint_y].length;
          i += (block_size >> 1) + block_size_bytes) {
       block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
-      if (_T3_BLOCK_SIZE_TO_WIDTH(block_size) + pos_width > win->paint_x) break;
+      if (_T3_BLOCK_SIZE_TO_WIDTH(block_size) + pos_width > win->paint_x) {
+        break;
+      }
 
       pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
     }
@@ -679,7 +723,9 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
       for (; i < win->lines[win->paint_y].length; i += (block_size >> 1) + block_size_bytes) {
         block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
         pos_width += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
-        if (pos_width >= win->paint_x + width) break;
+        if (pos_width >= win->paint_x + width) {
+          break;
+        }
       }
 
       end_space_attr = get_block_attr(win->lines[win->paint_y].data + i);
@@ -695,7 +741,9 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
     /* Move the existing characters out of the way. */
     sdiff = n + end_spaces * end_space_bytes + start_spaces * start_space_bytes -
             (end_replace - start_replace);
-    if (sdiff > 0 && !ensure_space(win->lines + win->paint_y, sdiff)) return t3_false;
+    if (sdiff > 0 && !ensure_space(win->lines + win->paint_y, sdiff)) {
+      return t3_false;
+    }
 
     memmove(win->lines[win->paint_y].data + end_replace + sdiff,
             win->lines[win->paint_y].data + end_replace,
@@ -714,8 +762,9 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
     }
 
     win->lines[win->paint_y].length += sdiff;
-    if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < width + win->paint_x)
+    if (win->lines[win->paint_y].start + win->lines[win->paint_y].width < width + win->paint_x) {
       win->lines[win->paint_y].width = width + win->paint_x - win->lines[win->paint_y].start;
+    }
     if (win->lines[win->paint_y].start > win->paint_x) {
       win->lines[win->paint_y].width += win->lines[win->paint_y].start - win->paint_x;
       win->lines[win->paint_y].start = win->paint_x;
@@ -730,8 +779,9 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
 
     extra_space_bytes = create_space_block(extra_spaces_attr, extra_space_str);
 
-    for (i = 0; i < extra_spaces; i++)
+    for (i = 0; i < extra_spaces; i++) {
       result &= _win_write_blocks(win, extra_space_str, extra_space_bytes);
+    }
   }
 
   return result;
@@ -767,7 +817,9 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attrs)
 
   attrs = t3_term_combine_attrs(attrs, win->default_attrs);
   attrs_idx = _t3_map_attr(attrs);
-  if (attrs_idx < 0) return T3_ERR_OUT_OF_MEMORY;
+  if (attrs_idx < 0) {
+    return T3_ERR_OUT_OF_MEMORY;
+  }
 
   int width_state = 0;
   for (; n > 0; n -= bytes_read, str += bytes_read) {
@@ -800,7 +852,9 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attrs)
     _t3_put_value((block_bytes << 1) + (width == 2 ? 1 : 0), block);
     block_bytes++;
 
-    if (!_win_write_blocks(win, block, block_bytes)) return T3_ERR_ERRNO;
+    if (!_win_write_blocks(win, block, block_bytes)) {
+      return T3_ERR_ERRNO;
+    }
   }
   /* Ending a block with a conjoining Jamo character can cause problems when the
      succeeding cell later is overwritten with a joining character. To prevent this
@@ -852,7 +906,9 @@ int t3_win_addnstrrep(t3_window_t *win, const char *str, size_t n, t3_attr_t att
 
   for (i = 0; i < rep; i++) {
     ret = t3_win_addnstr(win, str, n, attr);
-    if (ret != 0) return ret;
+    if (ret != 0) {
+      return ret;
+    }
   }
   return 0;
 }
@@ -889,13 +945,17 @@ int t3_win_addchrep(t3_window_t *win, char c, t3_attr_t attr, int rep) {
 static t3_window_t *get_previous_window(t3_window_t *ptr) {
   if (ptr->shown && ptr->tail != NULL) {
     ptr = ptr->tail;
-    if (ptr->shown) return ptr;
+    if (ptr->shown) {
+      return ptr;
+    }
   }
 
   do {
     while (ptr->prev != NULL) {
       ptr = ptr->prev;
-      if (ptr->shown) return ptr;
+      if (ptr->shown) {
+        return ptr;
+      }
     }
     ptr = ptr->parent;
   } while (ptr != NULL);
@@ -913,12 +973,15 @@ static t3_bool write_spaces_to_terminal_window(int attr_idx, int count) {
     memcpy(space_str + space_str_bytes, space_str, space_str_bytes);
     if (count > 2) {
       memcpy(space_str + space_str_bytes * 2, space_str, space_str_bytes * 2);
-      if (count > 4) memcpy(space_str + space_str_bytes * 4, space_str, space_str_bytes * 4);
+      if (count > 4) {
+        memcpy(space_str + space_str_bytes * 4, space_str, space_str_bytes * 4);
+      }
     }
   }
 
-  for (i = count / 8; i > 0; i--)
+  for (i = count / 8; i > 0; i--) {
     result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes * 8);
+  }
   result &= _win_write_blocks(_t3_terminal_window, space_str, space_str_bytes * (count & 7));
   return result;
 }
@@ -945,10 +1008,14 @@ t3_bool _t3_win_refresh_term_line(int line) {
 
   for (ptr = _t3_tail != NULL && !_t3_tail->shown ? get_previous_window(_t3_tail) : _t3_tail;
        ptr != NULL; ptr = get_previous_window(ptr)) {
-    if (ptr->lines == NULL) continue;
+    if (ptr->lines == NULL) {
+      continue;
+    }
 
     y = t3_win_get_abs_y(ptr);
-    if (y > line || y + ptr->height <= line) continue;
+    if (y > line || y + ptr->height <= line) {
+      continue;
+    }
 
     if (ptr->parent == NULL) {
       parent_y = 0;
@@ -965,39 +1032,56 @@ t3_bool _t3_win_refresh_term_line(int line) {
       do {
         int tmp;
         tmp = t3_win_get_abs_y(parent);
-        if (tmp > parent_y) parent_y = tmp;
+        if (tmp > parent_y) {
+          parent_y = tmp;
+        }
         tmp += parent->height;
-        if (tmp < parent_max_y) parent_max_y = tmp;
+        if (tmp < parent_max_y) {
+          parent_max_y = tmp;
+        }
 
         tmp = t3_win_get_abs_x(parent);
-        if (tmp > parent_x) parent_x = tmp;
+        if (tmp > parent_x) {
+          parent_x = tmp;
+        }
         tmp += parent->width;
-        if (tmp < parent_max_x) parent_max_x = tmp;
+        if (tmp < parent_max_x) {
+          parent_max_x = tmp;
+        }
 
         parent = parent->parent;
       } while (parent != NULL);
     }
 
     /* Skip lines that are clipped by the parent window. */
-    if (line < parent_y || line >= parent_max_y) continue;
+    if (line < parent_y || line >= parent_max_y) {
+      continue;
+    }
 
-    if (parent_x < 0) parent_x = 0;
-    if (parent_max_x > _t3_terminal_window->width) parent_max_x = _t3_terminal_window->width;
+    if (parent_x < 0) {
+      parent_x = 0;
+    }
+    if (parent_max_x > _t3_terminal_window->width) {
+      parent_max_x = _t3_terminal_window->width;
+    }
 
     draw = ptr->lines + line - y;
     x = t3_win_get_abs_x(ptr);
 
     /* Skip lines that are fully clipped by the parent window. */
-    if (x >= parent_max_x || x + draw->start + draw->width < parent_x) continue;
+    if (x >= parent_max_x || x + draw->start + draw->width < parent_x) {
+      continue;
+    }
 
     data_start = 0;
     /* Draw/skip unused leading part of line. */
     if (x + draw->start >= parent_x) {
       int start;
-      if (x + draw->start > parent_max_x)
+      if (x + draw->start > parent_max_x) {
         start = parent_max_x - x;
-      else
+      } else {
         start = draw->start;
+      }
 
       if (ptr->default_attrs == 0) {
         _t3_terminal_window->paint_x = x + start;
@@ -1015,7 +1099,9 @@ t3_bool _t3_win_refresh_term_line(int line) {
       for (paint_x = x + draw->start; data_start < draw->length;
            data_start += (block_size >> 1) + block_size_bytes) {
         block_size = _t3_get_value(draw->data + data_start, &block_size_bytes);
-        if (paint_x + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > _t3_terminal_window->paint_x) break;
+        if (paint_x + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > _t3_terminal_window->paint_x) {
+          break;
+        }
         paint_x += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
       }
 
@@ -1031,17 +1117,21 @@ t3_bool _t3_win_refresh_term_line(int line) {
     for (length = data_start; length < draw->length;
          length += (block_size >> 1) + block_size_bytes) {
       block_size = _t3_get_value(draw->data + length, &block_size_bytes);
-      if (paint_x + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > parent_max_x) break;
+      if (paint_x + _T3_BLOCK_SIZE_TO_WIDTH(block_size) > parent_max_x) {
+        break;
+      }
       paint_x += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
     }
 
-    if (length != data_start)
+    if (length != data_start) {
       result &=
           _win_write_blocks(_t3_terminal_window, draw->data + data_start, length - data_start);
+    }
 
     /* Add a space for the multi-cell character that is crossed by the parent clipping. */
-    if (length < draw->length && paint_x == parent_max_x - 1)
+    if (length < draw->length && paint_x == parent_max_x - 1) {
       result &= write_spaces_to_terminal_window(get_block_attr(draw->data + length), 1);
+    }
 
     if (ptr->default_attrs != 0 && draw->start + draw->width < ptr->width &&
         x + draw->start + draw->width < parent_max_x) {
@@ -1081,7 +1171,9 @@ t3_bool _t3_win_refresh_term_line(int line) {
 
 /** Clear current t3_window_t painting line to end. */
 void t3_win_clrtoeol(t3_window_t *win) {
-  if (win->paint_y >= win->height || win->lines == NULL) return;
+  if (win->paint_y >= win->height || win->lines == NULL) {
+    return;
+  }
 
   if (win->paint_x <= win->lines[win->paint_y].start) {
     win->lines[win->paint_y].length = 0;
@@ -1110,7 +1202,9 @@ void t3_win_clrtoeol(t3_window_t *win) {
           ensure_space(win->lines + win->paint_y,
                        spaces * space_str_bytes - win->lines[win->paint_y].length + i)) {
         win->paint_x = sumwidth;
-        for (; spaces > 0; spaces--) _win_write_blocks(win, space_str, space_str_bytes);
+        for (; spaces > 0; spaces--) {
+          _win_write_blocks(win, space_str, space_str_bytes);
+        }
       }
     }
 
@@ -1140,8 +1234,9 @@ int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_attr_t 
   attr = t3_term_combine_attrs(attr | T3_ATTR_ACS, win->default_attrs);
 
   if (y >= win->height || y + height > win->height || x >= win->width || x + width > win->width ||
-      win->lines == NULL)
+      win->lines == NULL) {
     return -1;
+  }
 
   t3_win_set_paint(win, y, x);
   ABORT_ON_FAIL(t3_win_addch(win, T3_ACS_ULCORNER, attr));
@@ -1162,7 +1257,9 @@ int t3_win_box(t3_window_t *win, int y, int x, int height, int width, t3_attr_t 
 
 /** Clear current t3_window_t painting line to end and all subsequent lines fully. */
 void t3_win_clrtobot(t3_window_t *win) {
-  if (win->lines == NULL) return;
+  if (win->lines == NULL) {
+    return;
+  }
 
   t3_win_clrtoeol(win);
   for (win->paint_y++; win->paint_y < win->height; win->paint_y++) {
@@ -1183,10 +1280,14 @@ t3_window_t *t3_win_at_location(int search_y, int search_x) {
   for (ptr = _t3_tail != NULL && !_t3_tail->shown ? get_previous_window(_t3_tail) : _t3_tail;
        ptr != NULL; ptr = get_previous_window(ptr)) {
     y = t3_win_get_abs_y(ptr);
-    if (y > search_y || y + ptr->height <= search_y) continue;
+    if (y > search_y || y + ptr->height <= search_y) {
+      continue;
+    }
 
     x = t3_win_get_abs_x(ptr);
-    if (x > search_x || x + ptr->width <= search_x) continue;
+    if (x > search_x || x + ptr->width <= search_x) {
+      continue;
+    }
 
     if (ptr->parent != NULL) {
       t3_window_t *parent = ptr->parent;
@@ -1198,20 +1299,32 @@ t3_window_t *t3_win_at_location(int search_y, int search_x) {
       do {
         int tmp;
         tmp = t3_win_get_abs_y(parent);
-        if (tmp > parent_y) parent_y = tmp;
+        if (tmp > parent_y) {
+          parent_y = tmp;
+        }
         tmp += parent->height;
-        if (tmp < parent_max_y) parent_max_y = tmp;
+        if (tmp < parent_max_y) {
+          parent_max_y = tmp;
+        }
 
         tmp = t3_win_get_abs_x(parent);
-        if (tmp > parent_x) parent_x = tmp;
+        if (tmp > parent_x) {
+          parent_x = tmp;
+        }
         tmp += parent->width;
-        if (tmp < parent_max_x) parent_max_x = tmp;
+        if (tmp < parent_max_x) {
+          parent_max_x = tmp;
+        }
 
         parent = parent->parent;
       } while (parent != NULL);
 
-      if (search_y < parent_y || search_y >= parent_max_y) continue;
-      if (search_x < parent_x || search_x >= parent_max_x) continue;
+      if (search_y < parent_y || search_y >= parent_max_y) {
+        continue;
+      }
+      if (search_x < parent_x || search_x >= parent_max_x) {
+        continue;
+      }
     }
 
     result = ptr;

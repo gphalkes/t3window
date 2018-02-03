@@ -206,7 +206,9 @@ static const char *get_default_acs(int idx) {
       "-", "-", "-", "_", "+", "+", "+",  "+", "|", "<", ">", "*", "!", "f", "o", " "};
   const char *retval;
 
-  if (idx < 0 || idx > 127) return " ";
+  if (idx < 0 || idx > 127) {
+    return " ";
+  }
   switch (_t3_acs_override) {
     default:
     case _T3_ACS_AUTO:
@@ -247,14 +249,18 @@ void _t3_do_cup(int line, int col) {
       if (_t3_cud != NULL) {
         _t3_putp(_t3_tparm(_t3_cud, 1, line));
       } else {
-        for (i = 0; i < line; i++) _t3_putp(_t3_cud1);
+        for (i = 0; i < line; i++) {
+          _t3_putp(_t3_cud1);
+        }
       }
     }
     if (col > 0) {
       if (_t3_cuf != NULL) {
         _t3_putp(_t3_tparm(_t3_cuf, 1, col));
       } else {
-        for (i = 0; i < col; i++) _t3_putp(_t3_cuf1);
+        for (i = 0; i < col; i++) {
+          _t3_putp(_t3_cuf1);
+        }
       }
     }
   }
@@ -264,17 +270,20 @@ void _t3_do_cup(int line, int col) {
 void _t3_trigger_terminal_size_detection(void) {
   /* Don't attempt to detect the size of the terminal if it would result in
      thousands of cursor increments. */
-  if (_t3_cup == NULL && _t3_vpa == NULL && (_t3_cud == NULL || _t3_cuf == NULL)) return;
+  if (_t3_cup == NULL && _t3_vpa == NULL && (_t3_cud == NULL || _t3_cuf == NULL)) {
+    return;
+  }
   _t3_detect_terminal_size = SIZE_DETECTION_TRIGGERED;
   /* Attempt to put the cursor down in the bottom corner by moving it to coordinates
      which are pretty much guaranteed to be off screen, keeping in mind the limitations
      that some implementations may impose. */
   _t3_do_cup(9999, 9999);
   /* Send ANSI cursor reporting string. */
-  if (_t3_terminal_is_screen)
+  if (_t3_terminal_is_screen) {
     _t3_putp("\033P\033[6n\033\\");
-  else
+  } else {
     _t3_putp("\033[6n");
+  }
 }
 
 /** Get the string describing the current character set used by the library.
@@ -319,8 +328,12 @@ void t3_term_show_cursor(void) { new_show_cursor = t3_true; }
     Neither @p height nor @p width may be @c NULL.
 */
 void t3_term_get_size(int *height, int *width) {
-  if (height != NULL) *height = _t3_lines;
-  if (width != NULL) *width = _t3_columns;
+  if (height != NULL) {
+    *height = _t3_lines;
+  }
+  if (width != NULL) {
+    *width = _t3_columns;
+  }
 }
 
 /** Handle resizing of the terminal.
@@ -352,8 +365,9 @@ t3_bool t3_term_resize(void) {
     }
   }
 
-  if (_t3_columns == _t3_terminal_window->width && _t3_lines == _t3_terminal_window->height)
+  if (_t3_columns == _t3_terminal_window->width && _t3_lines == _t3_terminal_window->height) {
     return t3_true;
+  }
 
   if (_t3_columns < _t3_terminal_window->width || _t3_lines != _t3_terminal_window->height) {
     /* Clear the cache of the terminal contents and the actual terminal. This
@@ -403,24 +417,41 @@ static void set_attrs_non_ansi(t3_attr_t new_attrs) {
        of 'changed' results in 0. */
     changed = attrs_basic_non_ansi ^ new_attrs_basic_non_ansi;
     if (changed) {
-      if (changed & T3_ATTR_UNDERLINE)
+      if (changed & T3_ATTR_UNDERLINE) {
         _t3_putp(new_attrs & T3_ATTR_UNDERLINE ? _t3_smul : _t3_rmul);
-      if (changed & T3_ATTR_REVERSE) _t3_putp(_t3_rev);
-      if (changed & T3_ATTR_BLINK) _t3_putp(_t3_blink);
-      if (changed & T3_ATTR_DIM) _t3_putp(_t3_dim);
-      if (changed & T3_ATTR_BOLD) _t3_putp(_t3_bold);
-      if (changed & T3_ATTR_ACS) _t3_putp(new_attrs & T3_ATTR_ACS ? _t3_smacs : _t3_rmacs);
+      }
+      if (changed & T3_ATTR_REVERSE) {
+        _t3_putp(_t3_rev);
+      }
+      if (changed & T3_ATTR_BLINK) {
+        _t3_putp(_t3_blink);
+      }
+      if (changed & T3_ATTR_DIM) {
+        _t3_putp(_t3_dim);
+      }
+      if (changed & T3_ATTR_BOLD) {
+        _t3_putp(_t3_bold);
+      }
+      if (changed & T3_ATTR_ACS) {
+        _t3_putp(new_attrs & T3_ATTR_ACS ? _t3_smacs : _t3_rmacs);
+      }
     }
   }
 
   /* If colors are set using ANSI sequences, we are done here. */
-  if ((~_t3_ansi_attrs & (T3_ATTR_FG_MASK | T3_ATTR_BG_MASK)) == 0) return;
+  if ((~_t3_ansi_attrs & (T3_ATTR_FG_MASK | T3_ATTR_BG_MASK)) == 0) {
+    return;
+  }
 
   /* Specifying DEFAULT as color is the same as not specifying anything. However,
      for ::t3_term_combine_attrs there is a distinction between an explicit and an
      implicit color. Here we don't care about that distinction so we remove it. */
-  if ((new_attrs & T3_ATTR_FG_MASK) == T3_ATTR_FG_DEFAULT) new_attrs &= ~(T3_ATTR_FG_MASK);
-  if ((new_attrs & T3_ATTR_BG_MASK) == T3_ATTR_BG_DEFAULT) new_attrs &= ~(T3_ATTR_BG_MASK);
+  if ((new_attrs & T3_ATTR_FG_MASK) == T3_ATTR_FG_DEFAULT) {
+    new_attrs &= ~(T3_ATTR_FG_MASK);
+  }
+  if ((new_attrs & T3_ATTR_BG_MASK) == T3_ATTR_BG_DEFAULT) {
+    new_attrs &= ~(T3_ATTR_BG_MASK);
+  }
 
   if (_t3_scp == NULL) {
     /* Set default color through op string */
@@ -437,26 +468,29 @@ static void set_attrs_non_ansi(t3_attr_t new_attrs) {
     if ((_t3_attrs & T3_ATTR_FG_MASK) != (new_attrs & T3_ATTR_FG_MASK) &&
         (new_attrs & T3_ATTR_FG_MASK) != 0) {
       color_nr = ((new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT) - 1;
-      if (_t3_setaf != NULL)
+      if (_t3_setaf != NULL) {
         _t3_putp(_t3_tparm(_t3_setaf, 1, color_nr));
-      else if (_t3_setf != NULL)
+      } else if (_t3_setf != NULL) {
         _t3_putp(_t3_tparm(_t3_setf, 1, color_nr < 8 ? attr_to_alt_color[color_nr] : color_nr));
+      }
     }
 
     if ((_t3_attrs & T3_ATTR_BG_MASK) != (new_attrs & T3_ATTR_BG_MASK) &&
         (new_attrs & T3_ATTR_BG_MASK) != 0) {
       color_nr = ((new_attrs & T3_ATTR_BG_MASK) >> (T3_ATTR_COLOR_SHIFT + 9)) - 1;
-      if (_t3_setab != NULL)
+      if (_t3_setab != NULL) {
         _t3_putp(_t3_tparm(_t3_setab, 1, color_nr));
-      else if (_t3_setb != NULL)
+      } else if (_t3_setb != NULL) {
         _t3_putp(_t3_tparm(_t3_setb, 1, color_nr < 8 ? attr_to_alt_color[color_nr] : color_nr));
+      }
     }
   } else {
     color_nr = (new_attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT;
-    if (color_nr == 0)
+    if (color_nr == 0) {
       _t3_putp(_t3_op);
-    else
+    } else {
       _t3_putp(_t3_tparm(_t3_scp, 1, color_nr - 1));
+    }
   }
 }
 
@@ -478,20 +512,25 @@ void _t3_set_attrs(t3_attr_t new_attrs) {
   new_attrs &= ~T3_ATTR_FALLBACK_ACS;
 
   if (new_attrs == 0) {
-    if (_t3_attrs == 0) return;
+    if (_t3_attrs == 0) {
+      return;
+    }
     if (_t3_sgr0 != NULL || _t3_sgr != NULL) {
       /* Use sgr instead of sgr0 as this is probably more tested (see rxvt-unicode terminfo bug) */
-      if (_t3_sgr != NULL)
+      if (_t3_sgr != NULL) {
         _t3_putp(_t3_tparm(_t3_sgr, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0));
-      else
+      } else {
         _t3_putp(_t3_sgr0);
+      }
       _t3_attrs = 0;
       return;
     }
   }
 
   changed_attrs = (new_attrs ^ _t3_attrs) & ~_t3_ansi_attrs;
-  if (changed_attrs != 0) set_attrs_non_ansi(new_attrs);
+  if (changed_attrs != 0) {
+    set_attrs_non_ansi(new_attrs);
+  }
 
   changed_attrs = (new_attrs ^ _t3_attrs) & _t3_ansi_attrs;
   if (changed_attrs == 0) {
@@ -617,9 +656,13 @@ void t3_term_update(void) {
     if (new_show_cursor != _t3_show_cursor) {
       /* If the cursor should now be invisible, hide it before drawing. If the
          cursor should now be visible, leave it invisible until after drawing. */
-      if (!new_show_cursor) _t3_putp(_t3_civis);
+      if (!new_show_cursor) {
+        _t3_putp(_t3_civis);
+      }
     } else if (_t3_show_cursor) {
-      if (new_cursor_y == _t3_cursor_y && new_cursor_x == _t3_cursor_x) _t3_putp(_t3_sc);
+      if (new_cursor_y == _t3_cursor_y && new_cursor_x == _t3_cursor_x) {
+        _t3_putp(_t3_sc);
+      }
       _t3_putp(_t3_civis);
     }
   }
@@ -649,15 +692,19 @@ void t3_term_update(void) {
         spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start;
         while (old_idx < _t3_old_data.length) {
           old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
-          if (old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) > width) break;
+          if (old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) > width) {
+            break;
+          }
           old_width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
           old_idx += (old_block_size >> 1) + old_block_size_bytes;
         }
         last_width = width;
       }
 
-      for (spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start; spaces > 0; spaces--)
+      for (spaces = _t3_terminal_window->lines[i].start - _t3_old_data.start; spaces > 0;
+           spaces--) {
         t3_term_putc(' ');
+      }
     }
 
     while (new_idx != _t3_terminal_window->lines[i].length) {
@@ -678,8 +725,9 @@ void t3_term_update(void) {
           if (old_block_size != new_block_size ||
               memcmp(_t3_old_data.data + old_idx + old_block_size_bytes,
                      _t3_terminal_window->lines[i].data + new_idx + new_block_size_bytes,
-                     old_block_size >> 1) != 0)
+                     old_block_size >> 1) != 0) {
             break;
+          }
           same_count++;
           width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
           old_width = width;
@@ -687,7 +735,9 @@ void t3_term_update(void) {
           new_idx += (new_block_size >> 1) + new_block_size_bytes;
         }
 
-        if (new_idx >= _t3_terminal_window->lines[i].length) break;
+        if (new_idx >= _t3_terminal_window->lines[i].length) {
+          break;
+        }
 
         if (same_count < 3 && old_idx < _t3_old_data.length) {
           old_idx = saved_old_idx;
@@ -701,10 +751,11 @@ void t3_term_update(void) {
       }
 
       if (width != last_width) {
-        if (last_width < 0 || _t3_hpa == NULL)
+        if (last_width < 0 || _t3_hpa == NULL) {
           _t3_do_cup(i, width);
-        else
+        } else {
           _t3_putp(_t3_tparm(_t3_hpa, 1, width));
+        }
       }
 
       do {
@@ -727,11 +778,15 @@ void t3_term_update(void) {
                 !t3_term_acs_available(
                     _t3_terminal_window->lines[i].data[new_idx + new_attrs_bytes])) {
               new_attrs &= ~T3_ATTR_ACS;
-              if (new_attrs != _t3_attrs) _t3_set_attrs(new_attrs);
+              if (new_attrs != _t3_attrs) {
+                _t3_set_attrs(new_attrs);
+              }
               t3_term_puts(
                   get_default_acs(_t3_terminal_window->lines[i].data[new_idx + new_attrs_bytes]));
             } else {
-              if (new_attrs != _t3_attrs) _t3_set_attrs(new_attrs);
+              if (new_attrs != _t3_attrs) {
+                _t3_set_attrs(new_attrs);
+              }
               /* ACS characters should be passed directly to the terminal, without
                  character-set conversion. */
               _t3_output_buffer_print();
@@ -740,7 +795,9 @@ void t3_term_update(void) {
                      1, 1, _t3_putp_file);
             }
           } else {
-            if (new_attrs != _t3_attrs) _t3_set_attrs(new_attrs);
+            if (new_attrs != _t3_attrs) {
+              _t3_set_attrs(new_attrs);
+            }
             t3_term_putn(_t3_terminal_window->lines[i].data + new_idx + new_attrs_bytes,
                          (new_block_size >> 1) - new_attrs_bytes);
           }
@@ -751,7 +808,9 @@ void t3_term_update(void) {
 
         while (old_idx < _t3_old_data.length) {
           old_block_size = _t3_get_value(_t3_old_data.data + old_idx, &old_block_size_bytes);
-          if (old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) > width) break;
+          if (old_width + _T3_BLOCK_SIZE_TO_WIDTH(old_block_size) > width) {
+            break;
+          }
           old_width += _T3_BLOCK_SIZE_TO_WIDTH(old_block_size);
           old_idx += (old_block_size >> 1) + old_block_size_bytes;
         }
@@ -765,15 +824,21 @@ void t3_term_update(void) {
     if (_t3_terminal_window->lines[i].start + _t3_terminal_window->lines[i].width <
             _t3_old_data.start + _t3_old_data.width &&
         width < _t3_terminal_window->width) {
-      if (last_width < 0) _t3_do_cup(i, 0);
+      if (last_width < 0) {
+        _t3_do_cup(i, 0);
+      }
 
-      if (_t3_bce && (_t3_attrs & ~T3_ATTR_FG_MASK) != 0) _t3_set_attrs(0);
+      if (_t3_bce && (_t3_attrs & ~T3_ATTR_FG_MASK) != 0) {
+        _t3_set_attrs(0);
+      }
 
       if (_t3_el != NULL) {
         _t3_putp(_t3_el);
       } else {
         int max = _t3_old_data.start + _t3_old_data.width;
-        for (; width < max; width++) t3_term_putc(' ');
+        for (; width < max; width++) {
+          t3_term_putc(' ');
+        }
       }
     }
     _t3_output_buffer_print();
@@ -783,7 +848,9 @@ void t3_term_update(void) {
 
   if (_t3_civis == NULL) {
     _t3_show_cursor = new_show_cursor;
-    if (!_t3_show_cursor) _t3_do_cup(_t3_terminal_window->height, _t3_terminal_window->width);
+    if (!_t3_show_cursor) {
+      _t3_do_cup(_t3_terminal_window->height, _t3_terminal_window->width);
+    }
   } else {
     if (new_show_cursor != _t3_show_cursor) {
       /* If the cursor should now be visible, move it to the right position and
@@ -796,10 +863,11 @@ void t3_term_update(void) {
       }
       _t3_show_cursor = new_show_cursor;
     } else if (_t3_show_cursor) {
-      if (new_cursor_y == _t3_cursor_y && new_cursor_x == _t3_cursor_x && _t3_rc != NULL)
+      if (new_cursor_y == _t3_cursor_y && new_cursor_x == _t3_cursor_x && _t3_rc != NULL) {
         _t3_putp(_t3_rc);
-      else
+      } else {
         _t3_do_cup(new_cursor_y, new_cursor_x);
+      }
       _t3_cursor_y = new_cursor_y;
       _t3_cursor_x = new_cursor_x;
       _t3_putp(_t3_cnorm);
@@ -814,7 +882,9 @@ void t3_term_redraw(void) {
   /* The clear action destroys the current cursor position, so we make sure
      that it has to be repositioned afterwards. Because we are redrawing, we
      definately also want to ensure that the cursor is in the right place. */
-  if (new_show_cursor && _t3_show_cursor) _t3_cursor_x = new_cursor_x + 1;
+  if (new_show_cursor && _t3_show_cursor) {
+    _t3_cursor_x = new_cursor_x + 1;
+  }
   _t3_set_attrs(0);
   _t3_putp(_t3_clear);
   t3_win_set_paint(_t3_terminal_window, 0, 0);
@@ -850,7 +920,9 @@ int t3_term_strwidth(const char *str) {
     c = t3_utf8_get(str, &bytes_read);
 
     width = t3_utf8_wcwidth_ext(c, &width_state);
-    if (width < 0) continue;
+    if (width < 0) {
+      continue;
+    }
     retval += width;
   }
   return retval;
@@ -864,7 +936,9 @@ int t3_term_strwidth(const char *str) {
     terminfo(5), but most are encoded in T3_ACS_* constants.
 */
 t3_bool t3_term_acs_available(int idx) {
-  if (idx < 0 || idx > 127) return t3_false;
+  if (idx < 0 || idx > 127) {
+    return t3_false;
+  }
   return _t3_alternate_chars[idx] != 0 &&
          (_t3_acs_override == _T3_ACS_AUTO || _t3_acs_override == _T3_ACS_ACS);
 }
@@ -879,12 +953,16 @@ t3_bool t3_term_acs_available(int idx) {
 */
 t3_attr_t t3_term_combine_attrs(t3_attr_t a, t3_attr_t b) {
   t3_attr_t result = b | (a & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK));
-  if ((a & T3_ATTR_FG_MASK) != 0)
+  if ((a & T3_ATTR_FG_MASK) != 0) {
     result = ((result & ~(T3_ATTR_FG_MASK)) | (a & T3_ATTR_FG_MASK)) & ~_t3_ncv;
-  if ((a & T3_ATTR_BG_MASK) != 0)
+  }
+  if ((a & T3_ATTR_BG_MASK) != 0) {
     result = ((result & ~(T3_ATTR_BG_MASK)) | (a & T3_ATTR_BG_MASK)) & ~_t3_ncv;
+  }
   /* If _t3_ncv prevented ACS, then use fallbacks instead. */
-  if (((a | b) & T3_ATTR_ACS) && !(result & T3_ATTR_ACS)) result |= T3_ATTR_FALLBACK_ACS;
+  if (((a | b) & T3_ATTR_ACS) && !(result & T3_ATTR_ACS)) {
+    result |= T3_ATTR_FALLBACK_ACS;
+  }
   return result;
 }
 
@@ -913,20 +991,38 @@ void t3_term_get_caps_internal(t3_term_caps_t *caps, int version) {
 
   caps->highlights = 0;
 
-  if (_t3_smul != NULL) caps->highlights |= T3_ATTR_UNDERLINE;
-  if (_t3_bold != NULL) caps->highlights |= T3_ATTR_BOLD;
-  if (_t3_rev != NULL) caps->highlights |= T3_ATTR_REVERSE;
-  if (_t3_blink != NULL) caps->highlights |= T3_ATTR_BLINK;
-  if (_t3_dim != NULL) caps->highlights |= T3_ATTR_DIM;
-  if (_t3_smacs != NULL) caps->highlights |= T3_ATTR_ACS;
+  if (_t3_smul != NULL) {
+    caps->highlights |= T3_ATTR_UNDERLINE;
+  }
+  if (_t3_bold != NULL) {
+    caps->highlights |= T3_ATTR_BOLD;
+  }
+  if (_t3_rev != NULL) {
+    caps->highlights |= T3_ATTR_REVERSE;
+  }
+  if (_t3_blink != NULL) {
+    caps->highlights |= T3_ATTR_BLINK;
+  }
+  if (_t3_dim != NULL) {
+    caps->highlights |= T3_ATTR_DIM;
+  }
+  if (_t3_smacs != NULL) {
+    caps->highlights |= T3_ATTR_ACS;
+  }
 
   caps->colors = _t3_colors;
   caps->pairs = _t3_pairs;
 
   caps->cap_flags = 0;
-  if (_t3_setaf != NULL || _t3_setf != NULL) caps->cap_flags |= T3_TERM_CAP_FG;
-  if (_t3_setab != NULL || _t3_setb != NULL) caps->cap_flags |= T3_TERM_CAP_BG;
-  if (_t3_scp != NULL) caps->cap_flags |= T3_TERM_CAP_CP;
+  if (_t3_setaf != NULL || _t3_setf != NULL) {
+    caps->cap_flags |= T3_TERM_CAP_FG;
+  }
+  if (_t3_setab != NULL || _t3_setb != NULL) {
+    caps->cap_flags |= T3_TERM_CAP_BG;
+  }
+  if (_t3_scp != NULL) {
+    caps->cap_flags |= T3_TERM_CAP_CP;
+  }
 }
 
 /** @internal
@@ -936,15 +1032,18 @@ t3_attr_t _t3_term_sanitize_attrs(t3_attr_t attrs) {
   /* Set color to unspecified if it is out of range. */
   if (_t3_scp == NULL) {
     if (((attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT) > (_t3_colors + 1) &&
-        (attrs & T3_ATTR_FG_MASK) != T3_ATTR_FG_DEFAULT)
+        (attrs & T3_ATTR_FG_MASK) != T3_ATTR_FG_DEFAULT) {
       attrs &= ~T3_ATTR_FG_MASK;
+    }
     if (((attrs & T3_ATTR_BG_MASK) >> (T3_ATTR_COLOR_SHIFT + 9)) > (_t3_colors + 1) &&
-        (attrs & T3_ATTR_BG_MASK) != T3_ATTR_BG_DEFAULT)
+        (attrs & T3_ATTR_BG_MASK) != T3_ATTR_BG_DEFAULT) {
       attrs &= ~T3_ATTR_BG_MASK;
+    }
   } else {
     if (((attrs & T3_ATTR_FG_MASK) >> T3_ATTR_COLOR_SHIFT) > (_t3_pairs + 1) &&
-        (attrs & T3_ATTR_FG_MASK) != T3_ATTR_FG_DEFAULT)
+        (attrs & T3_ATTR_FG_MASK) != T3_ATTR_FG_DEFAULT) {
       attrs &= ~T3_ATTR_FG_MASK;
+    }
   }
   return attrs;
 }

@@ -43,7 +43,9 @@ int _t3_setupterm(const char *term, int fd) {
     term_ptr = term_buffer;
   }
 
-  if (setupterm(term_ptr, fd, &error) != OK) return error + 2;
+  if (setupterm(term_ptr, fd, &error) != OK) {
+    return error + 2;
+  }
   return 0;
 }
 
@@ -71,7 +73,9 @@ int _t3_tigetflag(const char *name) {
 static int writechar(int c) { return fputc(c, _t3_putp_file); }
 
 void _t3_putp(const char *string) {
-  if (string == NULL) return;
+  if (string == NULL) {
+    return;
+  }
   tputs(string, 1, writechar);
 }
 
@@ -79,12 +83,16 @@ char *_t3_tparm(char *string, int nr_of_args, ...) {
   int args[9], i;
   va_list arglist;
 
-  if (nr_of_args > 9 || nr_of_args < 0) return NULL;
+  if (nr_of_args > 9 || nr_of_args < 0) {
+    return NULL;
+  }
 
   va_start(arglist, nr_of_args);
   memset(args, 0, sizeof(args));
 
-  for (i = 0; i < nr_of_args; i++) args[i] = va_arg(arglist, int);
+  for (i = 0; i < nr_of_args; i++) {
+    args[i] = va_arg(arglist, int);
+  }
 
   return tparm(string, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7],
                args[8]);

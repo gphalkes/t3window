@@ -78,7 +78,9 @@ static char *strdup_impl(const char *str) {
   char *result;
   size_t len = strlen(str) + 1;
 
-  if ((result = malloc(len)) == NULL) return NULL;
+  if ((result = malloc(len)) == NULL) {
+    return NULL;
+  }
   memcpy(result, str, len);
   return result;
 }
@@ -94,7 +96,9 @@ static char *strdup_impl(const char *str) {
 */
 static char *get_ti_string(const char *name) {
   char *result = _t3_tigetstr(name);
-  if (result == (char *)0 || result == (char *)-1) return NULL;
+  if (result == (char *)0 || result == (char *)-1) {
+    return NULL;
+  }
 
   return strdup_impl(result);
 }
@@ -195,23 +199,27 @@ static void detect_ansi(void) {
          streq(_t3_setaf, "\033[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m")) &&
         _t3_setab != NULL &&
         (streq(_t3_setab, "\033[4%p1%dm") ||
-         streq(_t3_setab, "\033[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m")))
+         streq(_t3_setab, "\033[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m"))) {
       _t3_ansi_attrs |= T3_ATTR_FG_MASK | T3_ATTR_BG_MASK;
+    }
   }
   if (_t3_smul != NULL && _t3_rmul != NULL && streq(_t3_smul, "\033[4m") &&
-      streq(_t3_rmul, "\033[24m"))
+      streq(_t3_rmul, "\033[24m")) {
     _t3_ansi_attrs |= T3_ATTR_UNDERLINE;
+  }
   if (_t3_smacs != NULL && _t3_rmacs != NULL && streq(_t3_smacs, "\033[11m") &&
-      streq(_t3_rmacs, "\033[10m"))
+      streq(_t3_rmacs, "\033[10m")) {
     _t3_ansi_attrs |= T3_ATTR_ACS;
+  }
 
   /* So far, we have been able to check that the "exit mode" operation was ANSI compatible as well.
      However, for bold, dim, reverse and blink we can't check this, so we will only accept them
      as attributes if the terminal uses ANSI colors, and they all match in as far as they exist.
   */
   if ((_t3_ansi_attrs & (T3_ATTR_FG_MASK | T3_ATTR_BG_MASK)) == 0 ||
-      (_t3_ansi_attrs & (T3_ATTR_UNDERLINE | T3_ATTR_ACS)) == 0)
+      (_t3_ansi_attrs & (T3_ATTR_UNDERLINE | T3_ATTR_ACS)) == 0) {
     return;
+  }
 
   if (_t3_rev != NULL) {
     if (streq(_t3_rev, "\033[7m")) {
@@ -222,7 +230,9 @@ static void detect_ansi(void) {
       char *smso = get_ti_string("smso");
       if (streq(smso, _t3_rev)) {
         char *rmso = get_ti_string("rmso");
-        if (streq(rmso, "\033[27m")) _t3_ansi_attrs |= T3_ATTR_REVERSE;
+        if (streq(rmso, "\033[27m")) {
+          _t3_ansi_attrs |= T3_ATTR_REVERSE;
+        }
         free(rmso);
       } else {
         _t3_ansi_attrs |= T3_ATTR_REVERSE;
@@ -234,19 +244,25 @@ static void detect_ansi(void) {
   }
 
   if (_t3_bold != NULL) {
-    if (streq(_t3_bold, "\033[1m")) _t3_ansi_attrs |= T3_ATTR_BOLD;
+    if (streq(_t3_bold, "\033[1m")) {
+      _t3_ansi_attrs |= T3_ATTR_BOLD;
+    }
   } else {
     non_existent |= T3_ATTR_BOLD;
   }
 
   if (_t3_dim != NULL) {
-    if (streq(_t3_dim, "\033[2m")) _t3_ansi_attrs |= T3_ATTR_DIM;
+    if (streq(_t3_dim, "\033[2m")) {
+      _t3_ansi_attrs |= T3_ATTR_DIM;
+    }
   } else {
     non_existent |= T3_ATTR_DIM;
   }
 
   if (_t3_blink != NULL) {
-    if (streq(_t3_blink, "\033[5m")) _t3_ansi_attrs |= T3_ATTR_BLINK;
+    if (streq(_t3_blink, "\033[5m")) {
+      _t3_ansi_attrs |= T3_ATTR_BLINK;
+    }
   } else {
     non_existent |= T3_ATTR_BLINK;
   }
@@ -254,8 +270,9 @@ static void detect_ansi(void) {
   /* Only accept as ANSI if all attributes accept ACS are either non specified or ANSI. */
   if (((non_existent | _t3_ansi_attrs) &
        (T3_ATTR_REVERSE | T3_ATTR_BOLD | T3_ATTR_DIM | T3_ATTR_BLINK)) !=
-      (T3_ATTR_REVERSE | T3_ATTR_BOLD | T3_ATTR_DIM | T3_ATTR_BLINK))
+      (T3_ATTR_REVERSE | T3_ATTR_BOLD | T3_ATTR_DIM | T3_ATTR_BLINK)) {
     _t3_ansi_attrs &= ~(T3_ATTR_REVERSE | T3_ATTR_BOLD | T3_ATTR_DIM | T3_ATTR_BLINK);
+  }
 }
 
 /** Send a string for measuring it's on screen width.
@@ -267,17 +284,19 @@ static void send_test_string(const char *str) {
   /* Move cursor to the begining of the line. Use cup if hpa is not available.
      Also, make sure we use line 1, iso line 0, because xterm uses \e[1;<digit>R for
      some combinations of F3 with modifiers and high-numbered function keys. :-( */
-  if (_t3_hpa != NULL)
+  if (_t3_hpa != NULL) {
     _t3_putp(_t3_tparm(_t3_hpa, 1, 0));
-  else
+  } else {
     _t3_do_cup(1, 0);
+  }
 
   fputs(str, _t3_putp_file);
   /* Send ANSI cursor reporting string. */
-  if (_t3_terminal_is_screen)
+  if (_t3_terminal_is_screen) {
     _t3_putp("\033P\033[6n\033\\");
-  else
+  } else {
     _t3_putp("\033[6n");
+  }
 }
 
 /** Check if a terminfo string equals another string.
@@ -297,7 +316,9 @@ static int ti_streq(const char *str, const char *reset_string) {
       str += 2;
       for (; *str != 0 && *str != '>'; str++) {
       }
-      if (*str == '>') str++;
+      if (*str == '>') {
+        str++;
+      }
     }
   } while (*str != 0 && *reset_string == *str);
   return *str == *reset_string;
@@ -320,12 +341,13 @@ static int init_sequences(const char *term) {
   char *enacs;
 
   if ((error = _t3_setupterm(term, _t3_terminal_out_fd)) != 0) {
-    if (error == 3)
+    if (error == 3) {
       return T3_ERR_HARDCOPY_TERMINAL;
-    else if (error == 1)
+    } else if (error == 1) {
       return T3_ERR_TERMINFODB_NOT_FOUND;
-    else if (error == 2)
+    } else if (error == 2) {
       return T3_ERR_TERMINAL_TOO_LIMITED;
+    }
     return T3_ERR_UNKNOWN;
   }
 
@@ -335,20 +357,26 @@ static int init_sequences(const char *term) {
       smcup = NULL;
     }
   }
-  if ((_t3_clear = get_ti_string("clear")) == NULL) return T3_ERR_TERMINAL_TOO_LIMITED;
+  if ((_t3_clear = get_ti_string("clear")) == NULL) {
+    return T3_ERR_TERMINAL_TOO_LIMITED;
+  }
 
   if ((_t3_cup = get_ti_string("cup")) == NULL) {
-    if ((_t3_hpa = get_ti_string("hpa")) == NULL || ((_t3_vpa = get_ti_string("vpa")) == NULL))
+    if ((_t3_hpa = get_ti_string("hpa")) == NULL || ((_t3_vpa = get_ti_string("vpa")) == NULL)) {
       return T3_ERR_TERMINAL_TOO_LIMITED;
+    }
   }
-  if (_t3_hpa == NULL) _t3_hpa = get_ti_string("hpa");
+  if (_t3_hpa == NULL) {
+    _t3_hpa = get_ti_string("hpa");
+  }
 
   _t3_sgr = get_ti_string("sgr");
   _t3_sgr0 = get_ti_string("sgr0");
 
   if ((_t3_smul = get_ti_string("smul")) != NULL) {
-    if ((_t3_rmul = get_ti_string("rmul")) == NULL || isreset(_t3_rmul))
+    if ((_t3_rmul = get_ti_string("rmul")) == NULL || isreset(_t3_rmul)) {
       _t3_reset_required_mask |= T3_ATTR_UNDERLINE;
+    }
   }
   _t3_bold = get_ti_string("bold");
   _t3_rev = get_ti_string("rev");
@@ -361,18 +389,24 @@ static int init_sequences(const char *term) {
   if (strcmp(term, "ansi") != 0) {
     _t3_smacs = get_ti_string("smacs");
 
-    if (_t3_smacs != NULL && ((_t3_rmacs = get_ti_string("rmacs")) == NULL || isreset(_t3_rmacs)))
+    if (_t3_smacs != NULL && ((_t3_rmacs = get_ti_string("rmacs")) == NULL || isreset(_t3_rmacs))) {
       _t3_reset_required_mask |= T3_ATTR_ACS;
+    }
   }
 
   /* If rmul and rmacs are the same, there is a good chance it simply
      resets everything. */
-  if (_t3_rmul != NULL && _t3_rmacs != NULL && streq(_t3_rmul, _t3_rmacs))
+  if (_t3_rmul != NULL && _t3_rmacs != NULL && streq(_t3_rmul, _t3_rmacs)) {
     _t3_reset_required_mask |= T3_ATTR_UNDERLINE | T3_ATTR_ACS;
+  }
 
-  if ((_t3_setaf = get_ti_string("setaf")) == NULL) _t3_setf = get_ti_string("setf");
+  if ((_t3_setaf = get_ti_string("setaf")) == NULL) {
+    _t3_setf = get_ti_string("setf");
+  }
 
-  if ((_t3_setab = get_ti_string("setab")) == NULL) _t3_setb = get_ti_string("setb");
+  if ((_t3_setab = get_ti_string("setab")) == NULL) {
+    _t3_setb = get_ti_string("setb");
+  }
 
   if (_t3_setaf == NULL && _t3_setf == NULL && _t3_setab == NULL && _t3_setb == NULL) {
     if ((_t3_scp = get_ti_string("scp")) != NULL) {
@@ -384,8 +418,12 @@ static int init_sequences(const char *term) {
     _t3_pairs = _t3_tigetnum("pairs");
   }
 
-  if (_t3_colors < 0) _t3_colors = 0;
-  if (_t3_pairs < 0) _t3_pairs = 0;
+  if (_t3_colors < 0) {
+    _t3_colors = 0;
+  }
+  if (_t3_pairs < 0) {
+    _t3_pairs = 0;
+  }
 
   _t3_op = get_ti_string("op");
 
@@ -398,15 +436,22 @@ static int init_sequences(const char *term) {
     _t3_bold = NULL;
     _t3_blink = NULL;
     _t3_dim = NULL;
-    if (_t3_rmul == NULL) CLEAR(_t3_smul, free);
-    if (_t3_rmacs == NULL) CLEAR(_t3_smacs, free);
+    if (_t3_rmul == NULL) {
+      CLEAR(_t3_smul, free);
+    }
+    if (_t3_rmacs == NULL) {
+      CLEAR(_t3_smacs, free);
+    }
   }
 
   _t3_bce = _t3_tigetflag("bce");
-  if ((_t3_el = get_ti_string("el")) == NULL) _t3_bce = t3_true;
+  if ((_t3_el = get_ti_string("el")) == NULL) {
+    _t3_bce = t3_true;
+  }
 
-  if ((_t3_sc = get_ti_string("sc")) != NULL && (_t3_rc = get_ti_string("rc")) == NULL)
+  if ((_t3_sc = get_ti_string("sc")) != NULL && (_t3_rc = get_ti_string("rc")) == NULL) {
     CLEAR(_t3_sc, free);
+  }
 
   _t3_civis = get_ti_string("civis");
   _t3_cnorm = get_ti_string("cnorm");
@@ -414,20 +459,33 @@ static int init_sequences(const char *term) {
   if (_t3_smacs != NULL && (acsc = get_ti_string("acsc")) != NULL) {
     if (_t3_sgr != NULL || _t3_smacs != NULL) {
       size_t i;
-      for (i = 0; i < strlen(acsc); i += 2)
+      for (i = 0; i < strlen(acsc); i += 2) {
         _t3_alternate_chars[(unsigned int)acsc[i]] = acsc[i + 1];
+      }
     }
     free(acsc);
   }
 
   ncv_int = _t3_tigetnum("ncv");
   if (ncv_int >= 0) {
-    if (ncv_int & (1 << 1)) _t3_ncv |= T3_ATTR_UNDERLINE;
-    if (ncv_int & (1 << 2)) _t3_ncv |= T3_ATTR_REVERSE;
-    if (ncv_int & (1 << 3)) _t3_ncv |= T3_ATTR_BLINK;
-    if (ncv_int & (1 << 4)) _t3_ncv |= T3_ATTR_DIM;
-    if (ncv_int & (1 << 5)) _t3_ncv |= T3_ATTR_BOLD;
-    if (ncv_int & (1 << 8)) _t3_ncv |= T3_ATTR_ACS;
+    if (ncv_int & (1 << 1)) {
+      _t3_ncv |= T3_ATTR_UNDERLINE;
+    }
+    if (ncv_int & (1 << 2)) {
+      _t3_ncv |= T3_ATTR_REVERSE;
+    }
+    if (ncv_int & (1 << 3)) {
+      _t3_ncv |= T3_ATTR_BLINK;
+    }
+    if (ncv_int & (1 << 4)) {
+      _t3_ncv |= T3_ATTR_DIM;
+    }
+    if (ncv_int & (1 << 5)) {
+      _t3_ncv |= T3_ATTR_BOLD;
+    }
+    if (ncv_int & (1 << 8)) {
+      _t3_ncv |= T3_ATTR_ACS;
+    }
   }
 
   /* Enable alternate character set if required by terminal. */
@@ -487,15 +545,20 @@ static t3_bool check_num_opt(const char *str, const char *opt, int *result) {
   long value;
   char *endptr;
 
-  if (!(strncmp(str, opt, len) == 0)) return t3_false;
+  if (!(strncmp(str, opt, len) == 0)) {
+    return t3_false;
+  }
 
   errno = 0;
   value = strtol(str + len, &endptr, 0);
-  if (*endptr != 0 && *endptr != ' ') return t3_false;
+  if (*endptr != 0 && *endptr != ' ') {
+    return t3_false;
+  }
 
   if (value > INT_MAX || value < INT_MIN ||
-      ((value == LONG_MAX || value == LONG_MIN) && errno == ERANGE))
+      ((value == LONG_MAX || value == LONG_MIN) && errno == ERANGE)) {
     return t3_false;
+  }
   *result = value;
   return t3_true;
 }
@@ -510,15 +573,17 @@ static t3_bool check_num_opt(const char *str, const char *opt, int *result) {
     override the values retrieved from the terminfo database.
 */
 static void override_colors(int colors, int pairs) {
-  if (colors <= 0)
+  if (colors <= 0) {
     _t3_colors = _t3_tigetnum("colors");
-  else if (colors <= 256)
+  } else if (colors <= 256) {
     _t3_colors = colors;
+  }
 
-  if (pairs <= 0)
+  if (pairs <= 0) {
     _t3_pairs = _t3_tigetnum("pairs");
-  else
+  } else {
     _t3_pairs = pairs;
+  }
 }
 
 /** Read the T3WINDOW_OPTS environment variable and parse its contents. */
@@ -526,10 +591,14 @@ static void integrate_environment(void) {
   char *opts = getenv("T3WINDOW_OPTS");
   int value;
 
-  if (opts == NULL) return;
+  if (opts == NULL) {
+    return;
+  }
 
   while (*opts != 0) {
-    while (*opts == ' ') opts++;
+    while (*opts == ' ') {
+      opts++;
+    }
 
     if (check_opt(opts, "acs=ascii")) {
       _t3_acs_override = _T3_ACS_ASCII;
@@ -546,7 +615,9 @@ static void integrate_environment(void) {
     } else if (check_opt(opts, "ansi=off")) {
       _t3_ansi_attrs = 0;
     }
-    while (*opts != 0 && *opts != ' ') opts++;
+    while (*opts != 0 && *opts != ' ') {
+      opts++;
+    }
   }
 }
 
@@ -585,18 +656,28 @@ int t3_term_init(int fd, const char *term) {
 
   init_log();
 
-  if (initialised) return T3_ERR_SUCCESS;
+  if (initialised) {
+    return T3_ERR_SUCCESS;
+  }
 
   if (_t3_putp_file == NULL) {
     /* We dup the fd, because when we use fclose on the FILE that we fdopen
        it will close the underlying fd. This should not however close the
        fd we have been passed or STDOUT. */
     if (fd >= 0) {
-      if (!isatty(fd)) return T3_ERR_NOT_A_TTY;
-      if ((_t3_terminal_in_fd = _t3_terminal_out_fd = dup(fd)) == -1) return T3_ERR_ERRNO;
+      if (!isatty(fd)) {
+        return T3_ERR_NOT_A_TTY;
+      }
+      if ((_t3_terminal_in_fd = _t3_terminal_out_fd = dup(fd)) == -1) {
+        return T3_ERR_ERRNO;
+      }
     } else if (_t3_putp_file == NULL) {
-      if (!isatty(STDOUT_FILENO) || !isatty(STDIN_FILENO)) return T3_ERR_NOT_A_TTY;
-      if ((_t3_terminal_out_fd = dup(STDOUT_FILENO)) == -1) return T3_ERR_ERRNO;
+      if (!isatty(STDOUT_FILENO) || !isatty(STDIN_FILENO)) {
+        return T3_ERR_NOT_A_TTY;
+      }
+      if ((_t3_terminal_out_fd = dup(STDOUT_FILENO)) == -1) {
+        return T3_ERR_ERRNO;
+      }
       _t3_terminal_in_fd = STDIN_FILENO;
     }
 
@@ -615,7 +696,9 @@ int t3_term_init(int fd, const char *term) {
 
   if (!seqs_initialised) {
     int result;
-    if ((result = init_sequences(term)) != T3_ERR_SUCCESS) return result;
+    if ((result = init_sequences(term)) != T3_ERR_SUCCESS) {
+      return result;
+    }
 
     integrate_environment();
     seqs_initialised = t3_true;
@@ -637,8 +720,9 @@ int t3_term_init(int fd, const char *term) {
     /* Trigger detection of the terminal size. These static values might not be correct, and
        cursor reporting may give us a much better idea. */
     detect_terminal_size = t3_true;
-    if ((_t3_lines = _t3_tigetnum("lines")) < 0 || (_t3_columns = _t3_tigetnum("cols")) < 0)
+    if ((_t3_lines = _t3_tigetnum("lines")) < 0 || (_t3_columns = _t3_tigetnum("cols")) < 0) {
       return T3_ERR_NO_SIZE_INFO;
+    }
   }
 
   if (!transcript_init_done) {
@@ -649,25 +733,33 @@ int t3_term_init(int fd, const char *term) {
     const char *charset = transcript_get_codeset();
     strncpy(_t3_current_charset, charset, sizeof(_t3_current_charset) - 1);
     _t3_current_charset[sizeof(_t3_current_charset) - 1] = '\0';
-    if (!_t3_init_output_converter(_t3_current_charset)) return T3_ERR_CHARSET_ERROR;
+    if (!_t3_init_output_converter(_t3_current_charset)) {
+      return T3_ERR_CHARSET_ERROR;
+    }
 
     _t3_set_alternate_chars_defaults();
   }
 
   /* Create or resize terminal window */
   if (_t3_terminal_window == NULL) {
-    if ((_t3_terminal_window = t3_win_new(NULL, _t3_lines, _t3_columns, 0, 0, 0)) == NULL)
+    if ((_t3_terminal_window = t3_win_new(NULL, _t3_lines, _t3_columns, 0, 0, 0)) == NULL) {
       return T3_ERR_ERRNO;
-    if ((_t3_old_data.data = malloc(sizeof(t3_attr_t) * INITIAL_ALLOC)) == NULL)
+    }
+    if ((_t3_old_data.data = malloc(sizeof(t3_attr_t) * INITIAL_ALLOC)) == NULL) {
       return T3_ERR_ERRNO;
+    }
     _t3_old_data.allocated = INITIAL_ALLOC;
     /* Remove terminal window from the window stack. */
     _t3_remove_window(_t3_terminal_window);
   } else {
-    if (!t3_win_resize(_t3_terminal_window, _t3_lines, _t3_columns)) return T3_ERR_ERRNO;
+    if (!t3_win_resize(_t3_terminal_window, _t3_lines, _t3_columns)) {
+      return T3_ERR_ERRNO;
+    }
   }
 
-  if (tcgetattr(_t3_terminal_in_fd, &saved) < 0) return T3_ERR_ERRNO;
+  if (tcgetattr(_t3_terminal_in_fd, &saved) < 0) {
+    return T3_ERR_ERRNO;
+  }
 
   new_params = saved;
   new_params.c_iflag &= ~(IXON | IXOFF | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
@@ -677,7 +769,9 @@ int t3_term_init(int fd, const char *term) {
   new_params.c_cflag |= CS8;
   new_params.c_cc[VMIN] = 1;
 
-  if (tcsetattr(_t3_terminal_in_fd, TCSADRAIN, &new_params) < 0) return T3_ERR_ERRNO;
+  if (tcsetattr(_t3_terminal_in_fd, TCSADRAIN, &new_params) < 0) {
+    return T3_ERR_ERRNO;
+  }
 
   /* Start cursor positioning mode. */
   do_smcup();
@@ -687,14 +781,18 @@ int t3_term_init(int fd, const char *term) {
     /* Make sure we use line 1, iso line 0, because xterm uses \e[1;<digit>R for
        some combinations of F3 with modifiers and high-numbered function keys. :-( */
     if (_t3_hpa != NULL) {
-      if (_t3_vpa != NULL)
+      if (_t3_vpa != NULL) {
         _t3_putp(_t3_tparm(_t3_vpa, 1, 1));
-      else
+      } else {
         _t3_do_cup(1, 0);
+      }
     }
 
-    if (term != NULL || (term = getenv("TERM")) != NULL)
-      if (strcmp(term, "screen") == 0) _t3_terminal_is_screen = t3_true;
+    if (term != NULL || (term = getenv("TERM")) != NULL) {
+      if (strcmp(term, "screen") == 0) {
+        _t3_terminal_is_screen = t3_true;
+      }
+    }
 
 #define GENERATE_STRINGS
 #include "terminal_detection.h"
@@ -708,10 +806,11 @@ int t3_term_init(int fd, const char *term) {
   }
 
   /* Make sure the cursor is visible */
-  if (_t3_show_cursor)
+  if (_t3_show_cursor) {
     _t3_putp(_t3_cnorm);
-  else
+  } else {
     _t3_putp(_t3_civis);
+  }
   _t3_do_cup(_t3_cursor_y, _t3_cursor_x);
 
   /* Set the attributes of the terminal to a known value. */
@@ -736,7 +835,9 @@ void t3_term_restore(void) {
     t3_win_clrtobot(_t3_terminal_window);
     if (seqs_initialised) {
       /* Restore cursor to visible state. */
-      if (!_t3_show_cursor) _t3_putp(_t3_cnorm);
+      if (!_t3_show_cursor) {
+        _t3_putp(_t3_cnorm);
+      }
       /* Make sure attributes are reset */
       _t3_set_attrs(0);
       _t3_putp(_t3_clear);

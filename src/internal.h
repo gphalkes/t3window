@@ -46,9 +46,8 @@ typedef struct {
 } line_data_t;
 
 struct t3_window_t {
-  int x,
-      y; /* X and Y coordinates of the t3_window_t. These may be relative to parent, depending on
-            relation. */
+  int x, y; /* X and Y coordinates of the t3_window_t. These may be relative to parent, depending on
+               relation. */
   int paint_x, paint_y; /* Drawing cursor */
   int width, height;    /* Height and width of the t3_window_t */
   int depth;    /* Depth in stack. Higher values are deeper and thus obscured by Windows with lower

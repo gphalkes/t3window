@@ -63,8 +63,9 @@ static void finish_detection(void) {
           transcript_equal(current_encoding, "eucjp") ||
           transcript_equal(current_encoding, "euctw") ||
           transcript_equal(current_encoding, "euckr") ||
-          transcript_equal(current_encoding, "shiftjis"))
+          transcript_equal(current_encoding, "shiftjis")) {
         set_ascii = t3_true;
+      }
       break;
     case _T3_TERM_UTF8:
       if (!transcript_equal(current_encoding, "utf8")) {
@@ -79,8 +80,9 @@ static void finish_detection(void) {
          user, but we simply don't know which ones are valid. So just filter out those
          that are known to be invalid. */
       if (transcript_equal(current_encoding, "utf8") ||
-          transcript_equal(current_encoding, "shiftjis"))
+          transcript_equal(current_encoding, "shiftjis")) {
         set_ascii = t3_true;
+      }
       break;
     case _T3_TERM_CJK_SHIFT_JIS:
       if (!transcript_equal(current_encoding, "shiftjis")) {
@@ -124,7 +126,9 @@ static t3_bool process_position_report(int row, int column) {
 #include "terminal_detection.h"
 #undef GENERATE_CODE
 
-  if (report_nr < INT_MAX) report_nr++;
+  if (report_nr < INT_MAX) {
+    report_nr++;
+  }
   return result;
 }
 
@@ -167,12 +171,13 @@ static t3_bool parse_position_reports(int c, t3_bool (*process)(int row, int col
       }
       break;
     case STATE_ROW:
-      if (non_locale_isdigit(c))
+      if (non_locale_isdigit(c)) {
         row = row * 10 + digit_value(c);
-      else if (c == ';')
+      } else if (c == ';') {
         detection_state = STATE_COLUMN;
-      else
+      } else {
         detection_state = STATE_INITIAL;
+      }
       break;
     case STATE_COLUMN:
       if (non_locale_isdigit(c)) {
@@ -266,7 +271,9 @@ int t3_term_get_keychar(int msec) {
     retval = select(_t3_terminal_in_fd + 1, &_inset, NULL, NULL, msec > 0 ? &timeout : NULL);
 
     if (retval < 0) {
-      if (errno == EINTR) continue;
+      if (errno == EINTR) {
+        continue;
+      }
       return T3_ERR_ERRNO;
     } else if (retval == 0) {
       return T3_ERR_TIMEOUT;

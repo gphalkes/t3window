@@ -32,7 +32,9 @@ int inited;
 void fatal(const char *fmt, ...) {
   va_list args;
 
-  if (inited) t3_term_restore();
+  if (inited) {
+    t3_term_restore();
+  }
 
   va_start(args, fmt);
   vfprintf(stderr, fmt, args);
@@ -47,20 +49,23 @@ void callback(const char *str, int length, int width, t3_attr_t attr) {
   (void)attr;
 
   t3_term_set_attrs(T3_ATTR_BLINK | T3_ATTR_REVERSE);
-  for (i = 0; i < length; i++) t3_term_putc(str[i]);
+  for (i = 0; i < length; i++) {
+    t3_term_putc(str[i]);
+  }
 }
 
 int get_keychar(void) {
   int result;
 
   while (1) {
-    if ((result = t3_term_get_keychar(-1)) == 27)
+    if ((result = t3_term_get_keychar(-1)) == 27) {
       while (!isalpha(result = t3_term_get_keychar(-1))) {
       }
-    else if (result == T3_WARN_UPDATE_TERMINAL)
+    } else if (result == T3_WARN_UPDATE_TERMINAL) {
       t3_term_update();
-    else
+    } else {
       return result;
+    }
   }
 }
 

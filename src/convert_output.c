@@ -48,7 +48,9 @@ static void print_replacement_character(void);
     @brief Initialize the output buffer used for accumulating output characters.
 */
 t3_bool _t3_init_output_buffer(void) {
-  if (output_buffer != NULL) return t3_true;
+  if (output_buffer != NULL) {
+    return t3_true;
+  }
   output_buffer_size = 160;
   return (output_buffer = malloc(output_buffer_size)) != NULL;
 }
@@ -79,7 +81,9 @@ void _t3_free_output_buffer(void) {
 t3_bool _t3_init_output_converter(const char *encoding) {
   char squashed_name[10];
 
-  if (output_converter != NULL) transcript_close_converter(output_converter);
+  if (output_converter != NULL) {
+    transcript_close_converter(output_converter);
+  }
 
   transcript_normalize_name(encoding, squashed_name, sizeof(squashed_name));
   if (strcmp(squashed_name, "utf8") == 0) {
@@ -87,8 +91,9 @@ t3_bool _t3_init_output_converter(const char *encoding) {
     return t3_true;
   }
 
-  if ((output_converter = transcript_open_converter(encoding, TRANSCRIPT_UTF8, 0, NULL)) == NULL)
+  if ((output_converter = transcript_open_converter(encoding, TRANSCRIPT_UTF8, 0, NULL)) == NULL) {
     return t3_false;
+  }
 
   convert_replacement_char(replacement_char);
 
@@ -109,9 +114,13 @@ t3_bool t3_term_putc(char c) {
   if (output_buffer_idx >= output_buffer_size) {
     char *retval;
 
-    if ((SIZE_MAX >> 1) > output_buffer_size) output_buffer_size <<= 1;
+    if ((SIZE_MAX >> 1) > output_buffer_size) {
+      output_buffer_size <<= 1;
+    }
     retval = realloc(output_buffer, output_buffer_size);
-    if (retval == NULL) return t3_false;
+    if (retval == NULL) {
+      return t3_false;
+    }
     output_buffer = retval;
   }
   output_buffer[output_buffer_idx++] = c;
@@ -129,7 +138,9 @@ t3_bool t3_term_putc(char c) {
 */
 t3_bool t3_term_puts(const char *s) {
   t3_bool retval = t3_true;
-  while (*s != 0) retval &= t3_term_putc(*s++);
+  while (*s != 0) {
+    retval &= t3_term_putc(*s++);
+  }
   return retval;
 }
 
@@ -145,7 +156,9 @@ t3_bool t3_term_puts(const char *s) {
 */
 t3_bool t3_term_putn(const char *s, size_t n) {
   t3_bool retval = t3_true;
-  for (; n != 0; n--) retval &= t3_term_putc(*s++);
+  for (; n != 0; n--) {
+    retval &= t3_term_putc(*s++);
+  }
   return retval;
 }
 
@@ -155,7 +168,9 @@ t3_bool t3_term_putn(const char *s, size_t n) {
 void _t3_output_buffer_print(void) {
   char *tmp_nfc_output;
   size_t nfc_output_len;
-  if (output_buffer_idx == 0) return;
+  if (output_buffer_idx == 0) {
+    return;
+  }
 
   nfc_output_len = nfc_output_size;
   tmp_nfc_output = (char *)u8_normalize(UNINORM_NFC, (const uint8_t *)output_buffer,
@@ -189,7 +204,9 @@ void _t3_output_buffer_print(void) {
           uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M)) {
         fwrite(nfc_output + output_start, 1, idx - output_start, _t3_putp_file);
         /* For non-zero width combining characters, print a replacement character. */
-        if (t3_utf8_wcwidth(c) == 1) print_replacement_character();
+        if (t3_utf8_wcwidth(c) == 1) {
+          print_replacement_character();
+        }
         output_start = idx + codepoint_len;
       }
       if (_t3_term_double_width < available_since && t3_utf8_wcwidth(c) == 2) {
@@ -228,8 +245,9 @@ void _t3_output_buffer_print(void) {
           uint32_t c;
 
           /* First write all output that has been converted. */
-          if (conversion_output_ptr != conversion_output)
+          if (conversion_output_ptr != conversion_output) {
             fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
+          }
 
           c = t3_utf8_get(conversion_input_ptr, &char_len);
           conversion_input_ptr += char_len;
@@ -239,10 +257,13 @@ void _t3_output_buffer_print(void) {
           conversion_output_ptr = conversion_output;
           transcript_from_unicode_flush(output_converter, &conversion_output_ptr,
                                         conversion_output + CONV_BUFFER_LEN);
-          if (conversion_output_ptr != conversion_output)
+          if (conversion_output_ptr != conversion_output) {
             fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
+          }
 
-          for (width = t3_utf8_wcwidth(c); width > 0; width--) print_replacement_character();
+          for (width = t3_utf8_wcwidth(c); width > 0; width--) {
+            print_replacement_character();
+          }
 
           break;
         }
@@ -264,8 +285,9 @@ void _t3_output_buffer_print(void) {
     conversion_output_ptr = conversion_output;
     transcript_from_unicode_flush(output_converter, &conversion_output_ptr,
                                   conversion_output + CONV_BUFFER_LEN);
-    if (conversion_output_ptr != conversion_output)
+    if (conversion_output_ptr != conversion_output) {
       fwrite(conversion_output, 1, conversion_output_ptr - conversion_output, _t3_putp_file);
+    }
   }
   output_buffer_idx = 0;
 }
@@ -311,7 +333,9 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
     uint32_t c;
 
     /* FIXME: should we filter out control characters, like in t3_win_addnstr? */
-    if (nfc_output_len == 1) return t3_true;
+    if (nfc_output_len == 1) {
+      return t3_true;
+    }
 
     for (idx = 0; idx < nfc_output_len; idx += codepoint_len) {
       codepoint_len = nfc_output_len - idx;
@@ -319,9 +343,12 @@ t3_bool t3_term_can_draw(const char *str, size_t str_len) {
       available_since = get_chardata(c) & 0x3f;
 
       if (_t3_term_combining < available_since &&
-          uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M))
+          uc_is_general_category_withtable(c, UC_CATEGORY_MASK_M)) {
         return t3_false;
-      if (_t3_term_double_width < available_since && t3_utf8_wcwidth(c) == 2) return t3_false;
+      }
+      if (_t3_term_double_width < available_since && t3_utf8_wcwidth(c) == 2) {
+        return t3_false;
+      }
     }
     return t3_true;
   } else {
@@ -357,7 +384,9 @@ static void convert_replacement_char(uint32_t c) {
   char *conversion_output_ptr;
   const char *conversion_input_ptr;
 
-  if (output_converter == NULL) return;
+  if (output_converter == NULL) {
+    return;
+  }
 
   memset(utf8_buffer, 0, sizeof(replacement_char));
   t3_utf8_put(c, utf8_buffer);

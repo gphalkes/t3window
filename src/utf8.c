@@ -178,7 +178,9 @@ uint32_t t3_utf8_get(const char *src, size_t *size) {
     case 125:
     case 126:
     case 127:
-      if (size != NULL) *size = _size;
+      if (size != NULL) {
+        *size = _size;
+      }
       return src[0];
     case 128:
     case 129:
@@ -246,7 +248,9 @@ uint32_t t3_utf8_get(const char *src, size_t *size) {
     case 191:
     case 192:
     case 193:
-      if (size != NULL) *size = _size;
+      if (size != NULL) {
+        *size = _size;
+      }
       return 0xFFFD;
     case 194:
     case 195:
@@ -322,27 +326,41 @@ uint32_t t3_utf8_get(const char *src, size_t *size) {
     case 253:
     case 254:
     case 255:
-      if (size != NULL) *size = _size;
+      if (size != NULL) {
+        *size = _size;
+      }
       return 0xFFFD;
     default:
-      if (size != NULL) *size = _size;
+      if (size != NULL) {
+        *size = _size;
+      }
       return 0xFFFD;
   }
 
   src++;
   for (; bytes_left > 0 && _size < max_size; bytes_left--, _size++) {
     if ((src[0] & 0xC0) != 0x80) {
-      if (size != NULL) *size = _size;
+      if (size != NULL) {
+        *size = _size;
+      }
       return 0xFFFD;
     }
     retval = (retval << 6) | (src[0] & 0x3F);
     src++;
   }
-  if (size != NULL) *size = _size;
+  if (size != NULL) {
+    *size = _size;
+  }
 
-  if (retval < least) return 0xFFFD;
-  if (retval > 0x10FFFFL) return 0xFFFD;
-  if (bytes_left > 0) return 0xFFFD;
+  if (retval < least) {
+    return 0xFFFD;
+  }
+  if (retval > 0x10FFFFL) {
+    return 0xFFFD;
+  }
+  if (bytes_left > 0) {
+    return 0xFFFD;
+  }
   return retval;
 }
 

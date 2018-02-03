@@ -76,19 +76,21 @@ static void insert_window(t3_window_t *win) {
 
 void _t3_remove_window(t3_window_t *win) {
   if (win->next == NULL) {
-    if (win->parent == NULL)
+    if (win->parent == NULL) {
       _t3_tail = win->prev;
-    else
+    } else {
       win->parent->tail = win->prev;
+    }
   } else {
     win->next->prev = win->prev;
   }
 
   if (win->prev == NULL) {
-    if (win->parent == NULL)
+    if (win->parent == NULL) {
       _t3_head = win->next;
-    else
+    } else {
       win->parent->head = win->next;
+    }
   } else {
     win->prev->next = win->next;
   }
@@ -121,7 +123,9 @@ t3_window_t *t3_win_new(t3_window_t *parent, int height, int width, int y, int x
   t3_window_t *retval;
   int i;
 
-  if ((retval = t3_win_new_unbacked(parent, height, width, y, x, depth)) == NULL) return NULL;
+  if ((retval = t3_win_new_unbacked(parent, height, width, y, x, depth)) == NULL) {
+    return NULL;
+  }
 
   if ((retval->lines = calloc(1, sizeof(line_data_t) * height)) == NULL) {
     t3_win_del(retval);
@@ -159,9 +163,13 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
                                  int depth) {
   t3_window_t *retval;
 
-  if (height <= 0 || width <= 0) return NULL;
+  if (height <= 0 || width <= 0) {
+    return NULL;
+  }
 
-  if ((retval = calloc(1, sizeof(t3_window_t))) == NULL) return NULL;
+  if ((retval = calloc(1, sizeof(t3_window_t))) == NULL) {
+    return NULL;
+  }
 
   retval->x = x;
   retval->y = y;
@@ -188,7 +196,9 @@ t3_window_t *t3_win_new_unbacked(t3_window_t *parent, int height, int width, int
 t3_bool t3_win_set_parent(t3_window_t *win, t3_window_t *parent) {
   t3_window_t *old_parent;
 
-  if (parent == win->parent) return t3_true;
+  if (parent == win->parent) {
+    return t3_true;
+  }
 
   old_parent = win->parent;
   win->parent = parent;
@@ -217,15 +227,19 @@ t3_bool t3_win_set_parent(t3_window_t *win, t3_window_t *parent) {
 t3_bool t3_win_set_anchor(t3_window_t *win, t3_window_t *anchor, int relation) {
   t3_window_t *old_anchor;
 
-  if (T3_GETPARENT(relation) < T3_ANCHOR_TOPLEFT || T3_GETPARENT(relation) > T3_ANCHOR_CENTERRIGHT)
+  if (T3_GETPARENT(relation) < T3_ANCHOR_TOPLEFT ||
+      T3_GETPARENT(relation) > T3_ANCHOR_CENTERRIGHT) {
     return t3_false;
+  }
 
-  if (T3_GETCHILD(relation) < T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) > T3_ANCHOR_CENTERRIGHT)
+  if (T3_GETCHILD(relation) < T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) > T3_ANCHOR_CENTERRIGHT) {
     return t3_false;
+  }
 
   if (anchor == NULL &&
-      (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT))
+      (T3_GETPARENT(relation) != T3_ANCHOR_TOPLEFT || T3_GETCHILD(relation) != T3_ANCHOR_TOPLEFT)) {
     return t3_false;
+  }
 
   if (anchor == win->anchor) {
     win->relation = relation;
@@ -258,7 +272,9 @@ void t3_win_set_depth(t3_window_t *win, int depth) {
 */
 t3_bool _t3_win_is_shown(t3_window_t *win) {
   do {
-    if (!win->shown) return t3_false;
+    if (!win->shown) {
+      return t3_false;
+    }
     win = win->parent;
   } while (win != NULL);
   return t3_true;
@@ -273,7 +289,9 @@ t3_bool _t3_win_is_shown(t3_window_t *win) {
 */
 void t3_win_set_default_attrs(t3_window_t *win, t3_attr_t attrs) {
   attrs = _t3_term_sanitize_attrs(attrs);
-  if (win == NULL) win = _t3_terminal_window;
+  if (win == NULL) {
+    win = _t3_terminal_window;
+  }
   win->default_attrs = attrs;
 }
 
@@ -298,7 +316,9 @@ t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restrictw) {
     /* Setting the restriction to the terminal window can not cause a loop. */
     return t3_true;
   } else {
-    if (restrictw == win->restrictw) return t3_true;
+    if (restrictw == win->restrictw) {
+      return t3_true;
+    }
     win->restrictw = restrictw;
   }
 
@@ -317,17 +337,23 @@ t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restrictw) {
 */
 void t3_win_del(t3_window_t *win) {
   int i;
-  if (win == NULL) return;
+  if (win == NULL) {
+    return;
+  }
 
   _t3_remove_window(win);
   /* FIXME: this does not take into account anchors and restrict windows.
      Setting those will require a full scan of the set of windows. */
 
   /* Make child windows stand alone windows. */
-  while (win->head != NULL) t3_win_set_parent(win->head, NULL);
+  while (win->head != NULL) {
+    t3_win_set_parent(win->head, NULL);
+  }
 
   if (win->lines != NULL) {
-    for (i = 0; i < win->height; i++) free(win->lines[i].data);
+    for (i = 0; i < win->height; i++) {
+      free(win->lines[i].data);
+    }
     free(win->lines);
   }
   free(win);
@@ -344,7 +370,9 @@ void t3_win_del(t3_window_t *win) {
 t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
   int i;
 
-  if (height <= 0 || width <= 0) return t3_false;
+  if (height <= 0 || width <= 0) {
+    return t3_false;
+  }
 
   if (win->lines == NULL) {
     win->height = height;
@@ -354,19 +382,24 @@ t3_bool t3_win_resize(t3_window_t *win, int height, int width) {
 
   if (height > win->height) {
     void *result;
-    if ((result = realloc(win->lines, height * sizeof(line_data_t))) == NULL) return t3_false;
+    if ((result = realloc(win->lines, height * sizeof(line_data_t))) == NULL) {
+      return t3_false;
+    }
     win->lines = result;
     memset(win->lines + win->height, 0, sizeof(line_data_t) * (height - win->height));
     for (i = win->height; i < height; i++) {
       if ((win->lines[i].data = malloc(INITIAL_ALLOC)) == NULL) {
-        for (i = win->height; i < height && win->lines[i].data != NULL; i++)
+        for (i = win->height; i < height && win->lines[i].data != NULL; i++) {
           free(win->lines[i].data);
+        }
         return t3_false;
       }
       win->lines[i].allocated = INITIAL_ALLOC;
     }
   } else if (height < win->height) {
-    for (i = height; i < win->height; i++) free(win->lines[i].data);
+    for (i = height; i < win->height; i++) {
+      free(win->lines[i].data);
+    }
     memset(win->lines + height, 0, sizeof(line_data_t) * (win->height - height));
   }
 
@@ -436,7 +469,9 @@ int t3_win_get_depth(t3_window_t *win) { return win->depth; }
     ::T3_GETPARENT and ::T3_GETCHILD.
 */
 int t3_win_get_relation(t3_window_t *win, t3_window_t **anchor) {
-  if (anchor != NULL) *anchor = win->anchor;
+  if (anchor != NULL) {
+    *anchor = win->anchor;
+  }
   return win->relation;
 }
 
@@ -447,7 +482,9 @@ t3_window_t *t3_win_get_parent(t3_window_t *win) { return win->parent; }
 int t3_win_get_abs_x(t3_window_t *win) {
   int result;
 
-  if (win == NULL) return 0;
+  if (win == NULL) {
+    return 0;
+  }
 
   switch (T3_GETPARENT(win->relation)) {
     case T3_ANCHOR_TOPLEFT:
@@ -491,8 +528,12 @@ int t3_win_get_abs_x(t3_window_t *win) {
     left = t3_win_get_abs_x(win->restrictw);
     right = left + win->restrictw->width;
 
-    if (result + win->width > right) result = right - win->width;
-    if (result < left) result = 0;
+    if (result + win->width > right) {
+      result = right - win->width;
+    }
+    if (result < left) {
+      result = 0;
+    }
   }
   return result;
 }
@@ -501,7 +542,9 @@ int t3_win_get_abs_x(t3_window_t *win) {
 int t3_win_get_abs_y(t3_window_t *win) {
   int result;
 
-  if (win == NULL) return 0;
+  if (win == NULL) {
+    return 0;
+  }
 
   switch (T3_GETPARENT(win->relation)) {
     case T3_ANCHOR_TOPLEFT:
@@ -544,8 +587,12 @@ int t3_win_get_abs_y(t3_window_t *win) {
     top = t3_win_get_abs_y(win->restrictw);
     bottom = top + win->restrictw->height;
 
-    if (result + win->height > bottom) result = bottom - win->height;
-    if (result < top) result = 0;
+    if (result + win->height > bottom) {
+      result = bottom - win->height;
+    }
+    if (result < top) {
+      result = 0;
+    }
   }
   return result;
 }
@@ -558,8 +605,9 @@ int t3_win_get_abs_y(t3_window_t *win) {
     The cursor is only moved if the window is currently shown.
 */
 void t3_win_set_cursor(t3_window_t *win, int y, int x) {
-  if (_t3_win_is_shown(win))
+  if (_t3_win_is_shown(win)) {
     t3_term_set_cursor(t3_win_get_abs_y(win) + y, t3_win_get_abs_x(win) + x);
+  }
 }
 
 /** Change the position where characters are written to the t3_window_t. */
