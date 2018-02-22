@@ -16,7 +16,7 @@ SOURCES.libt3window.la := window.c terminal.c curses_interface.c convert_output.
 LDFLAGS.libt3window.la := -shared
 CFLAGS.misc := -DUSE_GETTEXT
 LDLIBS.libt3window.la += -lncurses -lunistring
-LDLIBS.libt3window.la += -L$(CURDIR)/../include/transcript/.libs -ltranscript
+LDLIBS.libt3window.la += $(T3LDFLAGS.transcript) -ltranscript
 
 SOURCES.test := test.c
 LDFLAGS.test := -L.libs
@@ -31,6 +31,7 @@ include ../../makesys/rules.mk
 #================================================#
 T3NAME := window
 include ../../t3shared/rules.mk
+include ../../t3shared/rules-base.mk
 
 CFLAGS += -D_T3_WINDOW_INTERNAL
 #~ CFLAGS += -D_T3_WINDOW_DEBUG
