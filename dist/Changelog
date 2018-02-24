@@ -1,3 +1,8 @@
+Version 0.3.1:
+	New features:
+	- A new function is provided which determines the width of a string with
+	  explicit length.
+
 Version 0.3.0:
 	New features:
 	- Prefer to use Unicode line-drawing characters if they are available. Some

@@ -247,6 +247,7 @@ T3_WINDOW_API int t3_term_unget_keychar(int c);
 T3_WINDOW_API void t3_term_putp(const char *str);
 T3_WINDOW_API t3_bool t3_term_acs_available(int idx);
 
+T3_WINDOW_API int t3_term_strnwidth(const char *str, size_t n);
 T3_WINDOW_API int t3_term_strwidth(const char *str);
 
 T3_WINDOW_API t3_attr_t t3_term_combine_attrs(t3_attr_t a, t3_attr_t b);

@@ -905,13 +905,14 @@ void t3_term_putp(const char *str) {
 
 /** Calculate the cell width of a string.
     @param str The string to calculate the width of.
+    @param n The length of @p str.
     @return The width of the string in character cells.
 
     Using @c strlen on a string will not give one the correct width of a UTF-8 string
     on the terminal screen. This function is provided to calculate that value.
 */
-int t3_term_strwidth(const char *str) {
-  size_t bytes_read, n = strlen(str);
+int t3_term_strnwidth(const char *str, size_t n) {
+  size_t bytes_read;
   int width, width_state = 0, retval = 0;
   uint32_t c;
 
@@ -927,6 +928,15 @@ int t3_term_strwidth(const char *str) {
   }
   return retval;
 }
+
+/** Calculate the cell width of a string.
+    @param str The string to calculate the width of.
+    @return The width of the string in character cells.
+
+    Using @c strlen on a string will not give one the correct width of a UTF-8 string
+    on the terminal screen. This function is provided to calculate that value.
+*/
+int t3_term_strwidth(const char *str) { return t3_term_strnwidth(str, strlen(str)); }
 
 /** Check if a character is available in the alternate character set (internal use mostly).
     @param idx The character to check.
