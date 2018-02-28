@@ -112,6 +112,16 @@ class T3_WINDOW_API window_t {
  public:
   window_t(t3_window_t *window) : window_(window) {}
 
+  /// Constructor which calls alloc or alloc_unbacked to immediately allocate a window.
+  window_t(const window_t *parent, int height, int width, int y, int x, int depth,
+           bool backed = true) {
+    if (backed) {
+      alloc(parent, height, width, y, x, depth);
+    } else {
+      alloc_unbacked(parent, height, width, y, x, depth);
+    }
+  }
+
   ~window_t() { t3_win_del(window_); }
 
 #if __cplusplus >= 201103L
@@ -132,25 +142,14 @@ class T3_WINDOW_API window_t {
 #else
   window_t() : window_(NULL) {}
 
-  // Operator definitions to allow comparison to NULL. For C++11, there are operators for nullptr_t.
-  bool operator==(void *p) const { return window_ == p; }
-  bool operator!=(void *p) const { return window_ != p; }
   operator bool() const { return !!window_; }
 #endif
   bool operator!() const { return !window_; }
 
-  /// Constructor which calls alloc or alloc_unbacked to immediately allocate a window.
-  window_t(const window_t *parent, int height, int width, int y, int x, int depth,
-           bool backed = true) {
-    if (backed) {
-      alloc(parent, height, width, y, x, depth);
-    } else {
-      alloc_unbacked(parent, height, width, y, x, depth);
-    }
-  }
-
   bool operator==(t3_window_t *other) const { return window_ == other; }
   bool operator!=(t3_window_t *other) const { return window_ != other; }
+  bool operator==(void *p) const { return window_ == p; }
+  bool operator!=(void *p) const { return window_ != p; }
 
   t3_window_t *get() { return window_; }
   t3_window_t *release() {
@@ -161,6 +160,13 @@ class T3_WINDOW_API window_t {
     window_ = NULL;
 #endif
     return result;
+  }
+
+  void reset(t3_window_t *window) {
+    if (window_) {
+      t3_win_del(window_);
+    }
+    window_ = window;
   }
 
   /// Call t3_win_new. As new is a reserved keyword, this has been renamed to alloc.
