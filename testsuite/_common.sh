@@ -29,7 +29,7 @@ build_test() {
 		cat $TEST/test.c
 	} > test.c
 
-	gcc -g -Wall -I../../src -I../../include test.c -L../../src/.libs/ -lt3window -o test -Wl,-rpath=$PWD/../../src/.libs:$PWD/../../../transcript/src/.libs || fail "!! Could not compile test"
+	gcc -g -Wall -I../../src -I../../../t3shared/include test.c -L../../src/.libs/ -lt3window -o test -Wl,-rpath=$PWD/../../src/.libs:$PWD/../../../transcript/src/.libs || fail "!! Could not compile test"
 }
 
 fixup_test() {
