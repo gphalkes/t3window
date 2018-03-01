@@ -242,7 +242,6 @@ T3_WINDOW_API void t3_term_update(void);
 T3_WINDOW_API void t3_term_redraw(void);
 T3_WINDOW_API void t3_term_set_attrs(t3_attr_t new_attrs);
 T3_WINDOW_API void t3_term_set_user_callback(t3_attr_user_callback_t callback);
-T3_WINDOW_API int t3_term_get_keychar(int msec);
 T3_WINDOW_API int t3_term_unget_keychar(int c);
 T3_WINDOW_API void t3_term_putp(const char *str);
 T3_WINDOW_API t3_bool t3_term_acs_available(int idx);

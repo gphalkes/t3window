@@ -71,15 +71,15 @@ T3_WINDOW_API t3_bool t3_win_set_restrict(t3_window_t *win, t3_window_t *restric
 
 T3_WINDOW_API t3_bool t3_win_resize(t3_window_t *win, int height, int width);
 T3_WINDOW_API void t3_win_move(t3_window_t *win, int y, int x);
-T3_WINDOW_API int t3_win_get_width(t3_window_t *win);
-T3_WINDOW_API int t3_win_get_height(t3_window_t *win);
-T3_WINDOW_API int t3_win_get_x(t3_window_t *win);
-T3_WINDOW_API int t3_win_get_y(t3_window_t *win);
-T3_WINDOW_API int t3_win_get_abs_x(t3_window_t *win);
-T3_WINDOW_API int t3_win_get_abs_y(t3_window_t *win);
-T3_WINDOW_API int t3_win_get_depth(t3_window_t *win);
-T3_WINDOW_API int t3_win_get_relation(t3_window_t *win, t3_window_t **anchor);
-T3_WINDOW_API t3_window_t *t3_win_get_parent(t3_window_t *win);
+T3_WINDOW_API int t3_win_get_width(const t3_window_t *win);
+T3_WINDOW_API int t3_win_get_height(const t3_window_t *win);
+T3_WINDOW_API int t3_win_get_x(const t3_window_t *win);
+T3_WINDOW_API int t3_win_get_y(const t3_window_t *win);
+T3_WINDOW_API int t3_win_get_abs_x(const t3_window_t *win);
+T3_WINDOW_API int t3_win_get_abs_y(const t3_window_t *win);
+T3_WINDOW_API int t3_win_get_depth(const t3_window_t *win);
+T3_WINDOW_API int t3_win_get_relation(const t3_window_t *win, t3_window_t **anchor);
+T3_WINDOW_API t3_window_t *t3_win_get_parent(const t3_window_t *win);
 T3_WINDOW_API void t3_win_set_cursor(t3_window_t *win, int y, int x);
 T3_WINDOW_API void t3_win_set_paint(t3_window_t *win, int y, int x);
 T3_WINDOW_API void t3_win_show(t3_window_t *win);
@@ -152,6 +152,7 @@ class T3_WINDOW_API window_t {
   bool operator!=(void *p) const { return window_ != p; }
 
   t3_window_t *get() { return window_; }
+  const t3_window_t *get() const { return window_; }
   t3_window_t *release() {
     t3_window_t *result = window_;
 #if __cplusplus >= 201103L

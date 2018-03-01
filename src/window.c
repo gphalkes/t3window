@@ -436,17 +436,17 @@ void t3_win_move(t3_window_t *win, int y, int x) {
 }
 
 /** Get a t3_window_t's width. */
-int t3_win_get_width(t3_window_t *win) { return win->width; }
+int t3_win_get_width(const t3_window_t *win) { return win->width; }
 
 /** Get a t3_window_t's height. */
-int t3_win_get_height(t3_window_t *win) { return win->height; }
+int t3_win_get_height(const t3_window_t *win) { return win->height; }
 
 /** Get a t3_window_t's horizontal position.
 
     The retrieved position may be relative to another window. Use ::t3_win_get_abs_x
     to find the absolute position.
 */
-int t3_win_get_x(t3_window_t *win) { return win->x; }
+int t3_win_get_x(const t3_window_t *win) { return win->x; }
 
 /** Get a t3_window_t's vertical position.
 
@@ -454,10 +454,10 @@ int t3_win_get_x(t3_window_t *win) { return win->x; }
     to find the absolute position.
 */
 
-int t3_win_get_y(t3_window_t *win) { return win->y; }
+int t3_win_get_y(const t3_window_t *win) { return win->y; }
 
 /** Get a t3_window_t's depth. */
-int t3_win_get_depth(t3_window_t *win) { return win->depth; }
+int t3_win_get_depth(const t3_window_t *win) { return win->depth; }
 
 /** Get a t3_window_t's relative positioning information.
     @param win The t3_window_t to get the relative positioning information for.
@@ -468,7 +468,7 @@ int t3_win_get_depth(t3_window_t *win) { return win->depth; }
     To retrieve the separate parts of the relative positioning information, use
     ::T3_GETPARENT and ::T3_GETCHILD.
 */
-int t3_win_get_relation(t3_window_t *win, t3_window_t **anchor) {
+int t3_win_get_relation(const t3_window_t *win, t3_window_t **anchor) {
   if (anchor != NULL) {
     *anchor = win->anchor;
   }
@@ -476,10 +476,10 @@ int t3_win_get_relation(t3_window_t *win, t3_window_t **anchor) {
 }
 
 /** Get a t3_window_t's parent window. */
-t3_window_t *t3_win_get_parent(t3_window_t *win) { return win->parent; }
+t3_window_t *t3_win_get_parent(const t3_window_t *win) { return win->parent; }
 
 /** Get a t3_window_t's absolute horizontal position. */
-int t3_win_get_abs_x(t3_window_t *win) {
+int t3_win_get_abs_x(const t3_window_t *win) {
   int result;
 
   if (win == NULL) {
@@ -539,7 +539,7 @@ int t3_win_get_abs_x(t3_window_t *win) {
 }
 
 /** Get a t3_window_t's absolute vertical position. */
-int t3_win_get_abs_y(t3_window_t *win) {
+int t3_win_get_abs_y(const t3_window_t *win) {
   int result;
 
   if (win == NULL) {
