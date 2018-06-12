@@ -107,7 +107,7 @@ T3_WINDOW_API t3_window_t *t3_win_at_location(int search_y, int search_x);
 #include <new>
 #include <utility>
 
-namespace t3_window {
+namespace t3window {
 /** Wrapper class for t3_window_t, to allow C++ style access. */
 class T3_WINDOW_API window_t {
  public:
@@ -258,7 +258,7 @@ inline bool operator==(void *p, const window_t &b) { return b == p; }
 inline bool operator!=(void *p, const window_t &b) { return b != p; }
 #endif
 
-}  // namespace t3_window
+}  // namespace t3window
 #endif
 
 #endif
