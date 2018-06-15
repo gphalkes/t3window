@@ -97,7 +97,7 @@ def main():
 				sys.exit(1)
 
 	# Default is width 1 (value 2 << 6) and version 0x3f. I.e. 0xbf or 191
-	statrie = os.popen("statrie -p -r0x110000 -H'#include \"window_api.h\"' -e'T3_WINDOW_LOCAL extern' " +
+	statrie = os.popen("statrie -p -r0x110000 -H'#include \"t3window/window_api.h\"' -e'T3_WINDOW_LOCAL extern' " +
 		"-d generated -D191 -f chardata -n get_chardata t3_window_chardata", "w")
 
 	for i in xrange(0, 0x110000):
