@@ -33,11 +33,9 @@ static t3_bool is_conjoining_jamo_lv(uint32_t c) {
 
 /** Get the first codepoint represented by a UTF-8 string.
     @param src The UTF-8 string to parse.
-        @param size The location to store the number of bytes in the first
-            codepoint, which should contain the number of bytes in src on entry
-                (may be @c NULL).
-    @return The codepoint at the start of @p src or @c FFFD if an invalid
-        codepoint is encountered.
+    @param size The location to store the number of bytes in the first
+        codepoint, which should contain the number of bytes in src on entry (may be @c NULL).
+    @return The codepoint at the start of @p src or @c FFFD if an invalid codepoint is encountered.
 */
 uint32_t t3_utf8_get(const char *src, size_t *size) {
   size_t max_size, _size;

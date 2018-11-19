@@ -84,6 +84,7 @@ T3_WINDOW_API void t3_win_set_cursor(t3_window_t *win, int y, int x);
 T3_WINDOW_API void t3_win_set_paint(t3_window_t *win, int y, int x);
 T3_WINDOW_API void t3_win_show(t3_window_t *win);
 T3_WINDOW_API void t3_win_hide(t3_window_t *win);
+T3_WINDOW_API t3_bool t3_win_is_shown(t3_window_t *win);
 
 T3_WINDOW_API int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attr);
 T3_WINDOW_API int t3_win_addstr(t3_window_t *win, const char *str, t3_attr_t attr);
@@ -108,7 +109,12 @@ T3_WINDOW_API t3_window_t *t3_win_at_location(int search_y, int search_x);
 #include <utility>
 
 namespace t3window {
-/** Wrapper class for t3_window_t, to allow C++ style access. */
+/** Wrapper class for t3_window_t, to allow C++ style access.
+
+    The wrapper class behaves like a std::unique_ptr, in that it will automatically delete the
+    allocated memory when its destructor is called. For C++11 and beyond, a move constructor and
+    move assignment operator are provided.
+*/
 class T3_WINDOW_API window_t {
  public:
   window_t(t3_window_t *window) : window_(window) {}
@@ -218,6 +224,7 @@ class T3_WINDOW_API window_t {
   void set_paint(int y, int x) { t3_win_set_paint(window_, y, x); }
   void show() { t3_win_show(window_); }
   void hide() { t3_win_hide(window_); }
+  bool is_shown() { return t3_win_is_shown(window_); }
   int addnstr(const char *str, size_t size, t3_attr_t attr) {
     return t3_win_addnstr(window_, str, size, attr);
   }

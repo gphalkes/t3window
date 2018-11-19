@@ -2,6 +2,8 @@ Version 0.3.1:
 	New features:
 	- A new function is provided which determines the width of a string with
 	  explicit length.
+	- Replacement functions for determining the length are provided that return a
+	  size_t instead of an int.
 	- Includes a C++ class which wraps a t3_window_t pointer and forwards all the
 	  functions. Otherwise behaves like std::unique_ptr, to make memory
 	  management simpler.

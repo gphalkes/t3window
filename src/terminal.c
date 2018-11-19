@@ -112,9 +112,8 @@ int _t3_colors,  /**< @internal Terminal info: number of colors supported. */
 
 t3_window_t *_t3_terminal_window; /**< @internal t3_window_t struct representing the last drawn
                                      terminal state. */
-line_data_t
-    _t3_old_data; /**< @internal line_data_t struct used in terminal update to save previous line
-                     state. */
+line_data_t _t3_old_data; /**< @internal line_data_t struct used in terminal update to save previous
+                             line state. */
 
 int _t3_lines,           /**< @internal Size of terminal (lines). */
     _t3_columns;         /**< @internal Size of terminal (columns). */
@@ -904,6 +903,11 @@ void t3_term_putp(const char *str) {
 }
 
 /** Calculate the cell width of a string.
+    @deprecated Use #t3_term_strncwidth instead.
+*/
+int t3_term_strnwidth(const char *str, size_t n) { return t3_term_strncwidth(str, n); }
+
+/** Calculate the cell width of a string.
     @param str The string to calculate the width of.
     @param n The length of @p str.
     @return The width of the string in character cells.
@@ -911,7 +915,7 @@ void t3_term_putp(const char *str) {
     Using @c strlen on a string will not give one the correct width of a UTF-8 string
     on the terminal screen. This function is provided to calculate that value.
 */
-int t3_term_strnwidth(const char *str, size_t n) {
+size_t t3_term_strncwidth(const char *str, size_t n) {
   size_t bytes_read;
   int width, width_state = 0, retval = 0;
   uint32_t c;
@@ -930,13 +934,18 @@ int t3_term_strnwidth(const char *str, size_t n) {
 }
 
 /** Calculate the cell width of a string.
+    @deprecated Use #t3_term_strcwidth instead.
+*/
+int t3_term_strwidth(const char *str) { return t3_term_strncwidth(str, strlen(str)); }
+
+/** Calculate the cell width of a string.
     @param str The string to calculate the width of.
     @return The width of the string in character cells.
 
     Using @c strlen on a string will not give one the correct width of a UTF-8 string
     on the terminal screen. This function is provided to calculate that value.
 */
-int t3_term_strwidth(const char *str) { return t3_term_strnwidth(str, strlen(str)); }
+size_t t3_term_strcwidth(const char *str) { return t3_term_strncwidth(str, strlen(str)); }
 
 /** Check if a character is available in the alternate character set (internal use mostly).
     @param idx The character to check.

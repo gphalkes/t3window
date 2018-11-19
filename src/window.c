@@ -622,4 +622,7 @@ void t3_win_show(t3_window_t *win) { win->shown = t3_true; }
 /** Make a t3_window_t invisible. */
 void t3_win_hide(t3_window_t *win) { win->shown = t3_false; }
 
+/** Returns whether the t3_window_t is visible. */
+t3_bool t3_win_is_shown(t3_window_t *win) { return win->shown; }
+
 /** @} */

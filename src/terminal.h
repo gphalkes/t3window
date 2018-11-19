@@ -70,10 +70,9 @@ typedef int t3_attr_t;
     See ::t3_term_get_caps for details on how to use this struct.
 */
 typedef struct {
-  t3_attr_t
-      highlights; /**< The supported attributes other then color attributes. This is a bitmask of
-                     T3_ATTR_* flags. */
-  int colors;     /**< The maximum number of supported colors, or 0 if color is not supported. */
+  t3_attr_t highlights; /**< The supported attributes other then color attributes. This is a bitmask
+                           of T3_ATTR_* flags. */
+  int colors;    /**< The maximum number of supported colors, or 0 if color is not supported. */
   int pairs;     /**< The maximum number of color pairs that are supported by this terminal, or 0 if
                     color is not supported. */
   int cap_flags; /**< A bitmask of T3_TERM_CAP_* flags indicating capabilities of the terminal. */
@@ -246,8 +245,12 @@ T3_WINDOW_API int t3_term_unget_keychar(int c);
 T3_WINDOW_API void t3_term_putp(const char *str);
 T3_WINDOW_API t3_bool t3_term_acs_available(int idx);
 
+/* These two functions are deprecated, as they return an int instead of a size_t. */
 T3_WINDOW_API int t3_term_strnwidth(const char *str, size_t n);
 T3_WINDOW_API int t3_term_strwidth(const char *str);
+
+T3_WINDOW_API size_t t3_term_strncwidth(const char *str, size_t n);
+T3_WINDOW_API size_t t3_term_strcwidth(const char *str);
 
 T3_WINDOW_API t3_attr_t t3_term_combine_attrs(t3_attr_t a, t3_attr_t b);
 T3_WINDOW_API t3_attr_t t3_term_get_ncv(void);
