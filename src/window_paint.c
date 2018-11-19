@@ -791,7 +791,7 @@ static t3_bool _win_write_blocks(t3_window_t *win, const char *blocks, size_t n)
     @param win The t3_window_t to add the string to.
     @param str The string to add.
     @param n The size of @p str.
-    @param attr The attributes to use.
+    @param attrs The attributes to use.
     @retval ::T3_ERR_SUCCESS on succes
     @retval ::T3_ERR_NONPRINT if a control character was encountered.
     @retval ::T3_ERR_ERRNO otherwise.

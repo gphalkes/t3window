@@ -282,7 +282,7 @@ t3_bool _t3_win_is_shown(t3_window_t *win) {
 
 /** Set default attributes for a window.
     @param win The t3_window_t to set the default attributes for.
-    @param attr The attributes to set.
+    @param attrs The attributes to set.
 
     This function can be used to set a default background for the entire window, as
     well as any other attributes.
