@@ -85,7 +85,7 @@ enum {
   _T3_TERM_UTF8,
   _T3_TERM_GB18030,
   _T3_TERM_SINGLE_BYTE, /* Generic single byte encoding. Pray that LC_CTYPE has been set correctly.
-                           */
+                         */
   _T3_TERM_CJK,         /* One of the CJK encodings has been detected. More detection required. */
   _T3_TERM_CJK_SHIFT_JIS,
   _T3_TERM_GBK

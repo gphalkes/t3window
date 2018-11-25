@@ -115,6 +115,11 @@ namespace t3window {
     allocated memory when its destructor is called. For C++11 and beyond, a move constructor and
     move assignment operator are provided.
 */
+#if __cplusplus >= 201103L
+#define _T3_WINDOW_NULLPTR nullptr
+#else
+#define _T3_WINDOW_NULLPTR NULL
+#endif
 class T3_WINDOW_API window_t {
  public:
   window_t(t3_window_t *window) : window_(window) {}
@@ -162,11 +167,7 @@ class T3_WINDOW_API window_t {
   const t3_window_t *get() const { return window_; }
   t3_window_t *release() {
     t3_window_t *result = window_;
-#if __cplusplus >= 201103L
-    window_ = nullptr;
-#else
-    window_ = NULL;
-#endif
+    window_ = _T3_WINDOW_NULLPTR;
     return result;
   }
 
@@ -180,8 +181,9 @@ class T3_WINDOW_API window_t {
   /// Call t3_win_new. As new is a reserved keyword, this has been renamed to alloc.
   void alloc(const window_t *parent, int height, int width, int y, int x, int depth) {
     t3_win_del(window_);
-    window_ = t3_win_new(parent == nullptr ? nullptr : parent->window_, height, width, y, x, depth);
-    if (window_ == nullptr) {
+    window_ = t3_win_new(parent == _T3_WINDOW_NULLPTR ? _T3_WINDOW_NULLPTR : parent->window_, height,
+                         width, y, x, depth);
+    if (window_ == _T3_WINDOW_NULLPTR) {
       throw std::bad_alloc();
     }
   }
@@ -190,24 +192,27 @@ class T3_WINDOW_API window_t {
       alloc_unbacked. */
   void alloc_unbacked(const window_t *parent, int height, int width, int y, int x, int depth) {
     t3_win_del(window_);
-    window_ = t3_win_new_unbacked(parent == nullptr ? nullptr : parent->window_, height, width, y,
-                                  x, depth);
-    if (window_ == nullptr) {
+    window_ = t3_win_new_unbacked(parent == _T3_WINDOW_NULLPTR ? _T3_WINDOW_NULLPTR : parent->window_,
+                                  height, width, y, x, depth);
+    if (window_ == _T3_WINDOW_NULLPTR) {
       throw std::bad_alloc();
     }
   }
 
   bool set_parent(const window_t *parent) const {
-    return t3_win_set_parent(window_, parent == nullptr ? nullptr : parent->window_) != t3_false;
+    return t3_win_set_parent(window_, parent == _T3_WINDOW_NULLPTR ? _T3_WINDOW_NULLPTR
+                                                                  : parent->window_) != t3_false;
   }
   bool set_anchor(const window_t *anchor, int relation) {
-    return t3_win_set_anchor(window_, anchor == nullptr ? nullptr : anchor->window_, relation) !=
-           t3_false;
+    return t3_win_set_anchor(window_,
+                             anchor == _T3_WINDOW_NULLPTR ? _T3_WINDOW_NULLPTR : anchor->window_,
+                             relation) != t3_false;
   }
   void set_depth(int depth) { t3_win_set_depth(window_, depth); }
   void set_default_attrs(t3_attr_t attr) { t3_win_set_default_attrs(window_, attr); }
   bool set_restrict(const window_t *other) {
-    return t3_win_set_restrict(window_, other == nullptr ? nullptr : other->window_) != t3_false;
+    return t3_win_set_restrict(window_, other == _T3_WINDOW_NULLPTR ? _T3_WINDOW_NULLPTR
+                                                                   : other->window_) != t3_false;
   }
   bool resize(int height, int width) { return t3_win_resize(window_, height, width) != t3_false; }
   void move(int y, int x) { t3_win_move(window_, y, x); }
@@ -264,7 +269,7 @@ inline bool operator!=(std::nullptr_t, const window_t &b) { return b != nullptr;
 inline bool operator==(void *p, const window_t &b) { return b == p; }
 inline bool operator!=(void *p, const window_t &b) { return b != p; }
 #endif
-
+#undef _T3_WINDOW_NULLPTR
 }  // namespace t3window
 #endif
 

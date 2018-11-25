@@ -1,3 +1,7 @@
+Version 0.3.2:
+	Bug fixes:
+	- Allow compilation in C++ with pre C++11 compilers.
+
 Version 0.3.1:
 	New features:
 	- A new function is provided which determines the width of a string with
