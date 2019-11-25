@@ -402,7 +402,7 @@ uint32_t _t3_get_value_int(const char *src, size_t *size) {
   *size = bytes_left + 1;
   src++;
   for (; bytes_left > 0; bytes_left--) {
-    retval = (retval << 6) | (src++ [0] & 0x3f);
+    retval = (retval << 6) | (src++[0] & 0x3f);
   }
   return retval;
 }
@@ -816,6 +816,10 @@ int t3_win_addnstr(t3_window_t *win, const char *str, size_t n, t3_attr_t attrs)
   attrs = _t3_term_sanitize_attrs(attrs);
 
   attrs = t3_term_combine_attrs(attrs, win->default_attrs);
+  /* From this point on, there is no need to keep information about explicit setting of attributes,
+     as there will be no more combining. Thus we scrub that information to keep the number of
+     mapped attributes to a minimum. */
+  attrs &= ~T3_ATTR_SET_MASK;
   attrs_idx = _t3_map_attr(attrs);
   if (attrs_idx < 0) {
     return T3_ERR_OUT_OF_MEMORY;

@@ -1,3 +1,9 @@
+Version 0.4.0:
+	New features:
+	- Add bits to the attribute bits to signify that an attribute has been
+	  explicitly set. This allows overriding with an unset value in
+	  t3_term_combine_attrs, which was not possible before.
+
 Version 0.3.2:
 	Bug fixes:
 	- Allow compilation in C++ with pre C++11 compilers.

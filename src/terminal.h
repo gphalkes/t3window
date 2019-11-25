@@ -24,6 +24,7 @@ extern "C" {
 #endif
 
 #include <limits.h>
+#include <stddef.h>
 #include <t3window/window_api.h>
 
 /** @addtogroup t3window_other */
@@ -118,8 +119,8 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 /** Draw characters with fallback alternate character set (for line drawing etc).
 
     This attribute will result if the terminal can not combine color video with
-        drawing characters with the alternate character set. This attribute should
-        not be used directly. */
+    drawing characters with the alternate character set. This attribute should
+    not be used directly. */
 #define T3_ATTR_FALLBACK_ACS ((t3_attr_t)(1L << 7))
 
 /** Bit number of the least significant color attribute bit. */
@@ -174,6 +175,19 @@ typedef void (*t3_attr_user_callback_t)(const char *str, int length, int width, 
 #define T3_ATTR_BG_CYAN T3_ATTR_BG(6)
 /** Background color white. */
 #define T3_ATTR_BG_WHITE T3_ATTR_BG(7)
+
+/** Draw characters with underlining. */
+#define T3_ATTR_UNDERLINE_SET ((t3_attr_t)(1L << (T3_ATTR_COLOR_SHIFT + 18)))
+/** Draw characters with bold face/bright appearance. */
+#define T3_ATTR_BOLD_SET ((t3_attr_t)(1L << (T3_ATTR_COLOR_SHIFT + 19)))
+/** Draw characters with reverse video. */
+#define T3_ATTR_REVERSE_SET ((t3_attr_t)(1L << (T3_ATTR_COLOR_SHIFT + 20)))
+/** Draw characters blinking. */
+#define T3_ATTR_BLINK_SET ((t3_attr_t)(1L << (T3_ATTR_COLOR_SHIFT + 21)))
+/** Draw characters with dim appearance. */
+#define T3_ATTR_DIM_SET ((t3_attr_t)(1L << (T3_ATTR_COLOR_SHIFT + 22)))
+
+#define T3_ATTR_SET_MASK (0x1F << (T3_ATTR_COLOR_SHIFT + 18))
 /*@}*/
 
 /** Alternate character set symbolic constants. */

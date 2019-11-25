@@ -967,11 +967,20 @@ t3_bool t3_term_acs_available(int idx) {
     @param b The second set of attributes to combine (no priority).
     @return The combined attributes.
 
-    This function combines @p a and @p b, with the color attributes from @p a overriding
-        the color attributes from @p b if both specify colors.
+    This function combines @p a and @p b, with the color attributes from @p a overriding the color
+    attributes from @p b if both specify colors. Note that if @p b has an attribute that was
+    explicitly set (indicated by the corresponding @c _SET value), and @p a does not have the
+    corresponding @c _SET bit, the value of @p b will be taken. The background is that this allows
+    distinction between "the default should be used" (without the @c _SET bit) and "this bit is
+    explicitly cleared" (with the @c _SET bit).
 */
 t3_attr_t t3_term_combine_attrs(t3_attr_t a, t3_attr_t b) {
-  t3_attr_t result = b | (a & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK));
+  /* Select those attributes of b that have not been explicitly set, and the colors. */
+  t3_attr_t result = b & ~((a & T3_ATTR_SET_MASK) >> (T3_ATTR_COLOR_SHIFT + 17));
+  /* "Or in" the attributes of a, without the colors (handled below) and those attributes which are
+     explicitly set in b, but not in a. */
+  result |= (a & ~(T3_ATTR_FG_MASK | T3_ATTR_BG_MASK)) &
+            ~(((b & ~a) & T3_ATTR_SET_MASK) >> (T3_ATTR_COLOR_SHIFT + 17));
   if ((a & T3_ATTR_FG_MASK) != 0) {
     result = ((result & ~(T3_ATTR_FG_MASK)) | (a & T3_ATTR_FG_MASK)) & ~_t3_ncv;
   }
