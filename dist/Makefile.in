@@ -91,8 +91,8 @@ install: all
 	$(INSTALL) -d $(_libdir)
 	$(LIBTOOL) --mode=install $(INSTALL) -s -m0644 src/libt3window.la $(_libdir)
 	chmod 0644 $(_libdir)/libt3window.la
-	$(INSTALL) -d $(_includedir)/t3/window/t3window
-	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_errors.h src/terminal.h src/utf8.h $(_includedir)/t3/window/t3window
+	$(INSTALL) -d $(_includedir)/t3window
+	$(INSTALL) -m0644 src/window.h src/window_api.h src/window_errors.h src/terminal.h src/utf8.h $(_includedir)/t3window
 	$(INSTALL) -d $(_docdir)
 	$(INSTALL) -m0644 COPYING README Changelog $(_docdir)
 	$(INSTALL) -d $(_pkgconfigdir)
@@ -100,7 +100,7 @@ install: all
 
 uninstall:
 	$(LIBTOOL) --mode=uninstall rm $(_libdir)/libt3window.la
-	rm -rf $(_includedir)/t3/window
+	rm -rf $(_includedir)/t3window
 	rm -rf $(_docdir)
 	rm -f $(_pkgconfigdir)/libt3window.pc
 

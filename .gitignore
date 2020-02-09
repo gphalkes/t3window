@@ -11,4 +11,6 @@
 /doc/DoxygenLayout.xml
 /testsuite/work
 /testsuite/testlog*.txt
-testsuite/compat_test
+/testsuite/compat_test
+
+/libt3window*.tar.bz2

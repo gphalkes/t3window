@@ -192,7 +192,7 @@ EOF
 	PKGCONFIG_DESC="Terminal windowing library"
 	PKGCONFIG_VERSION="<VERSION>"
 	PKGCONFIG_URL="http://os.ghalkes.nl/t3/libt3window.html"
-	PKGCONFIG_CFLAGS="-I\${includedir}/t3/window"
+	PKGCONFIG_CFLAGS="-I\${includedir}"
 	PKGCONFIG_LIBS="-lt3window"
 	PKGCONFIG_LIBS_PRIVATE="$PKGCONFIG_LIBS_PRIVATE -lunistring"
 
