@@ -1195,24 +1195,24 @@ void t3_win_clrtoeol(t3_window_t *win) {
       sumwidth += _T3_BLOCK_SIZE_TO_WIDTH(block_size);
       block_size = _t3_get_value(win->lines[win->paint_y].data + i, &block_size_bytes);
     }
+    win->lines[win->paint_y].length = i;
 
     if (sumwidth < win->paint_x) {
       int spaces = win->paint_x - sumwidth;
       char space_str[8];
       size_t space_str_bytes;
 
+      win->paint_x = sumwidth;
+
       space_str_bytes = create_space_block(_t3_map_attr(win->default_attrs), space_str);
-      if ((int)(spaces * space_str_bytes) < win->lines[win->paint_y].length - i ||
-          ensure_space(win->lines + win->paint_y,
+      if (ensure_space(win->lines + win->paint_y,
                        spaces * space_str_bytes - win->lines[win->paint_y].length + i)) {
-        win->paint_x = sumwidth;
         for (; spaces > 0; spaces--) {
           _win_write_blocks(win, space_str, space_str_bytes);
         }
       }
     }
 
-    win->lines[win->paint_y].length = i;
     win->lines[win->paint_y].width = win->paint_x - win->lines[win->paint_y].start;
   }
 }
