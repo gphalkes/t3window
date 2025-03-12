@@ -1,8 +1,12 @@
+Version 0.4.2:
+	Bug fixes:
+	- Fix build script on more recent systems (from github/jengelh)
+
 Version 0.4.1:
-  Bug fixes:
-  - Fix incorrect length computation of buffer in t3_win_clrtoeol when the
-    current paint position is in the middle of a double-width character. This
-    could cause segmentation faults.
+	Bug fixes:
+	- Fix incorrect length computation of buffer in t3_win_clrtoeol when the
+	  current paint position is in the middle of a double-width character. This
+	  could cause segmentation faults.
 
 Version 0.4.0:
 	New features:
